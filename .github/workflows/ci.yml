@@ -11,7 +11,7 @@ jobs:
     name: Linux (clang-18) build, test, lint
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install toolchain
         run: |
@@ -52,7 +52,7 @@ jobs:
       matrix:
         preset: [asan, tsan]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install toolchain
         run: |
           sudo apt-get update
@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: linux
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install toolchain
         run: |
           sudo apt-get update
@@ -74,7 +74,7 @@ jobs:
       - run: cmake --preset release
       - run: cmake --build --preset release
       - run: cpack --config build/release/CPackConfig.cmake -G "DEB;TGZ"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: gygax-packages
           path: |
@@ -89,36 +89,37 @@ jobs:
           docker stop gygax-ci
 
   macos:
-    name: macOS (Apple clang, best effort)
+    name: macOS (Homebrew clang, best effort)
     runs-on: macos-14
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - run: brew install ninja cmake eigen gmp
-      - run: cmake --preset macos-clang
+      - uses: actions/checkout@v5
+      - run: brew install llvm ninja cmake eigen gmp
+      - name: Configure with Homebrew clang (Apple clang 15 has no C++26)
+        run: |
+          LLVM="$(brew --prefix llvm)"
+          LIBCXX="-L$LLVM/lib/c++ -Wl,-rpath,$LLVM/lib/c++"
+          cmake --preset macos-clang -DCMAKE_CXX_COMPILER="$LLVM/bin/clang++" \
+            -DCMAKE_EXE_LINKER_FLAGS="$LIBCXX" -DCMAKE_SHARED_LINKER_FLAGS="$LIBCXX"
       - run: cmake --build --preset macos-clang
       - run: ctest --preset macos-clang
 
   windows:
-    name: Windows 11 pipeline (Docker Desktop, best effort)
+    # Hosted Windows runners cannot run Linux containers, so the Docker pipeline that
+    # build.ps1 drives is covered by the Linux "package" job. Here every PowerShell
+    # script must at least parse.
+    name: Windows PowerShell scripts parse
     runs-on: windows-latest
-    continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - name: Switch Docker Desktop to Linux containers
+      - uses: actions/checkout@v5
+      - name: Parse every .ps1
+        shell: pwsh
         run: |
-          & "$Env:ProgramFiles\Docker\Docker\DockerCli.exe" -SwitchDaemon
-          docker version
-      - name: Build every image (build.ps1 uses the dev one; docker-build.ps1 both)
-        run: .\scripts\docker-build.ps1
-      - name: Build and test through build.ps1 (what a Windows 11 developer runs)
-        run: .\build.ps1 test
-      - name: Container health check (same as the Linux "package" job)
-        run: |
-          docker run -d --name gygax-ci -e GYGAX_API_TOKEN=ci-token -p 1984:1984 gygax
-          for ($i = 0; $i -lt 30; $i++) {
-            try { if ((Invoke-WebRequest -UseBasicParsing http://localhost:1984/healthz).StatusCode -eq 200) { break } } catch {}
-            Start-Sleep -Seconds 1
+          $bad = 0
+          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) { $bad++; $errors | ForEach-Object { Write-Host "$($_.Extent.File):$($_.Extent.StartLineNumber): $($_.Message)" } }
+            else { Write-Host "ok  $($_.FullName)" }
           }
-          Invoke-WebRequest -UseBasicParsing -Headers @{ Authorization = "Bearer ci-token" } http://localhost:1984/v1/models
-          docker stop gygax-ci
+          if ($bad) { exit 1 }

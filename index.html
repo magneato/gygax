@@ -6,6 +6,21 @@
   <meta name="theme-color" content="#090d12">
   <meta name="description" content="The complete field guide to Gygax: an open-source C++26 runtime for autonomous agents, simulation, neuromorphic computing, robotics, and operational control.">
   <title>Gygax: God Doesn't Play Dice</title>
+  <link rel="icon" type="image/svg+xml" href="chrome-extension/icons/icon.svg">
+  <link rel="canonical" href="https://magneato.github.io/gygax/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Gygax">
+  <meta property="og:title" content="Gygax: God Doesn't Play Dice">
+  <meta property="og:description" content="An open-source C++26 runtime for autonomous systems on your own hardware: agents, simulation, robotics and neuromorphic computing, with authority made explicit.">
+  <meta property="og:url" content="https://magneato.github.io/gygax/">
+  <meta property="og:image" content="https://magneato.github.io/gygax/social-preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Gygax: God doesn't play dice. A runtime for autonomous systems on your own hardware.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Gygax: God Doesn't Play Dice">
+  <meta name="twitter:description" content="Open-source C++26 runtime for autonomous systems on your own hardware.">
+  <meta name="twitter:image" content="https://magneato.github.io/gygax/social-preview.png">
   <style>
     :root {
       color-scheme: dark;
@@ -153,7 +168,7 @@
       <div class="hero-actions">
         <a class="button primary" href="#start">Run Gygax <span aria-hidden="true">↓</span></a>
         <a class="button" href="#capabilities">Explore the system</a>
-        <a class="button" href="docs/WARGAMES.md">See the wargames demo ↗</a>
+        <a class="button" href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md">See the wargames demo ↗</a>
         <a class="button" href="examples/seek_and_find/seek_and_find.html">Try Seek &amp; Find ↗</a>
       </div>
       <p class="hero-note">DETERMINISTIC BY DESIGN WHERE IT MATTERS · HUMAN AUTHORITY AT THE EDGE</p>
@@ -204,7 +219,7 @@ cd gygax
 export PYTHONPATH=$PWD/python
 python3 examples/python/stdp_demo.py</code></pre></article>
       </div>
-      <p class="small" style="margin-top:18px">Windows 11 users should use the documented Docker Desktop / WSL2 workflow. See <a href="docs/WINDOWS.md">Windows setup</a>. Production installation options are in <a href="docs/OPERATIONS.md">Operations</a>.</p>
+      <p class="small" style="margin-top:18px">Windows 11 users should use the documented Docker Desktop / WSL2 workflow. See <a href="https://github.com/magneato/gygax/blob/main/docs/WINDOWS.md">Windows setup</a>. Production installation options are in <a href="https://github.com/magneato/gygax/blob/main/docs/OPERATIONS.md">Operations</a>.</p>
     </section>
 
     <section id="architecture" class="fade">
@@ -216,7 +231,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         </div>
       </div>
       <div class="terminal">
-        <div class="terminal-head"><span>ARCHITECTURE / SIMPLIFIED</span><a href="docs/ARCHITECTURE.md">Full architecture ↗</a></div>
+        <div class="terminal-head"><span>ARCHITECTURE / SIMPLIFIED</span><a href="https://github.com/magneato/gygax/blob/main/docs/ARCHITECTURE.md">Full architecture ↗</a></div>
         <pre><code>  chat API / Ollama API ─── service ─── inference pool ─── model backends
             │                 │
             │             orchestrator ─── agents ─── registered tools
@@ -229,7 +244,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
                            │
                     neuromorphic engine ── C ABI ── Python</code></pre>
       </div>
-      <p class="small" style="margin-top:17px">For module ownership, threading, the agent loop, extension points, and deliberate limits, read <a href="docs/ARCHITECTURE.md">Architecture</a>.</p>
+      <p class="small" style="margin-top:17px">For module ownership, threading, the agent loop, extension points, and deliberate limits, read <a href="https://github.com/magneato/gygax/blob/main/docs/ARCHITECTURE.md">Architecture</a>.</p>
     </section>
 
     <section id="capabilities" class="fade">
@@ -245,7 +260,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="capability"><div class="cap-icon">02</div><div><h3>Tool-using agent runtime</h3><p>Objective-driven agent loops with tool calls, episodic memory, step limits, cancellation, worker pools, and event publication. Tools can be registered in-process, supplied by plugins/extensions, or exposed over MCP.</p><div class="tag-list"><span class="tag">Orchestrator</span><span class="tag">ToolRegistry</span><span class="tag">ATARI protocol</span><span class="tag">MCP</span></div></div></article>
         <article class="capability"><div class="cap-icon">03</div><div><h3>Embodiment and runtime state</h3><p>Hardware-style node trees, capability aggregation, hierarchical state machines, sensors, actuators, a message hub, temporal buffering, and embodiment taxonomy provide a common model for connected systems.</p><div class="tag-list"><span class="tag">Node trees</span><span class="tag">State machines</span><span class="tag">Messaging</span><span class="tag">Events</span></div></div></article>
         <article class="capability"><div class="cap-icon">04</div><div><h3>Simulation and sim-to-real links</h3><p>A 2D differential-drive world with collisions and LiDAR, UDP/TCP robot links, trajectory export to USD, and vectorized environments for repeatable experiments.</p><div class="tag-list"><span class="tag">2D world</span><span class="tag">LiDAR</span><span class="tag">VecEnv</span><span class="tag">USD</span></div></div></article>
-        <article class="capability"><div class="cap-icon">05</div><div><h3>Quantum adapter interfaces</h3><p>Vendor-neutral contracts for navigation estimates and QKD-backed authenticated secure channels. These are integration interfaces only: no quantum sensor driver, QKD provider, or cryptographic implementation is included. The Seek &amp; Find replay's sensor and basis-sifting values are classical mock data.</p><div class="tag-list"><span class="tag">Navigation estimate</span><span class="tag">QKD adapter</span><span class="tag">Basis sifting</span><span class="tag">No vendor driver</span></div><p style="margin-top:10px"><a href="docs/QUANTUM_INTEGRATION.md">Read the integration boundary ↗</a></p></div></article>
+        <article class="capability"><div class="cap-icon">05</div><div><h3>Quantum adapter interfaces</h3><p>Vendor-neutral contracts for navigation estimates and QKD-backed authenticated secure channels. These are integration interfaces only: no quantum sensor driver, QKD provider, or cryptographic implementation is included. The Seek &amp; Find replay's sensor and basis-sifting values are classical mock data.</p><div class="tag-list"><span class="tag">Navigation estimate</span><span class="tag">QKD adapter</span><span class="tag">Basis sifting</span><span class="tag">No vendor driver</span></div><p style="margin-top:10px"><a href="https://github.com/magneato/gygax/blob/main/docs/QUANTUM_INTEGRATION.md">Read the integration boundary ↗</a></p></div></article>
         <article class="capability"><div class="cap-icon">06</div><div><h3>Neuromorphic computing</h3><p>LIF and Izhikevich populations, Poisson and spike-source populations, delayed sparse projections, seeded RNG, and pair-based STDP. Access the engine through C++, JSON/HTTP, the C ABI, and Python bindings.</p><div class="tag-list"><span class="tag">LIF</span><span class="tag">Izhikevich</span><span class="tag">STDP</span><span class="tag">C ABI</span><span class="tag">Python</span></div></div></article>
         <article class="capability"><div class="cap-icon">07</div><div><h3>Robotics and industrial protocols</h3><p>MAVLink v1/v2, virtual autopilot, SocketCAN and CAN FD, ISO-TP, OBD-II, J1939, DBC, CANopen, Modbus, NMEA 0183, ADS-B, ARINC 429 library support, and rosbridge.</p><div class="tag-list"><span class="tag">MAVLink</span><span class="tag">CAN</span><span class="tag">Modbus</span><span class="tag">ROS bridge</span><span class="tag">ADS-B</span></div></div></article>
         <article class="capability"><div class="cap-icon">08</div><div><h3>Logistics and supply chain</h3><p>GUID-tracked entities, append-only ledger events, flow summaries, and range-aware route planning with refuel stops. The API is also available for tools and service integration.</p><div class="tag-list"><span class="tag">GUID ledger</span><span class="tag">Routes</span><span class="tag">Refueling</span><span class="tag">Flow report</span></div></div></article>
@@ -265,10 +280,10 @@ python3 examples/python/stdp_demo.py</code></pre></article>
       <div class="showcase">
         <article class="showcase-item"><div class="eyebrow">SHOWCASE 01 / WARGAMES</div><h3>A human-directed agent team</h3><p>Agents command a bunker, turrets, tanks, and drones. The example composes the orchestrator, tools, collective consensus, a ledger, route planning, and a small LIF-driven hostile hive. The built-in doctrine makes seeded battles reproducible; humans can direct the running simulation.</p><pre>./build/wargames --map
 ./build/wargames --interactive
-./build/wargames --script examples/wargames/orders.txt</pre><p style="margin-top:15px"><a href="docs/WARGAMES.md">Read the wargames guide ↗</a></p></article>
+./build/wargames --script examples/wargames/orders.txt</pre><p style="margin-top:15px"><a href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md">Read the wargames guide ↗</a></p></article>
         <article class="showcase-item"><div class="eyebrow">SHOWCASE 02 / ARRIVAL</div><h3>Simulation meets a robot link</h3><p>Four rovers traverse a 2D environment with obstacles and LiDAR. One uses a spiking controller; a rover is then promoted over a UDP link to a hardware-style target. The example's far end is an emulator, not a field robot.</p><pre>./build/arrival
 ./build/arrival --seconds 30 --real-seconds 5 \
-  --usd build/arrival.usda</pre><p style="margin-top:15px">Source: <a href="examples/arrival/main.cpp">examples/arrival</a> · Simulation docs: <a href="docs/ROBOTICS.md">Robotics</a></p></article>
+  --usd build/arrival.usda</pre><p style="margin-top:15px">Source: <a href="https://github.com/magneato/gygax/blob/main/examples/arrival/main.cpp">examples/arrival</a> · Simulation docs: <a href="https://github.com/magneato/gygax/blob/main/docs/ROBOTICS.md">Robotics</a></p></article>
       </div>
       <div class="callout">
   <strong>Seek &amp; Find: communications and quantum-interface simulation.</strong>
@@ -278,10 +293,10 @@ python3 examples/python/stdp_demo.py</code></pre></article>
   quantum device, secret key, cryptographic protection, radio, GPS, robot, or
   external service is used; it does not train or command real machines.
   <a href="examples/seek_and_find/seek_and_find.html">Open the interactive demo</a>
-  · <a href="examples/seek_and_find/seek_and_find.usda">Open the USD scene</a>
-  · <a href="examples/seek_and_find/README.md">Read its scope and safety notes</a>.
+  · <a href="https://github.com/magneato/gygax/blob/main/examples/seek_and_find/seek_and_find.usda">Open the USD scene</a>
+  · <a href="https://github.com/magneato/gygax/blob/main/examples/seek_and_find/README.md">Read its scope and safety notes</a>.
       </div>
-      <div class="callout"><strong>Try a local simulated aircraft:</strong> run <code>./build/gygax sim-autopilot</code>, then follow <a href="docs/ROBOTICS.md">the robotics guide</a> to connect a service and issue commands to the virtual autopilot. The example is local simulation; real device control has separate safeguards and risks.</div>
+      <div class="callout"><strong>Try a local simulated aircraft:</strong> run <code>./build/gygax sim-autopilot</code>, then follow <a href="https://github.com/magneato/gygax/blob/main/docs/ROBOTICS.md">the robotics guide</a> to connect a service and issue commands to the virtual autopilot. The example is local simulation; real device control has separate safeguards and risks.</div>
     </section>
 
     <section id="operations" class="fade">
@@ -298,7 +313,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="card"><span class="num">MODEL</span><h3>Point to an engine</h3><p>Use a local chat-completions endpoint such as Ollama, llama.cpp or another supported backend. Model performance and availability remain properties of that engine.</p><pre><code>./build/gygax serve \
   --engine http://127.0.0.1:11434/v1 \
   --model llama3.1</code></pre></article>
-        <article class="card"><span class="num">PRODUCTION</span><h3>Harden the boundary</h3><p>Use a strong bearer token, TLS termination for traffic leaving the host, a supervisor, monitoring, and the documented systemd/container guidance.</p><p><a href="docs/OPERATIONS.md">Read operations guidance ↗</a></p></article>
+        <article class="card"><span class="num">PRODUCTION</span><h3>Harden the boundary</h3><p>Use a strong bearer token, TLS termination for traffic leaving the host, a supervisor, monitoring, and the documented systemd/container guidance.</p><p><a href="https://github.com/magneato/gygax/blob/main/docs/OPERATIONS.md">Read operations guidance ↗</a></p></article>
       </div>
     </section>
 
@@ -316,7 +331,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="safety-item"><h3>Simulation is not proof</h3><p>A simulated success demonstrates behavior in a model of the world. It cannot certify a controller, validate a physical deployment, or guarantee that a real machine will respond identically.</p></article>
         <article class="safety-item truth"><h3>Gygax is not a safety controller</h3><p>It adds no safety layer to a vehicle. Keep the autopilot's failsafes, geofence, and a physical emergency stop. Complete the domain's safety case before operating equipment.</p></article>
       </div>
-      <p class="small" style="margin-top:18px">Enabling device commands does not add per-command human approval. Gygax has no built-in approval gate or universal hardware/simulation interlock. For detailed boundaries, see <a href="docs/SDK_API.md">Public API and trust boundaries</a>, <a href="docs/OPERATIONS.md">Operations</a>, <a href="docs/ROBOTICS.md">Robotics safety model</a>, and <a href="SECURITY.md">Security reporting</a>.</p>
+      <p class="small" style="margin-top:18px">Enabling device commands does not add per-command human approval. Gygax has no built-in approval gate or universal hardware/simulation interlock. For detailed boundaries, see <a href="https://github.com/magneato/gygax/blob/main/docs/SDK_API.md">Public API and trust boundaries</a>, <a href="https://github.com/magneato/gygax/blob/main/docs/OPERATIONS.md">Operations</a>, <a href="https://github.com/magneato/gygax/blob/main/docs/ROBOTICS.md">Robotics safety model</a>, and <a href="https://github.com/magneato/gygax/blob/main/SECURITY.md">Security reporting</a>.</p>
     </section>
 
     <section id="verification" class="fade">
@@ -334,7 +349,7 @@ ctest --test-dir build --output-on-failure
 ./scripts/lint.sh
 ./scripts/dogfood.sh</code></pre>
       </div>
-      <p class="small" style="margin-top:16px">Protocol interoperability has reference checks documented in <a href="docs/ROBOTICS.md">Robotics</a>. See <a href="docs/ARCHITECTURE.md">Architecture</a> for concurrency and runtime design. Test coverage is not a claim that every supported device or deployment has been validated.</p>
+      <p class="small" style="margin-top:16px">Protocol interoperability has reference checks documented in <a href="https://github.com/magneato/gygax/blob/main/docs/ROBOTICS.md">Robotics</a>. See <a href="https://github.com/magneato/gygax/blob/main/docs/ARCHITECTURE.md">Architecture</a> for concurrency and runtime design. Test coverage is not a claim that every supported device or deployment has been validated.</p>
     </section>
 
     <section id="documentation" class="fade">
@@ -346,22 +361,22 @@ ctest --test-dir build --output-on-failure
         </div>
       </div>
       <div class="docs-grid">
-        <a class="doc-link" href="README.md"><strong>README</strong><span>Project overview and quick start</span></a>
-        <a class="doc-link" href="docs/ARCHITECTURE.md"><strong>Architecture</strong><span>Layers, modules, threading, extension points</span></a>
-        <a class="doc-link" href="docs/SERVICE.md"><strong>Service</strong><span>HTTP endpoints, engines, agents, tools</span></a>
-        <a class="doc-link" href="docs/OPERATIONS.md"><strong>Operations</strong><span>Install, TLS, monitoring, hardening</span></a>
-        <a class="doc-link" href="docs/ROBOTICS.md"><strong>Robotics</strong><span>Devices, protocols, safety boundaries</span></a>
-        <a class="doc-link" href="docs/NEUROMORPHIC.md"><strong>Neuromorphic</strong><span>Models, units, determinism, bindings</span></a>
-        <a class="doc-link" href="docs/LOGISTICS.md"><strong>Logistics</strong><span>Ledger, GUIDs, route planning</span></a>
-        <a class="doc-link" href="docs/EXTENSIONS.md"><strong>Extensions</strong><span>Plugins and tool processes</span></a>
-        <a class="doc-link" href="docs/SDK_API.md"><strong>Public API &amp; ABI</strong><span>Versioning, ownership, and trust boundaries</span></a>
-        <a class="doc-link" href="docs/ACOUSTICS.md"><strong>Acoustic study</strong><span>Simulation-only cancellation estimates and modulation limits</span></a>
-        <a class="doc-link" href="docs/TRANSPORTS.md"><strong>Transports</strong><span>Serial, GPIO, modem, printer, G-code</span></a>
-        <a class="doc-link" href="docs/ATARI.md"><strong>ATARI protocol</strong><span>Compact tool-call wire format</span></a>
-        <a class="doc-link" href="docs/WARGAMES.md"><strong>Wargames</strong><span>Agent coordination and human directives</span></a>
-        <a class="doc-link" href="examples/seek_and_find/README.md"><strong>Seek &amp; Find</strong><span>Standalone simulated communications and visual search demo</span></a>
-        <a class="doc-link" href="docs/QUANTUM_INTEGRATION.md"><strong>Quantum integration</strong><span>Sensor and QKD adapter interfaces, limitations, and security boundary</span></a>
-        <a class="doc-link" href="docs/GYDE.md"><strong>Gyde</strong><span>Optional terminal runtime console</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/README.md"><strong>README</strong><span>Project overview and quick start</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/ARCHITECTURE.md"><strong>Architecture</strong><span>Layers, modules, threading, extension points</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/SERVICE.md"><strong>Service</strong><span>HTTP endpoints, engines, agents, tools</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/OPERATIONS.md"><strong>Operations</strong><span>Install, TLS, monitoring, hardening</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/ROBOTICS.md"><strong>Robotics</strong><span>Devices, protocols, safety boundaries</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/NEUROMORPHIC.md"><strong>Neuromorphic</strong><span>Models, units, determinism, bindings</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/LOGISTICS.md"><strong>Logistics</strong><span>Ledger, GUIDs, route planning</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/EXTENSIONS.md"><strong>Extensions</strong><span>Plugins and tool processes</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/SDK_API.md"><strong>Public API &amp; ABI</strong><span>Versioning, ownership, and trust boundaries</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/ACOUSTICS.md"><strong>Acoustic study</strong><span>Simulation-only cancellation estimates and modulation limits</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/TRANSPORTS.md"><strong>Transports</strong><span>Serial, GPIO, modem, printer, G-code</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/ATARI.md"><strong>ATARI protocol</strong><span>Compact tool-call wire format</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md"><strong>Wargames</strong><span>Agent coordination and human directives</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/examples/seek_and_find/README.md"><strong>Seek &amp; Find</strong><span>Standalone simulated communications and visual search demo</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/QUANTUM_INTEGRATION.md"><strong>Quantum integration</strong><span>Sensor and QKD adapter interfaces, limitations, and security boundary</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/GYDE.md"><strong>Gyde</strong><span>Optional terminal runtime console</span></a>
       </div>
     </section>
 
@@ -371,7 +386,7 @@ ctest --test-dir build --output-on-failure
       <p>Build the project, run the checks, inspect a showcase, and decide where the interfaces fit your system. Then test the assumptions that matter to your team.</p>
       <div class="hero-actions" style="justify-content:center">
         <a class="button primary" href="https://github.com/magneato/gygax">Explore the source ↗</a>
-        <a class="button" href="README.md">Return to README</a>
+        <a class="button" href="https://github.com/magneato/gygax/blob/main/README.md">Return to README</a>
       </div>
     </div>
   </main>
@@ -379,7 +394,7 @@ ctest --test-dir build --output-on-failure
   <footer>
     <div class="foot-inner">
       <span>GYGAX · AUTONOMOUS SYSTEMS, MADE LEGIBLE</span>
-      <span><a href="LICENSE">Clear BSD License</a> · <a href="PATENTS.md">Patents</a> · <a href="SECURITY.md">Security</a> · <a href="SUPPORT.md">Support</a></span>
+      <span><a href="https://github.com/magneato/gygax/blob/main/LICENSE">Clear BSD License</a> · <a href="https://github.com/magneato/gygax/blob/main/PATENTS.md">Patents</a> · <a href="https://github.com/magneato/gygax/blob/main/SECURITY.md">Security</a> · <a href="https://github.com/magneato/gygax/blob/main/SUPPORT.md">Support</a></span>
     </div>
   </footer>
   <script>
