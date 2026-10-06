@@ -3,8 +3,13 @@
 #include <net/if.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cctype>
+#include <chrono>
+#include <map>
+#include <optional>
+#include <span>
 #include <thread>
 
 #include <gygax/bus/can.hpp>
@@ -13,6 +18,7 @@
 #include <gygax/bus/isotp.hpp>
 #include <gygax/bus/j1939.hpp>
 #include <gygax/bus/obd2.hpp>
+#include <gygax/core/posix.hpp>
 
 #include "support.hpp"
 

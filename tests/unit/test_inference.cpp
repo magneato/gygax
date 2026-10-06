@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <chrono>
 
 #include <gygax/core/log.hpp>
 #include <gygax/inference/backend.hpp>

@@ -3,7 +3,9 @@
 #include <gygax/brain/taxonomy.hpp>
 #include <gygax/core/json.hpp>
 #include <gygax/core/agent.hpp>
+#include <chrono>
 #include <cmath>
+#include <thread>
 
 #include <gygax/collective/consensus.hpp>
 #include <gygax/transport/streams.hpp>

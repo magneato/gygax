@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <chrono>
 #include <cmath>
+#include <mutex>
 #include <random>
+#include <span>
 
 #include <gygax/net/link.hpp>
 #include <gygax/robotics/mavlink.hpp>

@@ -7,6 +7,8 @@
 #include <gygax/core/charconv.hpp>
 #include <cmath>
 #include <format>
+#include <map>
+#include <mutex>
 #include <numbers>
 
 namespace wargames {

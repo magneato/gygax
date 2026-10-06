@@ -7,6 +7,9 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <chrono>
+#include <mutex>
+#include <optional>
 #include <thread>
 
 #include <gygax/bus/modbus.hpp>

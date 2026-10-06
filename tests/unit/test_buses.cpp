@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cmath>
 #include <thread>
 
@@ -7,6 +8,7 @@
 #include <gygax/bus/modbus.hpp>
 #include <gygax/robotics/adsb.hpp>
 #include <gygax/robotics/nmea.hpp>
+#include <gygax/core/posix.hpp>
 
 #include "support.hpp"
 

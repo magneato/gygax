@@ -8,6 +8,11 @@
 
 #include "support.hpp"
 
+#include <atomic>
+#include <chrono>
+#include <optional>
+#include <thread>
+
 using namespace gygax;
 using namespace gygax::net;
 

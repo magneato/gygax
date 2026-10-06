@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <filesystem>
 #include <fstream>
+#include <set>
+#include <sstream>
+#include <thread>
 
 #include <gygax/core/json.hpp>
 #include <gygax/core/log.hpp>

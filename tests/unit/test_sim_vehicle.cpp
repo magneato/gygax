@@ -6,6 +6,9 @@
 
 #include "support.hpp"
 
+#include <chrono>
+#include <cmath>
+
 using namespace gygax;
 using namespace gygax::robotics;
 using namespace std::chrono_literals;

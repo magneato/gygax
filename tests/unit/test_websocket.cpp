@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <chrono>
+#include <mutex>
 #include <thread>
 
 #include <gygax/net/websocket.hpp>
 #include <gygax/robotics/rosbridge.hpp>
+#include <gygax/core/posix.hpp>
 
 #include "support.hpp"
 
