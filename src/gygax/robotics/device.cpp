@@ -21,6 +21,7 @@
 #include <gygax/robotics/mavlink.hpp>
 #include <gygax/robotics/nmea.hpp>
 #include <gygax/robotics/rosbridge.hpp>
+#include <gygax/core/posix.hpp>
 
 namespace gygax::robotics {
 

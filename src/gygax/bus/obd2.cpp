@@ -1,4 +1,5 @@
 #include <gygax/bus/obd2.hpp>
+#include <gygax/core/posix.hpp>
 
 #include <algorithm>
 #include <cmath>

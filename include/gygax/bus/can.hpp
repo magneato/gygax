@@ -94,9 +94,10 @@ public:
 private:
     SocketCanBus(int fd, std::string interfaceName, bool canFd) : fd_(fd), interface_(std::move(interfaceName)), fd_frames_(canFd) {}
 
-    int fd_;
+    // Unused where SocketCAN doesn't exist (every OS but Linux): supported() is false there.
+    [[maybe_unused]] int fd_;
     std::string interface_;
-    bool fd_frames_;
+    [[maybe_unused]] bool fd_frames_;
 };
 
 } // namespace gygax::bus

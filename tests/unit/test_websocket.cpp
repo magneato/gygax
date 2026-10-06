@@ -48,8 +48,8 @@ private:
         if (st.stop_requested()) return;
         const auto response = webSocketServerResponse(request);
         if (!response) return;
+        ++handshakes; // before the reply, so the client never sees the response first
         write(*response);
-        ++handshakes;
         WebSocketParser parser;
         while (!st.stop_requested()) {
             if (link_->read(chunk, 20ms) != 0) continue;

@@ -1,5 +1,7 @@
 #include <gygax/logistics/ledger.hpp>
 
+#include <gygax/core/charconv.hpp>
+
 #include <sys/random.h>
 #include <unistd.h>
 
@@ -7,8 +9,6 @@
 #include <array>
 #include <cctype>
 #include <charconv>
-
-#include <gygax/core/charconv.hpp>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -130,12 +130,8 @@ std::vector<std::string> stringList(const json::Value* v) {
 
 std::string newGuid() {
     unsigned char b[kGuidByteCount];
-    std::size_t got = 0;
-    while (got < sizeof(b)) {
-        const auto n = getrandom(b + got, sizeof(b) - got, 0);
-        if (n < 0) throw std::runtime_error("getrandom failed");
-        got += static_cast<std::size_t>(n);
-    }
+    // getentropy (Linux glibc 2.25+, macOS 10.12+) fills up to 256 bytes in one call.
+    if (getentropy(b, sizeof(b)) != 0) throw std::runtime_error("getentropy failed");
     b[kGuidVersionByteIndex] = static_cast<unsigned char>((b[kGuidVersionByteIndex] & kGuidVersionMask) | kGuidVersion4Value);
     b[kGuidVariantByteIndex] = static_cast<unsigned char>((b[kGuidVariantByteIndex] & kGuidVariantMask) | kGuidRfc4122Variant);
     static constexpr char hex[] = "0123456789abcdef";

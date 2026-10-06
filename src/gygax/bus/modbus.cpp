@@ -1,4 +1,5 @@
 #include <gygax/bus/modbus.hpp>
+#include <gygax/core/posix.hpp>
 
 #include <algorithm>
 #include <bit>

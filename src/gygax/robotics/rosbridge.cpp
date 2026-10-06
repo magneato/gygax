@@ -1,4 +1,5 @@
 #include <gygax/robotics/rosbridge.hpp>
+#include <gygax/core/posix.hpp>
 
 #include <cerrno>
 #include <format>

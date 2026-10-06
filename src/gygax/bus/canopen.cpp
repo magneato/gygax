@@ -1,4 +1,5 @@
 #include <gygax/bus/canopen.hpp>
+#include <gygax/core/posix.hpp>
 
 #include <algorithm>
 #include <cerrno>

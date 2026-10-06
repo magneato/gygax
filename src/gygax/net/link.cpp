@@ -284,7 +284,7 @@ std::shared_ptr<ByteLink> openUdpLink(const std::string& bindHost, std::uint16_t
     int family = AF_INET;
     if (!resolve(bindHost.empty() ? std::string(kWildcardIpv4Address) : bindHost, bindPort, SOCK_DGRAM, local, localLen, family, error))
         return nullptr;
-    const int fd = ::socket(family, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    const int fd = gygax::openSocket(family, SOCK_DGRAM, 0);
     if (fd < 0) {
         if (error != nullptr) *error = std::string("socket: ") + std::strerror(errno);
         return nullptr;
@@ -317,7 +317,7 @@ std::shared_ptr<ByteLink> openTcpLink(const std::string& host, std::uint16_t por
     socklen_t len = 0;
     int family = AF_INET;
     if (!resolve(host, port, SOCK_STREAM, addr, len, family, error)) return nullptr;
-    const int fd = ::socket(family, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    const int fd = gygax::openSocket(family, SOCK_STREAM, 0);
     if (fd < 0) {
         if (error != nullptr) *error = std::string("socket: ") + std::strerror(errno);
         return nullptr;
