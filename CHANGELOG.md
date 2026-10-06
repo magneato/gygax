@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.2.0
+## 0.2.0-alpha.1 "Genesys" (2026-10-06)
+
+First public pre-release of 0.2.0; release notes in [docs/releases/v0.2.0-alpha.1.md](docs/releases/v0.2.0-alpha.1.md).
+
+### Fixed
+- A crashed MCP server no longer kills the service: writes to its pipes block SIGPIPE in the calling thread and report "mcp server exited".
+- macOS (Homebrew LLVM) builds and passes the full test suite: portable floating-point parsing (`gygax::fromChars`), `EREMOTEIO` and close-on-exec fallbacks, `getentropy`, node information from `sysctl`/Mach, GMP and Eigen 3.3 to 5.x found by CMake, and the messaging module's `Message` attached to the global module as the standard requires.
+- Timing-sensitive tests made reliable (gyde startup wait, WebSocket handshake count, wargames engine parity).
+- GitHub Pages publishes (`.nojekyll`); social preview image.
+
+### Changed
+- CI: the macOS job uses Homebrew LLVM; the Windows job checks every PowerShell script parses (hosted runners cannot run the Docker pipeline, which the Linux package job covers).
+- Release workflow accepts pre-release tags such as `v0.2.0-alpha.1` and takes notes from `docs/releases/`.
+
+## 0.2.0 (in progress)
 
 ### Added
 - `gygax` CLI with `serve`, `doctor`, `rpc`, `neuro`, `status`, `ask`.
@@ -9,13 +23,13 @@
 - 2D simulation world with LiDAR, UDP/TCP robot link, `.usda` export, rewritten Arrival example with a spiking controller.
 - Real serial, GPIO, Hayes modem, printer and Marlin G-code transports.
 - JSON library, structured logger, safe expression evaluator, node information.
-- 290 tests, `gygax doctor` (20 checks), CTest entries for Arrival, Python and the retro toolchain, sanitizer presets, `scripts/dogfood.sh`, `scripts/lint.sh`.
+- 376 CTest entries, `gygax doctor` (20 checks), CTest entries for Arrival, Python and the retro toolchain, sanitizer presets, `scripts/dogfood.sh`, `scripts/lint.sh`.
 - Robotics stack: device registry and `/v1/devices` API, MAVLink v1/v2, SocketCAN, ISO-TP, OBD-II, J1939, DBC, CANopen, Modbus, NMEA 0183, ADS-B, ARINC 429, rosbridge, and a virtual autopilot (`gygax sim-autopilot`). Commands are disabled unless `--device-commands` is given. See `docs/ROBOTICS.md`.
 - Supply chain logistics: GUID-tracked units, append-only ledger with durable journal and the compact `-3 ba99x drone=quadcopter power=solar` line format, flow summaries, sites, range-aware route planning with refuel stops and refuel-point suggestions, live fuel and position from bound devices, agent tools, metrics. See `docs/LOGISTICS.md`.
 - SDKs: native plugin SDK (C ABI, C++ helper, exported CMake package with `gygax_add_plugin`), extension-process protocol with a Python SDK, `gygax.LocalService`, Python client for devices and logistics; the Python package is staged by the normal build. See `docs/EXTENSIONS.md`.
 - ATARI: an opt-in, compact alternative to the agent tool-calling protocol's default JSON (`gygax/inference/atari.hpp`, `--tool-protocol atari` / `GYGAX_TOOL_PROTOCOL`). Interns tool names into short codes for the run (a prefix-tree schema cache) so `CALL`/`RESULT`/`ERROR` frames stay a few characters each; `EchoBackend` speaks both protocols, so it works end to end with no real model. See `docs/ATARI.md`.
 - `gyde`: a terminal preview of a planned Gygax IDE (`docs/GYDE.md`): an always-current status line and typed commands (`status`, `engines`, `ask`, `tool`) against a running node, installed alongside `gygax`.
-- Windows 11 pipeline via Docker Desktop/WSL2: a `dev` stage in the `Dockerfile` carries the toolchain with the source bind-mounted at run time, and every `.sh` gets a `.ps1`/`.bat` that runs the identical script inside it (`setup`, `build`, `assemble`, `scripts/{dogfood,lint,sdk-check,collect-diagnostics,docker-build}`); `scripts/devshell.sh` gives the same container shell on Linux/macOS. Best-effort Windows CI job. See `docs/WINDOWS.md`.
+- Windows 11 pipeline via Docker Desktop/WSL2: a `dev` stage in the `Dockerfile` carries the toolchain with the source bind-mounted at run time, and every `.sh` gets a `.ps1`/`.bat` that runs the identical script inside it (`setup`, `build`, `assemble`, `scripts/{dogfood,lint,sdk-check,collect-diagnostics,docker-build}`); `scripts/devshell.sh` gives the same container shell on Linux/macOS. See `docs/WINDOWS.md`.
 - `wargames` showcase: agent-commanded last stand against an alien invasion, directable by a human through an interactive console or a timed script; `--engine` can hand decisions to a real `ollama`, `llama-cpp` or `lmstudio` model instead of the built-in doctrine, and `--mcp-serve` exposes its tools over MCP. See `docs/WARGAMES.md`.
 - Research toolkit: TF2-style `TfBuffer` with SE(3) math, URDF parser with forward/inverse kinematics, control barrier function velocity shield and joint limit shield, action-chunk temporal ensembling, a deterministic vectorized rover environment with domain randomization exposed to Python as `gygax.rl` (NumPy `VecEnv`, Gymnasium-style `GygaxRoverEnv`), and EVT2 event camera decoding with spiking motor decoders. See `docs/RESEARCH.md`.
 - MCP client (`--mcp`) and server (`serveMcp`) for the Model Context Protocol, and `ollama`, `llama-cpp` and `lmstudio` engine presets alongside plain `http://host:port/v1` engines. See `docs/RESEARCH.md`.

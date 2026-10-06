@@ -13,7 +13,7 @@ jobs:
     name: Build source archive
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.ref }}
 
@@ -25,11 +25,12 @@ jobs:
           version="$(sed -nE 's/^project\(gygax VERSION ([^ ]+).*/\1/p' CMakeLists.txt | head -n 1)"
           tag_version="${GITHUB_REF_NAME#v}"
           test -n "$version"
-          if [ "$tag_version" != "$version" ]; then
+          # v0.2.0 releases 0.2.0; v0.2.0-alpha.1 is a pre-release of it.
+          if [ "${tag_version%%-*}" != "$version" ]; then
             echo "Release tag $GITHUB_REF_NAME does not match project version $version" >&2
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version=$tag_version" >> "$GITHUB_OUTPUT"
 
       - name: Create source archive from the release tag
         env:
@@ -39,7 +40,7 @@ jobs:
           tar -tzf "gygax-${VERSION}-source.tar.gz" | grep -q "^gygax-${VERSION}/CMakeLists.txt$"
           tar -tzf "gygax-${VERSION}-source.tar.gz" | grep -q "^gygax-${VERSION}/LICENSE$"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: gygax-source
           path: gygax-*-source.tar.gz
@@ -50,7 +51,7 @@ jobs:
     name: Build and verify Linux SDK packages
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.ref }}
 
@@ -59,7 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           version="$(sed -nE 's/^project\(gygax VERSION ([^ ]+).*/\1/p' CMakeLists.txt | head -n 1)"
-          test "${GITHUB_REF_NAME#v}" = "$version" || {
+          tag_version="${GITHUB_REF_NAME#v}"
+          test "${tag_version%%-*}" = "$version" || {
             echo "Release tag $GITHUB_REF_NAME does not match project version $version" >&2
             exit 1
           }
@@ -89,7 +91,7 @@ jobs:
           for package in gygax_*.deb; do dpkg-deb --info "$package" >/dev/null; done
           for package in gygax-*.tar.gz; do tar -tzf "$package" >/dev/null; done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: gygax-linux-sdk
           path: |
@@ -105,12 +107,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          sparse-checkout: docs/releases
+
+      - uses: actions/download-artifact@v5
         with:
           name: gygax-source
           path: release-assets
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: gygax-linux-sdk
           path: release-assets
@@ -126,11 +133,18 @@ jobs:
         working-directory: release-assets
         run: |
           set -euo pipefail
+          # Notes come from docs/releases/<tag>.md when it exists; its first "# " line is the title.
+          notes="../docs/releases/$TAG.md"
+          args=(--verify-tag)
+          if [ -f "$notes" ]; then
+            title="$(sed -n 's/^# //p' "$notes" | head -n 1)"
+            args+=(--title "${title:-Gygax ${TAG#v}}" --notes-file "$notes")
+          else
+            args+=(--title "Gygax ${TAG#v}" --generate-notes)
+          fi
+          case "$TAG" in *-*) args+=(--prerelease) ;; esac
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" ./* --clobber
           else
-            gh release create "$TAG" ./* \
-              --verify-tag \
-              --title "Gygax ${TAG#v}" \
-              --generate-notes
+            gh release create "$TAG" ./* "${args[@]}"
           fi

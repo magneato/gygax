@@ -29,7 +29,12 @@ Before tagging:
    git push origin v0.2.1
    ```
 
-Tags whose version does not exactly match the CMake project version fail before
+A pre-release is tagged with a suffix, for example `v0.2.1-alpha.1`: the part
+before the `-` must match the CMake version, and the release is marked as a
+pre-release. If `docs/releases/<tag>.md` exists, it becomes the release notes
+and its first `# ` heading the title; otherwise GitHub generates notes.
+
+Tags whose version does not match the CMake project version fail before
 assets are published. The current distributable SDK targets Linux x86-64
 (Debian/Ubuntu `.deb` and relocatable Linux `.tar.gz`); source is provided for
 other supported build environments. macOS remains best-effort in CI and is not

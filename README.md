@@ -127,7 +127,7 @@ docs/             service, operations, neuromorphic, architecture, transports, r
 
 ## Platform support
 
-Linux with clang 18+ is the reference platform and is what CI gates on. macOS builds on a best-effort basis (AppleClang's C++ module support is still catching up). Windows is not supported natively; on Windows 11, `setup.ps1`/`build.ps1`/etc. run the same scripts through Docker Desktop (WSL2 backend), or use WSL2 directly. See [docs/WINDOWS.md](docs/WINDOWS.md).
+Linux with clang 18+ is the reference platform and is what CI gates on. macOS builds with Homebrew's LLVM (`brew install llvm`; Apple's own clang has no C++26 yet), and CI builds it and runs the full test suite there as a best-effort job; the macOS job in [.github/workflows/ci.yml](.github/workflows/ci.yml) shows the exact flags. Windows is not supported natively; on Windows 11, `setup.ps1`/`build.ps1`/etc. run the same scripts through Docker Desktop (WSL2 backend), or use WSL2 directly. See [docs/WINDOWS.md](docs/WINDOWS.md).
 
 ## License
 
