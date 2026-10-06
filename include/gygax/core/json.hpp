@@ -1,6 +1,8 @@
 #pragma once
 
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -342,11 +344,11 @@ private:
         const char* last = text_.data() + pos_;
         if (!isFloat) {
             std::int64_t iv = 0;
-            auto res = std::from_chars(first, last, iv);
+            auto res = gygax::fromChars(first, last, iv);
             if (res.ec == std::errc() && res.ptr == last) return Value(iv);
         }
         double dv = 0.0;
-        auto res = std::from_chars(first, last, dv);
+        auto res = gygax::fromChars(first, last, dv);
         if (res.ec != std::errc() || res.ptr != last) {
             fail("invalid number");
             return std::nullopt;

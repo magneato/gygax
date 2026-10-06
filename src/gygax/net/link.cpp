@@ -11,6 +11,8 @@
 
 #include <cerrno>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <condition_variable>
 #include <cstring>
 #include <deque>
@@ -213,7 +215,7 @@ bool resolve(const std::string& host, std::uint16_t port, int socktype, sockaddr
 
 std::optional<std::uint32_t> parseNumber(std::string_view text) {
     std::uint32_t v = 0;
-    auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), v);
+    auto [ptr, ec] = gygax::fromChars(text.data(), text.data() + text.size(), v);
     if (ec != std::errc() || ptr != text.data() + text.size()) return std::nullopt;
     return v;
 }

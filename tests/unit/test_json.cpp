@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include <gygax/core/json.hpp>
+#include <gygax/core/charconv.hpp>
 
 using gygax::json::parse;
 using gygax::json::Value;
@@ -76,4 +79,33 @@ TEST(Json, TypedGettersFallBack) {
     EXPECT_TRUE(v->getBool("b"));
     EXPECT_FALSE(v->getBool("missing"));
     EXPECT_EQ(v->getInt("missing", 4), 4);
+}
+
+// The macOS floating-point parser must accept exactly what std::from_chars accepts, and
+// read the same value and the same length. Checked here on platforms that have both.
+TEST(Charconv, PortableFloatParserMatchesFromChars) {
+    const char* inputs[] = {"0",    "-0",       "3.25",   "-12.5e3",   "1e-7",  ".5",       "5.",
+                            "1e",   "1e+",      "2E+10",  "+1",        " 1",    "abc",      "-",
+                            "0x10", "inf",      "nan",    "1.5x",      "1e400", "-1e400",   "123456789012345678901234567890",
+                            "6*7",  "4.9e-324", "1e-400", "-Infinity", "INF",   "NaN(abc)", "nan(",
+                            "infx", ""};
+    for (const char* text : inputs) {
+        const std::string s(text);
+        double expected = -99.0;
+        double actual = -99.0;
+        const auto want = std::from_chars(s.data(), s.data() + s.size(), expected);
+        const auto got = gygax::detail::parseFloating(s.data(), s.data() + s.size(), actual);
+        EXPECT_EQ(static_cast<int>(got.ec), static_cast<int>(want.ec)) << '"' << s << '"';
+        EXPECT_EQ(got.ptr - s.data(), want.ptr - s.data()) << '"' << s << '"';
+        if (want.ec == std::errc()) {
+            if (std::isnan(expected))
+                EXPECT_TRUE(std::isnan(actual)) << '"' << s << '"';
+            else
+                EXPECT_EQ(actual, expected) << '"' << s << '"';
+        }
+    }
+    float f = 0;
+    const std::string small = "0.1";
+    ASSERT_EQ(gygax::detail::parseFloating(small.data(), small.data() + small.size(), f).ec, std::errc());
+    EXPECT_EQ(f, 0.1F);
 }

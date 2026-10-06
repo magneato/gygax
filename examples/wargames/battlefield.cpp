@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cmath>
 #include <format>
 #include <numbers>
@@ -769,7 +771,7 @@ std::string Battlefield::directive(const std::string& line) {
             return "ok: focus fire cleared";
         }
         std::uint32_t id = 0;
-        const auto [end, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), id);
+        const auto [end, ec] = gygax::fromChars(arg.data(), arg.data() + arg.size(), id);
         const Entity* t = find(id);
         if (ec != std::errc() || end != arg.data() + arg.size() || t == nullptr || !t->alive || specOf(t->kind).human)
             return "error: focus needs the id of a living hostile";

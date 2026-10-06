@@ -7,6 +7,8 @@
 #include <array>
 #include <cctype>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -257,7 +259,7 @@ std::optional<std::int64_t> parseSince(const json::Value& value, std::int64_t no
     std::size_t count = 0;
     const char separators[] = {'-', '-', 'T', ':', ':', 'Z'};
     while (count < kDateTimeComponentCount && at < s.size()) {
-        const auto [end, ec] = std::from_chars(s.data() + at, s.data() + s.size(), parts[count]);
+        const auto [end, ec] = gygax::fromChars(s.data() + at, s.data() + s.size(), parts[count]);
         if (ec != std::errc()) return std::nullopt;
         at = static_cast<std::size_t>(end - s.data());
         ++count;

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <string_view>
 #include <thread>
 
@@ -67,7 +69,7 @@ ModemResponse HayesModem::parse(const std::string& text) {
         std::size_t i = at;
         while (i < text.size() && text[i] == ' ') ++i;
         int rate = 0;
-        auto [ptr, ec] = std::from_chars(text.data() + i, text.data() + text.size(), rate);
+        auto [ptr, ec] = gygax::fromChars(text.data() + i, text.data() + text.size(), rate);
         if (ec == std::errc() && ptr != text.data() + i) out.connectRate = rate;
     }
     return out;

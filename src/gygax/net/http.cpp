@@ -14,6 +14,8 @@
 #include <cctype>
 #include <cerrno>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cstring>
 #include <format>
 #include <random>
@@ -817,7 +819,7 @@ void Server::serve(int fd, const std::string& remote) {
                 const auto sizeText = std::string_view(pending).substr(pos, eol - pos);
                 const auto semi = sizeText.find(';');
                 const auto hex = sizeText.substr(0, semi);
-                auto [ptr, ec] = std::from_chars(hex.data(), hex.data() + hex.size(), size, 16);
+                auto [ptr, ec] = gygax::fromChars(hex.data(), hex.data() + hex.size(), size, 16);
                 if (ec != std::errc() || ptr != hex.data() + hex.size()) {
                     reject(kHttpStatusBadRequest, "bad_request", "invalid chunk size");
                     finish();
@@ -851,7 +853,7 @@ void Server::serve(int fd, const std::string& remote) {
         body = std::move(decoded);
     } else if (!cl.empty()) {
         std::size_t want = 0;
-        auto [ptr, ec] = std::from_chars(cl.data(), cl.data() + cl.size(), want);
+        auto [ptr, ec] = gygax::fromChars(cl.data(), cl.data() + cl.size(), want);
         if (ec != std::errc() || ptr != cl.data() + cl.size()) {
             reject(kHttpStatusBadRequest, "bad_request", "invalid Content-Length");
             finish();
@@ -965,7 +967,7 @@ std::optional<Url> Url::parse(std::string_view text, std::string* error) {
     }
     if (!authority.empty()) {
         unsigned value = 0;
-        auto [ptr, ec] = std::from_chars(authority.data(), authority.data() + authority.size(), value);
+        auto [ptr, ec] = gygax::fromChars(authority.data(), authority.data() + authority.size(), value);
         if (ec != std::errc() || ptr != authority.data() + authority.size() || value == 0 || value > kMaximumPortNumber)
             return fail("bad port");
         url.port = static_cast<std::uint16_t>(value);
@@ -1084,7 +1086,7 @@ ClientResponse httpStream(const Url& url, std::string_view method, std::string_v
     int status = 0;
     if (sp != std::string::npos) {
         const auto code = std::string_view(head->firstLine).substr(sp + 1, 3);
-        std::from_chars(code.data(), code.data() + code.size(), status);
+        gygax::fromChars(code.data(), code.data() + code.size(), status);
     }
     if (status < kMinimumHttpStatusCode || status > kMaximumHttpStatusCode) {
         out.error = "malformed status line";
@@ -1130,7 +1132,7 @@ ClientResponse httpStream(const Url& url, std::string_view method, std::string_v
                 std::size_t size = 0;
                 const auto sizeText = std::string_view(pending).substr(0, eol);
                 const auto hex = sizeText.substr(0, sizeText.find(';'));
-                auto [ptr, ec] = std::from_chars(hex.data(), hex.data() + hex.size(), size, 16);
+                auto [ptr, ec] = gygax::fromChars(hex.data(), hex.data() + hex.size(), size, 16);
                 if (ec != std::errc() || ptr != hex.data() + hex.size()) {
                     out.error = "invalid chunk in response";
                     keepGoing = false;
@@ -1158,7 +1160,7 @@ ClientResponse httpStream(const Url& url, std::string_view method, std::string_v
     } else if (out.headers.contains("Content-Length")) {
         std::size_t want = 0;
         const auto& cl = out.headers.at("Content-Length");
-        std::from_chars(cl.data(), cl.data() + cl.size(), want);
+        gygax::fromChars(cl.data(), cl.data() + cl.size(), want);
         std::size_t got = std::min(want, pending.size());
         emit(std::string_view(pending).substr(0, got));
         while (got < want && keepGoing) {

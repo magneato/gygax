@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <atomic>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
@@ -106,7 +108,7 @@ std::optional<std::uint32_t> parseSid(const Params& p) {
     if (!v->isString()) return std::nullopt;
     const auto& s = v->asString();
     std::uint32_t out = 0;
-    auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), out);
+    auto [ptr, ec] = gygax::fromChars(s.data(), s.data() + s.size(), out);
     if (ec != std::errc() || ptr != s.data() + s.size()) return std::nullopt;
     return out;
 }
@@ -688,7 +690,7 @@ struct Service::Impl {
                 if (t->isInt())
                     tail = t->asInt();
                 else if (t->isString())
-                    std::from_chars(t->asString().data(), t->asString().data() + t->asString().size(), tail);
+                    gygax::fromChars(t->asString().data(), t->asString().data() + t->asString().size(), tail);
             }
             json::Value entries = json::Value::array();
             for (const auto& e :

@@ -2,6 +2,8 @@
 
 #include <cctype>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cmath>
 #include <stdexcept>
 #include <vector>
@@ -102,7 +104,7 @@ private:
         }
         if (pos_ < text_.size() && (std::isdigit(static_cast<unsigned char>(text_[pos_])) != 0 || text_[pos_] == '.')) {
             double v = 0.0;
-            auto [ptr, ec] = std::from_chars(text_.data() + pos_, text_.data() + text_.size(), v);
+            auto [ptr, ec] = gygax::fromChars(text_.data() + pos_, text_.data() + text_.size(), v);
             if (ec != std::errc()) throw std::runtime_error("invalid number");
             pos_ = static_cast<std::size_t>(ptr - text_.data());
             return v;

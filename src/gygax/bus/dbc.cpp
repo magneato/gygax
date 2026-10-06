@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cmath>
 #include <format>
 #include <regex>
@@ -17,7 +19,7 @@ constexpr std::uint32_t kMaxCanPayloadBits = kMaxCanFdPayloadBytes * 8;
 
 double toDouble(const std::string& s) {
     double v = 0.0;
-    std::from_chars(s.data(), s.data() + s.size(), v);
+    gygax::fromChars(s.data(), s.data() + s.size(), v);
     return v;
 }
 

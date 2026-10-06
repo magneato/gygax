@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <chrono>
 
 #include <gygax/net/http.hpp>
@@ -47,7 +49,7 @@ std::int64_t intParam(const json::Value& p, std::string_view key, std::int64_t f
     if (v->isString()) {
         std::int64_t out = 0;
         const auto& s = v->asString();
-        if (std::from_chars(s.data(), s.data() + s.size(), out).ec == std::errc()) return out;
+        if (gygax::fromChars(s.data(), s.data() + s.size(), out).ec == std::errc()) return out;
     }
     return fallback;
 }
@@ -63,7 +65,7 @@ double numberParam(const json::Value& p, std::string_view key, double fallback, 
     if (v->isString()) {
         const auto& s = v->asString();
         double out = 0.0;
-        if (std::from_chars(s.data(), s.data() + s.size(), out).ec == std::errc()) {
+        if (gygax::fromChars(s.data(), s.data() + s.size(), out).ec == std::errc()) {
             if (present != nullptr) *present = true;
             return out;
         }

@@ -10,6 +10,8 @@
 #include <cerrno>
 #include <gygax/core/posix.hpp>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cstring>
 
 namespace gygax::transport {
@@ -31,7 +33,7 @@ bool PrinterTarget::parse(std::string_view spec, PrinterTarget& out, std::string
         if (colon != std::string_view::npos) {
             unsigned port = 0;
             const auto text = spec.substr(colon + 1);
-            auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), port);
+            auto [ptr, ec] = gygax::fromChars(text.data(), text.data() + text.size(), port);
             if (ec != std::errc() || ptr != text.data() + text.size() || port == 0 || port > kMaximumTcpPort) {
                 error = "invalid printer port";
                 return false;

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cmath>
 #include <format>
 #include <sstream>
@@ -48,7 +50,7 @@ std::optional<Frame> parseHex(std::string_view hex) {
     Frame f{};
     for (std::size_t i = 0; i < kAdsbFrameSizeBytes; ++i) {
         unsigned v = 0;
-        if (std::from_chars(hex.data() + 2 * i, hex.data() + 2 * i + 2, v, 16).ec != std::errc()) return std::nullopt;
+        if (gygax::fromChars(hex.data() + 2 * i, hex.data() + 2 * i + 2, v, 16).ec != std::errc()) return std::nullopt;
         f[i] = static_cast<std::uint8_t>(v);
     }
     return f;
@@ -281,11 +283,11 @@ bool Tracker::ingestSbs(std::string_view line, std::chrono::steady_clock::time_p
     }
     if (f.size() < 11 || f[0] != "MSG" || f[4].size() != 6) return false;
     std::uint32_t id = 0;
-    if (std::from_chars(f[4].data(), f[4].data() + 6, id, 16).ec != std::errc()) return false;
+    if (gygax::fromChars(f[4].data(), f[4].data() + 6, id, 16).ec != std::errc()) return false;
     auto num = [&](std::size_t i) -> std::optional<double> {
         if (i >= f.size() || f[i].empty()) return std::nullopt;
         double v = 0;
-        if (std::from_chars(f[i].data(), f[i].data() + f[i].size(), v).ec != std::errc()) return std::nullopt;
+        if (gygax::fromChars(f[i].data(), f[i].data() + f[i].size(), v).ec != std::errc()) return std::nullopt;
         return v;
     };
     auto& ac = aircraft_[id];

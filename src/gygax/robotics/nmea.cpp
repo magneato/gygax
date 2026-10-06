@@ -1,6 +1,8 @@
 #include <gygax/robotics/nmea.hpp>
 
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cmath>
 #include <cstdio>
 #include <format>
@@ -21,7 +23,7 @@ constexpr double kKnotsPerMeterPerSecond = 1.943844;
 std::optional<double> number(const std::vector<std::string>& f, std::size_t i) {
     if (i >= f.size() || f[i].empty()) return std::nullopt;
     double v = 0.0;
-    auto [ptr, ec] = std::from_chars(f[i].data(), f[i].data() + f[i].size(), v);
+    auto [ptr, ec] = gygax::fromChars(f[i].data(), f[i].data() + f[i].size(), v);
     if (ec != std::errc() || ptr != f[i].data() + f[i].size()) return std::nullopt;
     return v;
 }
@@ -29,7 +31,7 @@ std::optional<double> number(const std::vector<std::string>& f, std::size_t i) {
 int integer(const std::vector<std::string>& f, std::size_t i) {
     if (i >= f.size() || f[i].empty()) return 0;
     int v = 0;
-    std::from_chars(f[i].data(), f[i].data() + f[i].size(), v);
+    gygax::fromChars(f[i].data(), f[i].data() + f[i].size(), v);
     return v;
 }
 
@@ -105,8 +107,8 @@ std::optional<double> parseCoordinate(std::string_view value, std::string_view h
     int degrees = 0;
     const auto degText = value.substr(0, dot - 2);
     const auto minText = value.substr(dot - 2);
-    if (std::from_chars(degText.data(), degText.data() + degText.size(), degrees).ec != std::errc()) return std::nullopt;
-    if (std::from_chars(minText.data(), minText.data() + minText.size(), minutes).ec != std::errc()) return std::nullopt;
+    if (gygax::fromChars(degText.data(), degText.data() + degText.size(), degrees).ec != std::errc()) return std::nullopt;
+    if (gygax::fromChars(minText.data(), minText.data() + minText.size(), minutes).ec != std::errc()) return std::nullopt;
     double result = degrees + minutes / kMinutesPerDegree;
     const char h = hemisphere[0];
     if (h == 'S' || h == 'W')

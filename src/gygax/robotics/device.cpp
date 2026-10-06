@@ -4,6 +4,8 @@
 #include <atomic>
 #include <cerrno>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <chrono>
 #include <cmath>
 #include <format>
@@ -62,7 +64,7 @@ std::optional<std::vector<std::uint8_t>> fromHex(const std::string& text) {
     std::vector<std::uint8_t> out;
     for (std::size_t i = 0; i < clean.size(); i += 2) {
         unsigned v = 0;
-        if (std::from_chars(clean.data() + i, clean.data() + i + 2, v, 16).ec != std::errc()) return std::nullopt;
+        if (gygax::fromChars(clean.data() + i, clean.data() + i + 2, v, 16).ec != std::errc()) return std::nullopt;
         out.push_back(static_cast<std::uint8_t>(v));
     }
     return out;

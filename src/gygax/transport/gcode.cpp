@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cstdio>
 #include <format>
 
@@ -21,7 +23,7 @@ std::optional<double> numberAfter(const std::string& text, const std::string& ke
     const char* first = text.data() + at + key.size();
     const char* last = text.data() + text.size();
     double v = 0.0;
-    auto [ptr, ec] = std::from_chars(first, last, v);
+    auto [ptr, ec] = gygax::fromChars(first, last, v);
     if (ec != std::errc() || ptr == first) return std::nullopt;
     return v;
 }

@@ -5,6 +5,8 @@
 #include <bit>
 #include <cerrno>
 #include <charconv>
+
+#include <gygax/core/charconv.hpp>
 #include <cstring>
 #include <deque>
 #include <format>
@@ -301,7 +303,7 @@ std::optional<WebSocketUrl> WebSocketUrl::parse(std::string_view url, std::strin
     if (colon != std::string_view::npos) {
         unsigned port = 0;
         const auto text = authority.substr(colon + 1);
-        if (std::from_chars(text.data(), text.data() + text.size(), port).ec != std::errc() || port == 0 || port > kMaximumPortNumber)
+        if (gygax::fromChars(text.data(), text.data() + text.size(), port).ec != std::errc() || port == 0 || port > kMaximumPortNumber)
             return fail("invalid port");
         out.port = static_cast<std::uint16_t>(port);
         authority = authority.substr(0, colon);
