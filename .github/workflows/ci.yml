@@ -98,9 +98,10 @@ jobs:
       - name: Configure with Homebrew clang (Apple clang 15 has no C++26)
         run: |
           LLVM="$(brew --prefix llvm)"
-          LIBCXX="-L$LLVM/lib/c++ -Wl,-rpath,$LLVM/lib/c++"
+          # Homebrew's libc++ must be paired with its own libunwind, or exceptions never get caught.
+          LIBCXX="-L$LLVM/lib/c++ -L$LLVM/lib/unwind -lunwind -Wl,-rpath,$LLVM/lib/c++ -Wl,-rpath,$LLVM/lib/unwind"
           cmake --preset macos-clang -DCMAKE_CXX_COMPILER="$LLVM/bin/clang++" \
-            -DCMAKE_EXE_LINKER_FLAGS="$LIBCXX" -DCMAKE_SHARED_LINKER_FLAGS="$LIBCXX"
+            -DCMAKE_EXE_LINKER_FLAGS="$LIBCXX" -DCMAKE_SHARED_LINKER_FLAGS="$LIBCXX" -DCMAKE_MODULE_LINKER_FLAGS="$LIBCXX"
       - run: cmake --build --preset macos-clang
       - run: ctest --preset macos-clang
 

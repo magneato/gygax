@@ -1,6 +1,12 @@
 #include <gygax/service/node_info.hpp>
 
 #include <sys/utsname.h>
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <ctime>
+#endif
 #include <unistd.h>
 
 #include <algorithm>
@@ -120,6 +126,36 @@ NodeInfo collectNodeInfo(bool includeGpu) {
         up >> seconds;
         info.uptimeSeconds = static_cast<std::int64_t>(seconds);
     }
+#if defined(__APPLE__)
+    // macOS has no /proc: ask the kernel through sysctl and Mach instead.
+    {
+        std::array<char, 256> brand{};
+        std::size_t size = brand.size();
+        if (::sysctlbyname("machdep.cpu.brand_string", brand.data(), &size, nullptr, 0) == 0) info.cpuModel = trimCopy(brand.data());
+        std::uint64_t bytes = 0;
+        size = sizeof(bytes);
+        if (::sysctlbyname("hw.memsize", &bytes, &size, nullptr, 0) == 0)
+            info.memoryTotalMb = static_cast<std::int64_t>(bytes / (1024ULL * 1024ULL));
+        vm_statistics64_data_t vm{};
+        mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+        vm_size_t page = 0;
+        if (::host_page_size(::mach_host_self(), &page) == KERN_SUCCESS &&
+            ::host_statistics64(::mach_host_self(), HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&vm), &count) == KERN_SUCCESS) {
+            const std::uint64_t available = (static_cast<std::uint64_t>(vm.free_count) + vm.inactive_count + vm.purgeable_count) * page;
+            info.memoryAvailableMb = static_cast<std::int64_t>(available / (1024ULL * 1024ULL));
+        }
+        std::array<double, 3> load{};
+        if (::getloadavg(load.data(), 3) == 3) {
+            info.load1 = load[0];
+            info.load5 = load[1];
+            info.load15 = load[2];
+        }
+        timeval boot{};
+        size = sizeof(boot);
+        if (::sysctlbyname("kern.boottime", &boot, &size, nullptr, 0) == 0 && boot.tv_sec > 0)
+            info.uptimeSeconds = static_cast<std::int64_t>(std::time(nullptr) - boot.tv_sec);
+    }
+#endif
     if (includeGpu) info.gpus = cachedGpus();
     return info;
 }
