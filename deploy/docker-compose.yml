@@ -1,0 +1,28 @@
+services:
+  gygax:
+    build:
+      context: ..
+    image: gygax:latest
+    restart: unless-stopped
+    ports:
+      - "1984:1984"
+    environment:
+      GYGAX_API_TOKEN: ${GYGAX_API_TOKEN:?set GYGAX_API_TOKEN}
+      GYGAX_ENGINES: ${GYGAX_ENGINES:-http://ollama:11434/v1}
+      GYGAX_MODEL: ${GYGAX_MODEL:-}
+      GYGAX_RATE_LIMIT_PER_MINUTE: ${GYGAX_RATE_LIMIT_PER_MINUTE:-0}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  ollama:

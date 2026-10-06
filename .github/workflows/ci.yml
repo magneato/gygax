@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  linux:
+    name: Linux (clang-18) build, test, lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tools-18 clang-format-18 clang-tidy-18 cppcheck cmake ninja-build python3 curl libeigen3-dev libgmp-dev
+
+      - name: Configure
+        run: cmake --preset dev
+
+      - name: Build
+        run: cmake --build --preset dev
+
+      - name: Virtual CAN interface
+        run: |
+          sudo apt-get install -y linux-modules-extra-$(uname -r) iproute2 || true
+          sudo modprobe vcan && sudo ip link add dev vcan0 type vcan && sudo ip link set up vcan0 || echo "vcan unavailable; SocketCAN test will skip"
+
+      - name: Test
+        run: ctest --preset dev
+
+      - name: Lint
+        run: BUILD_DIR=build/dev ./scripts/lint.sh all
+
+      - name: Live daemon smoke test
+        run: |
+          ./build/dev/gygax serve --port 19884 --token ci-token > serve.log 2>&1 &
+          for i in $(seq 1 50); do curl -fsS localhost:19884/readyz >/dev/null 2>&1 && break; sleep 0.2; done
+          ./build/dev/gygax doctor --url http://127.0.0.1:19884 --token ci-token --full
+          kill -TERM %1
+          wait %1
+          grep -q "shutting down" serve.log
+
+  sanitizers:
+    name: ${{ matrix.preset }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [asan, tsan]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tools-18 cmake ninja-build python3 libeigen3-dev libgmp-dev
+      - run: cmake --preset ${{ matrix.preset }} -DGYGAX_BUILD_EXAMPLES=ON
+      - run: cmake --build --preset ${{ matrix.preset }}
+      - run: ctest --preset ${{ matrix.preset }}
+
+  package:
+    name: Package and container
+    runs-on: ubuntu-24.04
+    needs: linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tools-18 cmake ninja-build python3 libeigen3-dev libgmp-dev
+      - run: cmake --preset release
+      - run: cmake --build --preset release
+      - run: cpack --config build/release/CPackConfig.cmake -G "DEB;TGZ"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gygax-packages
+          path: |
+            gygax_*.deb
+            gygax-*.tar.gz
+      - name: Container build and health check
+        run: |
+          docker build -t gygax:ci .
+          docker run -d --name gygax-ci -e GYGAX_API_TOKEN=ci-token -p 1984:1984 gygax:ci
+          for i in $(seq 1 30); do curl -fsS localhost:1984/healthz >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS -H "Authorization: Bearer ci-token" localhost:1984/v1/models
+          docker stop gygax-ci
+
+  macos:
+    name: macOS (Apple clang, best effort)
+    runs-on: macos-14
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install ninja cmake eigen gmp
+      - run: cmake --preset macos-clang
+      - run: cmake --build --preset macos-clang
+      - run: ctest --preset macos-clang
+
+  windows:
+    name: Windows 11 pipeline (Docker Desktop, best effort)
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Switch Docker Desktop to Linux containers
+        run: |
+          & "$Env:ProgramFiles\Docker\Docker\DockerCli.exe" -SwitchDaemon
+          docker version
+      - name: Build every image (build.ps1 uses the dev one; docker-build.ps1 both)
+        run: .\scripts\docker-build.ps1
+      - name: Build and test through build.ps1 (what a Windows 11 developer runs)
+        run: .\build.ps1 test
+      - name: Container health check (same as the Linux "package" job)
+        run: |
+          docker run -d --name gygax-ci -e GYGAX_API_TOKEN=ci-token -p 1984:1984 gygax
+          for ($i = 0; $i -lt 30; $i++) {
+            try { if ((Invoke-WebRequest -UseBasicParsing http://localhost:1984/healthz).StatusCode -eq 200) { break } } catch {}
+            Start-Sleep -Seconds 1
+          }
+          Invoke-WebRequest -UseBasicParsing -Headers @{ Authorization = "Bearer ci-token" } http://localhost:1984/v1/models
+          docker stop gygax-ci

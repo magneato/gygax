@@ -1,0 +1,6 @@
+build
+trash
+.git
+*.lsr
+*.dsk
+python/**/__pycache__

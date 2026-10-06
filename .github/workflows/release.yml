@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Build source archive
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Verify tag matches project version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -nE 's/^project\(gygax VERSION ([^ ]+).*/\1/p' CMakeLists.txt | head -n 1)"
+          tag_version="${GITHUB_REF_NAME#v}"
+          test -n "$version"
+          if [ "$tag_version" != "$version" ]; then
+            echo "Release tag $GITHUB_REF_NAME does not match project version $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create source archive from the release tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git archive --format=tar --prefix="gygax-${VERSION}/" HEAD | gzip -n > "gygax-${VERSION}-source.tar.gz"
+          tar -tzf "gygax-${VERSION}-source.tar.gz" | grep -q "^gygax-${VERSION}/CMakeLists.txt$"
+          tar -tzf "gygax-${VERSION}-source.tar.gz" | grep -q "^gygax-${VERSION}/LICENSE$"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gygax-source
+          path: gygax-*-source.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  sdk:
+    name: Build and verify Linux SDK packages
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Verify tag matches project version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -nE 's/^project\(gygax VERSION ([^ ]+).*/\1/p' CMakeLists.txt | head -n 1)"
+          test "${GITHUB_REF_NAME#v}" = "$version" || {
+            echo "Release tag $GITHUB_REF_NAME does not match project version $version" >&2
+            exit 1
+          }
+
+      - name: Install toolchain and packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 cmake ninja-build python3 curl libeigen3-dev libgmp-dev
+
+      - name: Configure release build
+        run: cmake --preset release
+
+      - name: Build complete SDK and examples
+        run: cmake --build --preset release --parallel 2
+
+      - name: Run full release test suite and installed SDK consumer test
+        run: ctest --preset release --parallel 2
+
+      - name: Package Debian and relocatable Linux SDKs
+        run: cpack --config build/release/CPackConfig.cmake -G "DEB;TGZ"
+
+      - name: Verify package outputs
+        run: |
+          set -euo pipefail
+          compgen -G 'gygax_*.deb' >/dev/null
+          compgen -G 'gygax-*.tar.gz' >/dev/null
+          for package in gygax_*.deb; do dpkg-deb --info "$package" >/dev/null; done
+          for package in gygax-*.tar.gz; do tar -tzf "$package" >/dev/null; done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gygax-linux-sdk
+          path: |
+            gygax_*.deb
+            gygax-*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [source, sdk]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: gygax-source
+          path: release-assets
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gygax-linux-sdk
+          path: release-assets
+
+      - name: Create release checksums
+        working-directory: release-assets
+        run: sha256sum gygax-* > SHA256SUMS
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        working-directory: release-assets
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" ./* --clobber
+          else
+            gh release create "$TAG" ./* \
+              --verify-tag \
+              --title "Gygax ${TAG#v}" \
+              --generate-notes
+          fi

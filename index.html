@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d12">
+  <meta name="description" content="The complete field guide to Gygax: an open-source C++26 runtime for autonomous agents, simulation, neuromorphic computing, robotics, and operational control.">
+  <title>Gygax: God Doesn't Play Dice</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e8edf0;
+      --muted: #99a8b1;
+      --dim: #63737e;
+      --night: #090d12;
+      --panel: #111820;
+      --panel-2: #151f28;
+      --line: #28343d;
+      --cyan: #86e1d1;
+      --gold: #efbd74;
+      --red: #ee897f;
+      --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+    body { margin: 0; background: var(--night); color: var(--ink); font: 15px/1.65 var(--sans); }
+    a { color: var(--cyan); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: #c4fff2; }
+    button { font: inherit; }
+    ::selection { background: #86e1d166; color: white; }
+    .skip { position: fixed; top: -80px; left: 12px; z-index: 9; padding: 10px 14px; background: var(--cyan); color: #07110f; }
+    .skip:focus { top: 12px; }
+    .topbar { position: sticky; z-index: 5; top: 0; border-bottom: 1px solid #ffffff13; background: #090d12eF; backdrop-filter: blur(14px); }
+    .top-inner { width: min(1200px, calc(100% - 44px)); min-height: 64px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .wordmark { color: var(--ink); text-decoration: none; font: 700 18px/1 var(--serif); letter-spacing: .12em; }
+    .wordmark span { color: var(--cyan); }
+    nav { display: flex; align-items: center; gap: 23px; }
+    nav a { color: var(--muted); font-size: 12px; text-decoration: none; }
+    nav a:hover { color: var(--ink); }
+    .nav-cta { border: 1px solid #86e1d177; padding: 7px 11px; color: var(--cyan); }
+    .hero { min-height: 660px; position: relative; overflow: hidden; display: grid; align-items: center; border-bottom: 1px solid var(--line); }
+    #field { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .65; }
+    .hero:after { content: ""; pointer-events: none; position: absolute; inset: 0; background: linear-gradient(90deg, #090d12 0%, #090d12e8 38%, #090d1260 78%, #090d12aa), linear-gradient(0deg, #090d12 0%, transparent 40%, #090d1270); }
+    .hero-inner { position: relative; z-index: 1; width: min(1200px, calc(100% - 44px)); margin: 0 auto; padding: 88px 0 96px; }
+    .eyebrow { color: var(--cyan); font: 11px/1.4 var(--mono); letter-spacing: .18em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 770px; margin: 25px 0 22px; font: 400 clamp(54px, 8.1vw, 108px)/.96 var(--serif); letter-spacing: -.055em; }
+    h1 em { color: var(--gold); font-weight: 400; }
+    .hero-sub { max-width: 630px; color: #c1cbd0; font-size: clamp(17px, 2vw, 21px); line-height: 1.6; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+    .button { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 16px; border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-size: 13px; transition: .2s ease; }
+    .button:hover { transform: translateY(-2px); border-color: var(--cyan); text-decoration: none; }
+    .button.primary { border-color: var(--cyan); background: var(--cyan); color: #071310; font-weight: 700; }
+    .hero-note { margin-top: 22px; color: var(--dim); font: 11px/1.6 var(--mono); }
+    main { width: min(1200px, calc(100% - 44px)); margin: 0 auto; }
+    section { padding: 100px 0; border-bottom: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 190px 1fr; gap: 32px; align-items: start; margin-bottom: 42px; }
+    .section-index { padding-top: 10px; color: var(--gold); font: 11px/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+    h2 { max-width: 760px; margin-bottom: 14px; font: 400 clamp(34px, 5vw, 57px)/1.08 var(--serif); letter-spacing: -.035em; }
+    .lead { max-width: 730px; margin: 0; color: var(--muted); font-size: 17px; line-height: 1.75; }
+    h3 { margin-bottom: 10px; font: 400 23px/1.2 var(--serif); }
+    .small { color: var(--muted); font-size: 13px; }
+    .grid { display: grid; gap: 14px; }
+    .grid.three { grid-template-columns: repeat(3, 1fr); }
+    .grid.two { grid-template-columns: repeat(2, 1fr); }
+    .card { min-height: 190px; padding: 24px; border: 1px solid var(--line); background: linear-gradient(145deg, #141d26, #0e141a); }
+    .card .num { display: block; margin-bottom: 20px; color: var(--cyan); font: 11px var(--mono); }
+    .card p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+    .manifesto { margin: 40px 0 0; padding: 24px 26px; border-left: 2px solid var(--gold); background: #efbd740a; color: #d4d8d6; font: 20px/1.5 var(--serif); }
+    .manifesto cite { display: block; margin-top: 10px; color: var(--dim); font: 11px var(--mono); font-style: normal; letter-spacing: .06em; }
+    .terminal { overflow: hidden; border: 1px solid #33434c; background: #06090c; }
+    .terminal-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #26323a; color: var(--dim); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .terminal pre { overflow-x: auto; margin: 0; padding: 19px 21px; color: #c4d1d5; font: 12px/1.9 var(--mono); }
+    code { color: var(--cyan); font-family: var(--mono); font-size: .92em; }
+    pre code { color: inherit; }
+    .copy { cursor: pointer; border: 1px solid #33434c; padding: 5px 9px; background: transparent; color: var(--muted); font: 10px var(--mono); }
+    .copy:hover { border-color: var(--cyan); color: var(--cyan); }
+    .capability { display: grid; grid-template-columns: 46px 1fr; gap: 18px; padding: 22px 0; border-top: 1px solid var(--line); }
+    .cap-icon { color: var(--gold); font: 16px var(--mono); }
+    .capability h3 { font-size: 21px; }
+    .capability p { max-width: 730px; margin: 0 0 9px; color: var(--muted); font-size: 13px; }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .tag { padding: 4px 8px; border: 1px solid #ffffff1a; color: #9eafb7; font: 10px var(--mono); }
+    .showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; margin-top: 30px; }
+    .showcase-item { padding: 27px; border: 1px solid var(--line); background: var(--panel); }
+    .showcase-item .eyebrow { margin-bottom: 17px; }
+    .showcase-item p { color: var(--muted); font-size: 13px; }
+    .showcase-item pre { white-space: pre-wrap; margin: 17px 0 0; color: #c3d0d3; font: 11px/1.7 var(--mono); }
+    .callout { margin-top: 23px; padding: 18px 20px; border: 1px solid #efbd7444; color: #c8c2b6; font-size: 13px; }
+    .safety { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .safety-item { padding: 21px; border: 1px solid var(--line); }
+    .safety-item h3 { color: var(--cyan); font-size: 18px; }
+    .safety-item p { margin: 0; color: var(--muted); font-size: 13px; }
+    .truth { border-color: #7e3836; background: #ee897f0a; }
+    .truth h3 { color: var(--red); }
+    .docs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .doc-link { display: flex; flex-direction: column; gap: 7px; min-height: 106px; padding: 16px; border: 1px solid var(--line); color: var(--ink); text-decoration: none; background: var(--panel); }
+    .doc-link:hover { border-color: var(--cyan); text-decoration: none; }
+    .doc-link strong { font: 17px var(--serif); }
+    .doc-link span { color: var(--muted); font-size: 11px; }
+    .closing { padding: 90px 0 100px; text-align: center; }
+    .closing h2 { margin: 17px auto; }
+    .closing p { max-width: 620px; margin: 0 auto 26px; color: var(--muted); }
+    footer { border-top: 1px solid var(--line); color: var(--dim); font: 11px/1.8 var(--mono); }
+    .foot-inner { width: min(1200px, calc(100% - 44px)); margin: auto; padding: 23px 0; display: flex; justify-content: space-between; gap: 20px; }
+    .foot-inner a { color: var(--muted); }
+    .fade { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+    .fade.in { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) { *, *:before, *:after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } .fade { opacity: 1; transform: none; } }
+    @media (max-width: 850px) {
+      nav { gap: 13px; } nav a:not(.nav-cta) { display: none; }
+      .section-head { grid-template-columns: 1fr; gap: 8px; }
+      .grid.three { grid-template-columns: 1fr; }
+      .card { min-height: auto; }
+      .docs-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 620px) {
+      .top-inner, main, .hero-inner, .foot-inner { width: min(100% - 32px, 1200px); }
+      .hero { min-height: 620px; }
+      h1 { font-size: clamp(51px, 17vw, 80px); }
+      section { padding: 72px 0; }
+      .grid.two, .showcase, .safety { grid-template-columns: 1fr; }
+      .docs-grid { grid-template-columns: 1fr 1fr; }
+      .doc-link { min-height: 95px; padding: 12px; }
+      .foot-inner { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#guide">Skip to guide</a>
+  <header class="topbar">
+    <div class="top-inner">
+      <a class="wordmark" href="#top" aria-label="Gygax home"><span>G</span>YGAX</a>
+      <nav aria-label="Main navigation">
+        <a href="#principles">Principles</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#showcases">Showcases</a>
+        <a href="#safety">Boundaries</a>
+        <a href="#documentation">Documentation</a>
+        <a class="nav-cta" href="https://github.com/magneato/gygax">Source ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="hero" id="top">
+    <canvas id="field" aria-hidden="true"></canvas>
+    <div class="hero-inner">
+      <div class="eyebrow">A field guide to autonomous systems · v0.2.0</div>
+      <h1>God doesn't<br>play <em>dice.</em></h1>
+      <p class="hero-sub">Neither should the systems we trust with the physical world. Gygax is an open-source runtime for agents, simulation, robotics, and neuromorphic computing, designed to make behavior testable and authority explicit.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#start">Run Gygax <span aria-hidden="true">↓</span></a>
+        <a class="button" href="#capabilities">Explore the system</a>
+        <a class="button" href="docs/WARGAMES.md">See the wargames demo ↗</a>
+        <a class="button" href="examples/seek_and_find/seek_and_find.html">Try Seek &amp; Find ↗</a>
+      </div>
+      <p class="hero-note">DETERMINISTIC BY DESIGN WHERE IT MATTERS · HUMAN AUTHORITY AT THE EDGE</p>
+    </div>
+  </div>
+
+  <main id="guide">
+    <section id="principles" class="fade">
+      <div class="section-head">
+        <div class="section-index">00 / Premise</div>
+        <div>
+          <h2>Make the system legible before making it powerful.</h2>
+          <p class="lead">Gygax brings the pieces of an autonomous system into one C++26 project: an agent runtime, a service, physical and simulated interfaces, and research tools. It is a toolkit for building and evaluating systems. It is not a promise that autonomy is safe by default.</p>
+        </div>
+      </div>
+      <div class="grid three">
+        <article class="card"><span class="num">01 · REPRODUCIBLE</span><h3>Run it again.</h3><p>Seedable simulation and deterministic components help teams compare behavior under the same conditions. Repeatability is an aid to inspection, not proof of real-world correctness.</p></article>
+        <article class="card"><span class="num">02 · COMPOSABLE</span><h3>Use defined interfaces.</h3><p>Agents call tools. Devices use protocols. Modules and SDKs provide extension points. Keep model decisions separate from the interfaces that carry them out.</p></article>
+        <article class="card"><span class="num">03 · HUMAN-BOUND</span><h3>Make authority a choice.</h3><p>Device command access is disabled by default. Service networking, authentication, and physical safeguards remain deployment decisions that must be made deliberately.</p></article>
+      </div>
+      <blockquote class="manifesto">“God does not play dice with the universe.”<cite>ATTRIBUTED TO ALBERT EINSTEIN · THEME, NOT A PROJECT CLAIM</cite></blockquote>
+    </section>
+
+    <section id="start" class="fade">
+      <div class="section-head">
+        <div class="section-index">01 / First run</div>
+        <div>
+          <h2>Build it. Check it. Then decide what to trust.</h2>
+          <p class="lead">Linux with Clang 18+ is the reference platform. The quick start builds the project and runs its in-process diagnostic suite before you connect a model or a device.</p>
+        </div>
+      </div>
+      <div class="terminal">
+        <div class="terminal-head"><span>01 · source build · Linux</span><button class="copy" type="button" data-copy="git clone https://github.com/magneato/gygax
+cd gygax
+./setup.sh
+./build.sh
+./build/gygax doctor">Copy commands</button></div>
+        <pre><code>git clone https://github.com/magneato/gygax
+cd gygax
+./setup.sh                 # check prerequisites
+./build.sh                 # compile into ./build
+./build/gygax doctor       # in-process self-tests</code></pre>
+      </div>
+      <div class="grid two" style="margin-top:14px">
+        <article class="card"><span class="num">A · LOCAL SERVICE</span><h3>Start with echo</h3><p>Bring up the API without a remote model. The built-in echo engine is useful for smoke testing and learning the endpoints.</p><pre><code>./build/gygax serve --engine echo
+./build/gygax status</code></pre></article>
+        <article class="card"><span class="num">B · NEUROMORPHIC EXAMPLE</span><h3>Try a network</h3><p>Build the library, point the Python bindings at it, then run the included STDP example.</p><pre><code>export GYGAX_LIB=$PWD/build/libgygax_c.so
+export PYTHONPATH=$PWD/python
+python3 examples/python/stdp_demo.py</code></pre></article>
+      </div>
+      <p class="small" style="margin-top:18px">Windows 11 users should use the documented Docker Desktop / WSL2 workflow. See <a href="docs/WINDOWS.md">Windows setup</a>. Production installation options are in <a href="docs/OPERATIONS.md">Operations</a>.</p>
+    </section>
+
+    <section id="architecture" class="fade">
+      <div class="section-head">
+        <div class="section-index">02 / System map</div>
+        <div>
+          <h2>One runtime. Several layers that can meet.</h2>
+          <p class="lead">The architecture separates inference, agent orchestration, tools, embodiment, simulation, and transport. Connect the layers your use case needs; nothing requires every installation to control hardware.</p>
+        </div>
+      </div>
+      <div class="terminal">
+        <div class="terminal-head"><span>ARCHITECTURE / SIMPLIFIED</span><a href="docs/ARCHITECTURE.md">Full architecture ↗</a></div>
+        <pre><code>  chat API / Ollama API ─── service ─── inference pool ─── model backends
+            │                 │
+            │             orchestrator ─── agents ─── registered tools
+            │                 │                         │
+      metrics / auth     world model / events     devices / logistics
+                                                      │
+                          simulation ── robot links ── transports
+                           │                          │
+                       LiDAR / USD              MAVLink / CAN / ROS
+                           │
+                    neuromorphic engine ── C ABI ── Python</code></pre>
+      </div>
+      <p class="small" style="margin-top:17px">For module ownership, threading, the agent loop, extension points, and deliberate limits, read <a href="docs/ARCHITECTURE.md">Architecture</a>.</p>
+    </section>
+
+    <section id="capabilities" class="fade">
+      <div class="section-head">
+        <div class="section-index">03 / Capabilities</div>
+        <div>
+          <h2>What ships in the repository.</h2>
+          <p class="lead">Gygax is broad by design. The capabilities below describe included source and examples; production readiness depends on each deployment, target, and safety case.</p>
+        </div>
+      </div>
+      <div>
+        <article class="capability"><div class="cap-icon">01</div><div><h3>Inference service and routing</h3><p>HTTP service with standard chat-completions and Ollama endpoints, model-aware routing, engine health probing, failover, optional peers, JSON-RPC, metrics, and graceful shutdown. Built-in echo works without a model server.</p><div class="tag-list"><span class="tag">Chat API</span><span class="tag">Ollama API</span><span class="tag">Failover</span><span class="tag">Peers</span><span class="tag">Prometheus</span></div></div></article>
+        <article class="capability"><div class="cap-icon">02</div><div><h3>Tool-using agent runtime</h3><p>Objective-driven agent loops with tool calls, episodic memory, step limits, cancellation, worker pools, and event publication. Tools can be registered in-process, supplied by plugins/extensions, or exposed over MCP.</p><div class="tag-list"><span class="tag">Orchestrator</span><span class="tag">ToolRegistry</span><span class="tag">ATARI protocol</span><span class="tag">MCP</span></div></div></article>
+        <article class="capability"><div class="cap-icon">03</div><div><h3>Embodiment and runtime state</h3><p>Hardware-style node trees, capability aggregation, hierarchical state machines, sensors, actuators, a message hub, temporal buffering, and embodiment taxonomy provide a common model for connected systems.</p><div class="tag-list"><span class="tag">Node trees</span><span class="tag">State machines</span><span class="tag">Messaging</span><span class="tag">Events</span></div></div></article>
+        <article class="capability"><div class="cap-icon">04</div><div><h3>Simulation and sim-to-real links</h3><p>A 2D differential-drive world with collisions and LiDAR, UDP/TCP robot links, trajectory export to USD, and vectorized environments for repeatable experiments.</p><div class="tag-list"><span class="tag">2D world</span><span class="tag">LiDAR</span><span class="tag">VecEnv</span><span class="tag">USD</span></div></div></article>
+        <article class="capability"><div class="cap-icon">05</div><div><h3>Quantum adapter interfaces</h3><p>Vendor-neutral contracts for navigation estimates and QKD-backed authenticated secure channels. These are integration interfaces only: no quantum sensor driver, QKD provider, or cryptographic implementation is included. The Seek &amp; Find replay's sensor and basis-sifting values are classical mock data.</p><div class="tag-list"><span class="tag">Navigation estimate</span><span class="tag">QKD adapter</span><span class="tag">Basis sifting</span><span class="tag">No vendor driver</span></div><p style="margin-top:10px"><a href="docs/QUANTUM_INTEGRATION.md">Read the integration boundary ↗</a></p></div></article>
+        <article class="capability"><div class="cap-icon">06</div><div><h3>Neuromorphic computing</h3><p>LIF and Izhikevich populations, Poisson and spike-source populations, delayed sparse projections, seeded RNG, and pair-based STDP. Access the engine through C++, JSON/HTTP, the C ABI, and Python bindings.</p><div class="tag-list"><span class="tag">LIF</span><span class="tag">Izhikevich</span><span class="tag">STDP</span><span class="tag">C ABI</span><span class="tag">Python</span></div></div></article>
+        <article class="capability"><div class="cap-icon">07</div><div><h3>Robotics and industrial protocols</h3><p>MAVLink v1/v2, virtual autopilot, SocketCAN and CAN FD, ISO-TP, OBD-II, J1939, DBC, CANopen, Modbus, NMEA 0183, ADS-B, ARINC 429 library support, and rosbridge.</p><div class="tag-list"><span class="tag">MAVLink</span><span class="tag">CAN</span><span class="tag">Modbus</span><span class="tag">ROS bridge</span><span class="tag">ADS-B</span></div></div></article>
+        <article class="capability"><div class="cap-icon">08</div><div><h3>Logistics and supply chain</h3><p>GUID-tracked entities, append-only ledger events, flow summaries, and range-aware route planning with refuel stops. The API is also available for tools and service integration.</p><div class="tag-list"><span class="tag">GUID ledger</span><span class="tag">Routes</span><span class="tag">Refueling</span><span class="tag">Flow report</span></div></div></article>
+        <article class="capability"><div class="cap-icon">09</div><div><h3>SDKs, transports, and developer tools</h3><p>C and C++ plugin SDKs, Python bindings and extension SDK, serial, GPIO, modem, printer and G-code transports, plus Gyde, the optional terminal console for inspecting and querying a running node.</p><div class="tag-list"><span class="tag">C/C++ SDK</span><span class="tag">Python</span><span class="tag">Gyde CLI</span><span class="tag">6502 / 6809 tools</span></div></div></article>
+        <article class="capability"><div class="cap-icon">10</div><div><h3>Acoustic study (simulation only)</h3><p>Compare phase-aware tone estimates at explicit 2D observation points and sample synthetic amplitude-modulated alerts. This model has no speaker, audio-output, or flight-control integration; modeled cancellation at one point says nothing conclusive about other locations.</p><div class="tag-list"><span class="tag">Coherent tones</span><span class="tag">Point-specific estimate</span><span class="tag">No hardware output</span></div></div></article>
+      </div>
+    </section>
+
+    <section id="showcases" class="fade">
+      <div class="section-head">
+        <div class="section-index">04 / Demonstrations</div>
+        <div>
+          <h2>See the parts work together.</h2>
+          <p class="lead">Examples are starting points for inspection and experimentation. They are not operational certification or performance guarantees.</p>
+        </div>
+      </div>
+      <div class="showcase">
+        <article class="showcase-item"><div class="eyebrow">SHOWCASE 01 / WARGAMES</div><h3>A human-directed agent team</h3><p>Agents command a bunker, turrets, tanks, and drones. The example composes the orchestrator, tools, collective consensus, a ledger, route planning, and a small LIF-driven hostile hive. The built-in doctrine makes seeded battles reproducible; humans can direct the running simulation.</p><pre>./build/wargames --map
+./build/wargames --interactive
+./build/wargames --script examples/wargames/orders.txt</pre><p style="margin-top:15px"><a href="docs/WARGAMES.md">Read the wargames guide ↗</a></p></article>
+        <article class="showcase-item"><div class="eyebrow">SHOWCASE 02 / ARRIVAL</div><h3>Simulation meets a robot link</h3><p>Four rovers traverse a 2D environment with obstacles and LiDAR. One uses a spiking controller; a rover is then promoted over a UDP link to a hardware-style target. The example's far end is an emulator, not a field robot.</p><pre>./build/arrival
+./build/arrival --seconds 30 --real-seconds 5 \
+  --usd build/arrival.usda</pre><p style="margin-top:15px">Source: <a href="examples/arrival/main.cpp">examples/arrival</a> · Simulation docs: <a href="docs/ROBOTICS.md">Robotics</a></p></article>
+      </div>
+      <div class="callout">
+  <strong>Seek &amp; Find: communications and quantum-interface simulation.</strong>
+  Explore a fictional scenario where simulated scouts restore a message path,
+  a mock inertial estimate informs a waypoint, a classical model illustrates
+  QKD basis sifting, and an inspection drone reaches a UV-marked USB prop. No
+  quantum device, secret key, cryptographic protection, radio, GPS, robot, or
+  external service is used; it does not train or command real machines.
+  <a href="examples/seek_and_find/seek_and_find.html">Open the interactive demo</a>
+  · <a href="examples/seek_and_find/seek_and_find.usda">Open the USD scene</a>
+  · <a href="examples/seek_and_find/README.md">Read its scope and safety notes</a>.
+      </div>
+      <div class="callout"><strong>Try a local simulated aircraft:</strong> run <code>./build/gygax sim-autopilot</code>, then follow <a href="docs/ROBOTICS.md">the robotics guide</a> to connect a service and issue commands to the virtual autopilot. The example is local simulation; real device control has separate safeguards and risks.</div>
+    </section>
+
+    <section id="operations" class="fade">
+      <div class="section-head">
+        <div class="section-index">05 / Operate</div>
+        <div>
+          <h2>Configure the service for the environment you actually have.</h2>
+          <p class="lead">The daemon runs with a selected inference engine, listens on a configured interface, and exposes health, readiness, metrics, and API endpoints. Deployment means choosing authentication, network placement, TLS termination, logging, supervision, and resource limits.</p>
+        </div>
+      </div>
+      <div class="grid three">
+        <article class="card"><span class="num">LOCAL</span><h3>Start contained</h3><p>Keep the default loopback bind while developing. The <code>echo</code> engine lets you test service behavior without an external model.</p><pre><code>./build/gygax serve \
+  --engine echo</code></pre></article>
+        <article class="card"><span class="num">MODEL</span><h3>Point to an engine</h3><p>Use a local chat-completions endpoint such as Ollama, llama.cpp or another supported backend. Model performance and availability remain properties of that engine.</p><pre><code>./build/gygax serve \
+  --engine http://127.0.0.1:11434/v1 \
+  --model llama3.1</code></pre></article>
+        <article class="card"><span class="num">PRODUCTION</span><h3>Harden the boundary</h3><p>Use a strong bearer token, TLS termination for traffic leaving the host, a supervisor, monitoring, and the documented systemd/container guidance.</p><p><a href="docs/OPERATIONS.md">Read operations guidance ↗</a></p></article>
+      </div>
+    </section>
+
+    <section id="safety" class="fade">
+      <div class="section-head">
+        <div class="section-index">06 / Boundaries</div>
+        <div>
+          <h2>Be precise about what the controls do and don’t do.</h2>
+          <p class="lead">Safe defaults reduce exposure. They do not remove the need for engineering judgment, threat modeling, or target-specific safety design.</p>
+        </div>
+      </div>
+      <div class="safety">
+        <article class="safety-item"><h3>Commands start disabled</h3><p>Device command tools are only registered when the service is launched with <code>--device-commands</code> (or the corresponding environment setting). Treat enabling commands as a deliberate authority change.</p></article>
+        <article class="safety-item"><h3>Network exposure needs authentication</h3><p>The service defaults to loopback and refuses a non-loopback bind without a token. For external traffic, use a TLS terminator and the token; the service itself speaks plain HTTP.</p></article>
+        <article class="safety-item"><h3>Simulation is not proof</h3><p>A simulated success demonstrates behavior in a model of the world. It cannot certify a controller, validate a physical deployment, or guarantee that a real machine will respond identically.</p></article>
+        <article class="safety-item truth"><h3>Gygax is not a safety controller</h3><p>It adds no safety layer to a vehicle. Keep the autopilot's failsafes, geofence, and a physical emergency stop. Complete the domain's safety case before operating equipment.</p></article>
+      </div>
+      <p class="small" style="margin-top:18px">Enabling device commands does not add per-command human approval. Gygax has no built-in approval gate or universal hardware/simulation interlock. For detailed boundaries, see <a href="docs/SDK_API.md">Public API and trust boundaries</a>, <a href="docs/OPERATIONS.md">Operations</a>, <a href="docs/ROBOTICS.md">Robotics safety model</a>, and <a href="SECURITY.md">Security reporting</a>.</p>
+    </section>
+
+    <section id="verification" class="fade">
+      <div class="section-head">
+        <div class="section-index">07 / Verify</div>
+        <div>
+          <h2>Trust the checks you can rerun.</h2>
+          <p class="lead">Gygax includes unit and integration tests, a built-in doctor command, and scripts for deeper build, sanitizer, and service checks. Start with the targeted check that matches your change.</p>
+        </div>
+      </div>
+      <div class="terminal">
+        <div class="terminal-head"><span>VALIDATION / FROM BUILD DIRECTORY</span></div>
+        <pre><code>./build/gygax doctor
+ctest --test-dir build --output-on-failure
+./scripts/lint.sh
+./scripts/dogfood.sh</code></pre>
+      </div>
+      <p class="small" style="margin-top:16px">Protocol interoperability has reference checks documented in <a href="docs/ROBOTICS.md">Robotics</a>. See <a href="docs/ARCHITECTURE.md">Architecture</a> for concurrency and runtime design. Test coverage is not a claim that every supported device or deployment has been validated.</p>
+    </section>
+
+    <section id="documentation" class="fade">
+      <div class="section-head">
+        <div class="section-index">08 / Field notes</div>
+        <div>
+          <h2>Go deeper by subsystem.</h2>
+          <p class="lead">The repository documentation is the source of truth for exact behavior, configuration, and limitations.</p>
+        </div>
+      </div>
+      <div class="docs-grid">
+        <a class="doc-link" href="README.md"><strong>README</strong><span>Project overview and quick start</span></a>
+        <a class="doc-link" href="docs/ARCHITECTURE.md"><strong>Architecture</strong><span>Layers, modules, threading, extension points</span></a>
+        <a class="doc-link" href="docs/SERVICE.md"><strong>Service</strong><span>HTTP endpoints, engines, agents, tools</span></a>
+        <a class="doc-link" href="docs/OPERATIONS.md"><strong>Operations</strong><span>Install, TLS, monitoring, hardening</span></a>
+        <a class="doc-link" href="docs/ROBOTICS.md"><strong>Robotics</strong><span>Devices, protocols, safety boundaries</span></a>
+        <a class="doc-link" href="docs/NEUROMORPHIC.md"><strong>Neuromorphic</strong><span>Models, units, determinism, bindings</span></a>
+        <a class="doc-link" href="docs/LOGISTICS.md"><strong>Logistics</strong><span>Ledger, GUIDs, route planning</span></a>
+        <a class="doc-link" href="docs/EXTENSIONS.md"><strong>Extensions</strong><span>Plugins and tool processes</span></a>
+        <a class="doc-link" href="docs/SDK_API.md"><strong>Public API &amp; ABI</strong><span>Versioning, ownership, and trust boundaries</span></a>
+        <a class="doc-link" href="docs/ACOUSTICS.md"><strong>Acoustic study</strong><span>Simulation-only cancellation estimates and modulation limits</span></a>
+        <a class="doc-link" href="docs/TRANSPORTS.md"><strong>Transports</strong><span>Serial, GPIO, modem, printer, G-code</span></a>
+        <a class="doc-link" href="docs/ATARI.md"><strong>ATARI protocol</strong><span>Compact tool-call wire format</span></a>
+        <a class="doc-link" href="docs/WARGAMES.md"><strong>Wargames</strong><span>Agent coordination and human directives</span></a>
+        <a class="doc-link" href="examples/seek_and_find/README.md"><strong>Seek &amp; Find</strong><span>Standalone simulated communications and visual search demo</span></a>
+        <a class="doc-link" href="docs/QUANTUM_INTEGRATION.md"><strong>Quantum integration</strong><span>Sensor and QKD adapter interfaces, limitations, and security boundary</span></a>
+        <a class="doc-link" href="docs/GYDE.md"><strong>Gyde</strong><span>Optional terminal runtime console</span></a>
+      </div>
+    </section>
+
+    <div class="closing fade">
+      <div class="eyebrow">Open source · Clear BSD licence · C++26</div>
+      <h2>Start with a question.<br>Make the answer observable.</h2>
+      <p>Build the project, run the checks, inspect a showcase, and decide where the interfaces fit your system. Then test the assumptions that matter to your team.</p>
+      <div class="hero-actions" style="justify-content:center">
+        <a class="button primary" href="https://github.com/magneato/gygax">Explore the source ↗</a>
+        <a class="button" href="README.md">Return to README</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="foot-inner">
+      <span>GYGAX · AUTONOMOUS SYSTEMS, MADE LEGIBLE</span>
+      <span><a href="LICENSE">Clear BSD License</a> · <a href="PATENTS.md">Patents</a> · <a href="SECURITY.md">Security</a> · <a href="SUPPORT.md">Support</a></span>
+    </div>
+  </footer>
+  <script>
+    (() => {
+      const canvas = document.querySelector("#field");
+      const ctx = canvas.getContext("2d");
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let width = 0, height = 0, frame = 0;
+      const points = Array.from({ length: 74 }, (_, i) => ({
+        x: ((i * 137.508) % 997) / 997,
+        y: ((i * 271.831 + 83) % 991) / 991,
+        phase: i * 0.71,
+        size: 0.5 + (i % 5) * 0.18
+      }));
+      function resize() {
+        const box = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+        width = box.width; height = box.height;
+        canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        const t = frame * 0.003;
+        const coords = points.map(p => [p.x * width + Math.sin(t + p.phase) * 5, p.y * height + Math.cos(t * .7 + p.phase) * 4]);
+        for (let i = 0; i < coords.length; i++) {
+          let connected = 0;
+          for (let j = i + 1; j < coords.length && connected < 3; j++) {
+            const dx = coords[i][0] - coords[j][0], dy = coords[i][1] - coords[j][1], d = Math.hypot(dx, dy);
+            if (d < 125) {
+              ctx.strokeStyle = `rgba(134,225,209,${(1 - d / 125) * .18})`;
+              ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(...coords[i]); ctx.lineTo(...coords[j]); ctx.stroke();
+              connected++;
+            }
+          }
+          ctx.fillStyle = i % 7 === 0 ? "rgba(239,189,116,.58)" : "rgba(134,225,209,.38)";
+          ctx.beginPath(); ctx.arc(coords[i][0], coords[i][1], points[i].size, 0, Math.PI * 2); ctx.fill();
+        }
+        frame++;
+        if (!reducedMotion) requestAnimationFrame(draw);
+      }
+      new ResizeObserver(resize).observe(canvas);
+      resize(); draw();
+    })();
+    document.querySelectorAll(".copy").forEach(button => button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy);
+        button.textContent = "Copied";
+        setTimeout(() => button.textContent = "Copy commands", 1400);
+      } catch {
+        button.textContent = "Select commands above";
+        setTimeout(() => button.textContent = "Copy commands", 1600);
+      }
+    }));
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) { entry.target.classList.add("in"); observer.unobserve(entry.target); }
+    }), { threshold: .08 });
+    document.querySelectorAll(".fade").forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

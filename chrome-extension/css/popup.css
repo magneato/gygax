@@ -1,0 +1,347 @@
+/* TRON-Inspired Gygax Grid Portal */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    width: 500px;
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #020208;
+    color: #00ffcc;
+    line-height: 1.5;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 600px;
+}
+
+header {
+    background-color: #050512;
+    border-bottom: 2px solid #ff00ff;
+    padding: 15px 20px;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+}
+
+header h1 {
+    color: #ff00ff;
+    font-size: 1.8em;
+    text-shadow: 0 0 10px #ff00ff;
+    margin-bottom: 2px;
+    letter-spacing: 2px;
+}
+
+header .subtitle {
+    color: #00ffaa;
+    font-size: 0.75em;
+    text-shadow: 0 0 5px #00ffaa;
+    letter-spacing: 1px;
+}
+
+section {
+    padding: 15px 20px;
+    border: 1px solid #00ffcc;
+    margin: 10px;
+    background-color: #051212;
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(0, 255, 204, 0.15);
+}
+
+section h2 {
+    color: #ffff00;
+    font-size: 0.9em;
+    text-shadow: 0 0 5px #ffff00;
+    border-bottom: 1px dashed #ffff00;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Status Panel */
+.status-panel {
+    background-color: #0a1a1a;
+    border-color: #00ffaa;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background-color: #051212;
+    border-radius: 3px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 8px currentColor;
+}
+
+.status-dot.online {
+    background-color: #00ff88;
+    box-shadow: 0 0 8px #00ff88;
+}
+
+.status-dot.offline {
+    background-color: #ff5555;
+    box-shadow: 0 0 8px #ff5555;
+}
+
+.status-dot.pending {
+    background-color: #ffaa00;
+    box-shadow: 0 0 8px #ffaa00;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    color: #00ffcc;
+    font-weight: bold;
+}
+
+.status-details {
+    margin-top: 8px;
+    font-size: 0.85em;
+    padding-top: 8px;
+    border-top: 1px dashed #00ffcc;
+}
+
+.status-details p {
+    margin: 4px 0;
+}
+
+.status-details code {
+    background-color: #020208;
+    border: 1px solid #00ffaa;
+    padding: 2px 6px;
+    border-radius: 2px;
+    color: #00ffaa;
+}
+
+/* Form Elements */
+.form-group {
+    margin-bottom: 12px;
+}
+
+label {
+    display: block;
+    color: #ffff00;
+    font-size: 0.9em;
+    margin-bottom: 6px;
+    text-shadow: 0 0 3px #ffff00;
+    text-transform: uppercase;
+}
+
+select,
+textarea {
+    width: 100%;
+    padding: 8px;
+    background-color: #020208;
+    border: 1px solid #00ffcc;
+    color: #00ffcc;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    border-radius: 3px;
+}
+
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #ff00ff;
+    box-shadow: 0 0 8px rgba(255, 0, 255, 0.4);
+}
+
+select option {
+    background-color: #020208;
+    color: #00ffcc;
+}
+
+textarea {
+    resize: vertical;
+    font-size: 0.85em;
+    line-height: 1.4;
+}
+
+/* Buttons */
+button {
+    padding: 10px 20px;
+    border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-primary {
+    width: 100%;
+    background: transparent;
+    border: 2px solid #00ffcc;
+    color: #00ffcc;
+    text-shadow: 0 0 5px #00ffcc;
+    margin-top: 10px;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #00ffcc;
+    color: #020208;
+    text-shadow: none;
+    box-shadow: 0 0 15px #00ffcc;
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    width: 100%;
+    background: transparent;
+    border: 2px solid #ff00ff;
+    color: #ff00ff;
+    text-shadow: 0 0 5px #ff00ff;
+    margin-top: 10px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #ff00ff;
+    color: #020208;
+    text-shadow: none;
+    box-shadow: 0 0 15px #ff00ff;
+}
+
+.btn-text {
+    display: inline-block;
+}
+
+.btn-spinner {
+    display: inline-block;
+    margin-left: 8px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Messages */
+.error-message {
+    background-color: #2d0a0a;
+    border-left: 3px solid #ff5555;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 3px;
+    color: #ff8888;
+    font-size: 0.9em;
+}
+
+.success-message {
+    background-color: #0a2d0a;
+    border-left: 3px solid #00ff88;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 3px;
+    color: #00ff88;
+    font-size: 0.9em;
+}
+
+/* Response Container */
+.response-panel {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.response-container {
+    background-color: #020208;
+    border: 1px solid #00ffcc;
+    border-radius: 3px;
+    padding: 15px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-size: 0.85em;
+    line-height: 1.4;
+    color: #00ffcc;
+}
+
+.response-container .placeholder {
+    color: #666688;
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.response-container h3 {
+    color: #ffff00;
+    margin: 10px 0 8px 0;
+    font-size: 0.9em;
+    border-bottom: 1px dashed #ffff00;
+    padding-bottom: 4px;
+}
+
+.response-container p {
+    margin: 6px 0;
+}
+
+.response-container pre {
+    background-color: #0a0f1a;
+    border: 1px solid #00ffaa;
+    padding: 8px;
+    border-radius: 2px;
+    overflow-x: auto;
+    color: #00ffaa;
+    font-size: 0.8em;
+    margin: 8px 0;
+}
+
+/* Footer */
+footer {
+    border-top: 1px dashed #00ffaa;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 0.8em;
+    color: #666688;
+    background-color: #050512;
+}
+
+footer p {
+    margin: 2px 0;
+}
+
+footer .footer-hint {
+    color: #666688;
+    font-size: 0.75em;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #020208;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #00ffcc;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #ff00ff;
+}

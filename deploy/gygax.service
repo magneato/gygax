@@ -1,0 +1,35 @@
+[Unit]
+Description=Gygax agent runtime and inference router
+Documentation=https://github.com/magneato/gygax
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gygax
+Group=gygax
+EnvironmentFile=-/etc/gygax/gygax.env
+ExecStart=/usr/bin/gygax serve
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=150
+KillSignal=SIGTERM
+LimitNOFILE=65536
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

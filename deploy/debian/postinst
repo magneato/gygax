@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+if ! getent passwd gygax >/dev/null 2>&1; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin gygax
+fi
+mkdir -p /etc/gygax
+if [ ! -f /etc/gygax/gygax.env ]; then
+    install -m 0640 -o root -g gygax /usr/share/gygax/deploy/gygax.env.example /etc/gygax/gygax.env
+fi
+if [ -d /run/systemd/system ]; then
+    install -m 0644 /usr/share/gygax/deploy/gygax.service /etc/systemd/system/gygax.service
+    systemctl daemon-reload || true
+fi
+exit 0

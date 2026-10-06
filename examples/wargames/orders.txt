@@ -1,0 +1,4 @@
+# <seconds> <directive>: a human commander's plan for the last stand
+0 priority spitter
+60 produce tank
+120 rally auto

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GYGAX / LAST STAND</title>
+<style>
+:root{color-scheme:dark;--bg:#070b12;--panel:#0d1520;--line:#1b2a3a;--muted:#8295a9;--text:#e1edf5;--cyan:#50e6dc;--red:#ff5c6c;--amber:#ffbd5a;--green:#9effa7}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -35%,#153044 0,transparent 55%),var(--bg);color:var(--text);font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+header{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#070b12d9;position:sticky;top:0;z-index:2}
+.brand{font-weight:900;letter-spacing:.2em;color:var(--cyan);font-size:17px}.brand small{font-weight:400;color:var(--muted);letter-spacing:.14em;margin-left:15px;font-size:10px}
+.live{color:var(--green);font-size:10px;letter-spacing:.15em}.live:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);margin-right:9px}
+main{max-width:1600px;margin:auto;padding:18px 22px 28px}.feature-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tag{border:1px solid var(--line);background:#0d1520b8;color:#a9bfce;padding:5px 9px;font-size:10px;letter-spacing:.06em}.tag b{color:var(--cyan);font-weight:600}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}.metric,.panel{background:linear-gradient(145deg,#101a26,#0b111a);border:1px solid var(--line);border-radius:4px}.metric{padding:11px 14px}.label{font-size:9px;color:var(--muted);letter-spacing:.13em;text-transform:uppercase}.value{font-size:21px;font-weight:700;margin-top:4px}.value.cyan{color:var(--cyan)}.value.red{color:var(--red)}.value.amber{color:var(--amber)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px}.panel{overflow:hidden}.panel-title{height:37px;border-bottom:1px solid var(--line);padding:10px 13px;color:#a8bbca;font-size:10px;letter-spacing:.13em;text-transform:uppercase;display:flex;justify-content:space-between}
+#arena{display:block;width:100%;height:min(62vh,660px);min-height:420px;background:radial-gradient(circle,#0a1822,#070d15 68%)}.arena-foot{padding:8px 13px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:var(--muted);font-size:10px}
+.controls{display:flex;align-items:center;gap:10px;padding:10px 13px;border-top:1px solid var(--line)}button,select{background:#111f2b;border:1px solid #294253;color:var(--text);font:inherit;border-radius:3px;padding:6px 10px;cursor:pointer}button:hover,select:hover{border-color:var(--cyan)}#seek{flex:1;accent-color:var(--cyan)}#clock{min-width:82px;text-align:right;color:var(--cyan)}
+.side{display:flex;flex-direction:column;gap:12px}.side .panel{flex:1}.rows{padding:10px 13px}.row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #172330}.row:last-child{border:0}.row span:first-child{color:var(--muted)}.good{color:var(--green)}.danger{color:var(--red)}.accent{color:var(--cyan)}
+.threat{display:flex;align-items:center;gap:9px;padding:7px 0}.bar{height:5px;background:#172532;flex:1}.bar i{display:block;height:100%;background:var(--amber)}.unit-list{max-height:190px;overflow:auto}.unit{cursor:pointer}.unit:hover{color:var(--cyan)}
+.bottom{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.feed{height:190px;overflow:auto;padding:8px 13px;color:#a9bdcb;font-size:11px}.event{padding:4px 0;border-bottom:1px solid #15212d}.event:first-letter{color:var(--cyan)}#history{display:block;width:100%;height:190px}
+.selected{padding:10px 13px;min-height:55px;color:var(--muted)}.selected b{color:var(--cyan)}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(2,1fr)}#arena{height:55vh}.metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){header{padding:0 12px}.brand small{display:none}main{padding:12px}.metrics{grid-template-columns:repeat(2,1fr)}.side,.bottom{grid-template-columns:1fr}.metric:last-child{grid-column:span 2}#arena{min-height:350px;height:48vh}}
+</style>
+</head>
+<body>
+<header><div class="brand">GYGAX <small>FIELD SIMULATION / LAST STAND</small></div><div class="live">LOCAL DETERMINISTIC REPLAY</div></header>
+<main>
+<div class="feature-strip">
+ <span class="tag"><b>01</b> AGENT ORCHESTRATION</span><span class="tag"><b>02</b> TOOL-DRIVEN DOCTRINE</span><span class="tag"><b>03</b> COLLECTIVE CONSENSUS</span><span class="tag"><b>04</b> LOGISTICS LEDGER + ROUTING</span><span class="tag"><b>05</b> SPIKING HIVE NETWORK</span><span class="tag"><b>06</b> HUMAN DIRECTIVES</span>
+</div>
+<section class="metrics">
+ <div class="metric"><div class="label">Sim time / wave</div><div class="value cyan" id="m-time">-</div></div>
+ <div class="metric"><div class="label">Bunker integrity</div><div class="value" id="m-hp">-</div></div>
+ <div class="metric"><div class="label">Hostiles active</div><div class="value red" id="m-hostiles">-</div></div>
+ <div class="metric"><div class="label">Invaders destroyed</div><div class="value" id="m-kills">-</div></div>
+ <div class="metric"><div class="label">Agent model / tool calls</div><div class="value amber" id="m-calls">-</div></div>
+</section>
+<div class="layout">
+ <section class="panel">
+  <div class="panel-title"><span>TACTICAL THEATER / 2D BATTLEFIELD</span><span id="battle-state">SIMULATION</span></div>
+  <canvas id="arena"></canvas>
+  <div class="arena-foot"><span>● DEFENDER &nbsp; ◆ INVADER &nbsp; · MOVEMENT / ENGAGEMENT LINES</span><span>FIELD ±1,100 m</span></div>
+  <div class="controls"><button id="play">Ⅱ Pause</button><button id="back">−10s</button><button id="forward">+10s</button><input id="seek" type="range" min="0" max="0" value="0"><select id="speed"><option value="0.04">0.5×</option><option value="0.08" selected>1×</option><option value="0.16">2×</option><option value="0.4">5×</option></select><span id="clock">00:00</span></div>
+ </section>
+ <aside class="side">
+  <section class="panel"><div class="panel-title">COMMAND & DOCTRINE</div><div class="rows" id="orders"></div></section>
+  <section class="panel"><div class="panel-title">COLLECTIVE THREAT CONSENSUS</div><div class="rows" id="consensus"></div></section>
+  <section class="panel"><div class="panel-title">NEUROMORPHIC HIVE / LIF RESPONSE</div><div class="rows" id="hive"></div></section>
+  <section class="panel"><div class="panel-title">SUPPLY CHAIN / BATTLEFIELD UNITS</div><div class="rows unit-list" id="ledger"></div><div class="selected" id="selection">Select a unit on the map or roster to inspect its state.</div></section>
+ </aside>
+</div>
+<div class="bottom">
+ <section class="panel"><div class="panel-title">BATTLE EVENT STREAM <span id="event-count"></span></div><div class="feed" id="events"></div></section>
+ <section class="panel"><div class="panel-title">COMBAT TELEMETRY / CUMULATIVE</div><canvas id="history"></canvas></section>
+</div>
+</main>
+<script>
+const frames = /* GYGAX_REPLAY_DATA */;
+const $=id=>document.getElementById(id), arena=$("arena"),ctx=arena.getContext("2d"),history=$("history"),hctx=history.getContext("2d");
+const seek=$("seek");let index=0,playing=true,last=performance.now(),acc=0,selected=null,hitTargets=[],panelIndex=-1;
+seek.max=String(Math.max(0,frames.length-1));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),fmt=n=>Math.round(n).toLocaleString(),mmss=n=>`${String(Math.floor(n/60)).padStart(2,"0")}:${String(Math.floor(n%60)).padStart(2,"0")}`;
+function fit(c,context){const r=c.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.round(r.width*d),h=Math.round(r.height*d);if(c.width!==w||c.height!==h){c.width=w;c.height=h}context.setTransform(d,0,0,d,0,0);return{w:r.width,h:r.height}}
+function xy(x,y,w,h){return[w/2+x/2200*w,h/2-y/2200*h]}
+function draw(){const f=frames[index];if(!f)return;const{w,h}=fit(arena,ctx);ctx.clearRect(0,0,w,h);const cx=w/2,cy=h/2,scale=Math.min(w,h)/2200;
+ ctx.strokeStyle="#132734";ctx.lineWidth=1;for(let r=200;r<=1000;r+=200){ctx.beginPath();ctx.arc(cx,cy,r*scale,0,Math.PI*2);ctx.stroke()}for(let d=-1000;d<=1000;d+=200){ctx.beginPath();ctx.moveTo(...xy(d,-1000,w,h));ctx.lineTo(...xy(d,1000,w,h));ctx.stroke();ctx.beginPath();ctx.moveTo(...xy(-1000,d,w,h));ctx.lineTo(...xy(1000,d,w,h));ctx.stroke()}
+ ctx.strokeStyle="#1a3b43";ctx.beginPath();ctx.arc(cx,cy,1090*scale,0,Math.PI*2);ctx.stroke();ctx.fillStyle="#50e6dc";ctx.globalAlpha=.35;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,1080*scale,(f.time*.22)%6.283,(f.time*.22)%6.283+.3);ctx.closePath();ctx.fill();ctx.globalAlpha=1;
+ hitTargets=[];const live=f.units.filter(u=>u.alive),byId=new Map(live.map(u=>[u.id,u]));
+ for(const u of live){if(u.fire_target&&byId.has(u.fire_target)){const t=byId.get(u.fire_target),[x1,y1]=xy(u.x,u.y,w,h),[x2,y2]=xy(t.x,t.y,w,h);ctx.strokeStyle="rgba(255,92,108,.22)";ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([])}if(u.has_destination){const[x1,y1]=xy(u.x,u.y,w,h),[x2,y2]=xy(u.destination_x,u.destination_y,w,h);ctx.strokeStyle="rgba(80,230,220,.24)";ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([])}}
+ for(const u of live){const[x,y]=xy(u.x,u.y,w,h),r=u.kind==="bunker"?9:u.kind==="turret"?5:u.human?5:4;const color=u.kind==="bunker"?"#e8fdff":u.kind==="turret"?"#50e6dc":u.human?"#86cfff":u.kind==="swarmer"?"#ffbd5a":u.kind==="spitter"?"#ff5c6c":"#d77bff";ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=u.kind==="bunker"?18:6;ctx.fillRect(-r,-r,r*2,r*2);ctx.restore();if(selected===u.id||u.kind==="bunker"){ctx.fillStyle="#c5d6df";ctx.font="10px ui-monospace,monospace";ctx.fillText(u.name,x+7,y-7)}hitTargets.push({id:u.id,x,y,r:Math.max(9,r+4)})}
+ if(panelIndex!==index){updatePanels(f);drawHistory(index);panelIndex=index}
+}
+function updatePanels(f){const s=f.stats,live=f.units.filter(u=>u.alive),hostile=live.filter(u=>!u.human).length,hp=clamp(f.bunker_hp/40,0,100);$("m-time").textContent=`${mmss(f.time)} / ${f.wave}/${f.wave_limit}`;$("m-hp").textContent=`${hp.toFixed(0)}%`;$("m-hp").className=`value ${hp<30?"red":hp<60?"amber":"cyan"}`;$("m-hostiles").textContent=fmt(hostile);$("m-kills").textContent=fmt(s.aliens_killed);$("m-calls").textContent=`${fmt(s.model_calls)} / ${fmt(s.tool_calls)}`;$("battle-state").textContent=f.finished?(f.victory?"HUMANITY HOLDS":"BUNKER FALLEN"):"ENGAGEMENT ACTIVE";
+ const d=f.directives;$("orders").innerHTML=[["Weapon posture",d.weapons],["Target priority",d.priority],["Interceptor orders",d.drones],["Rally sector",d.rally||"agent consensus"],["Factory",d.autoproduce?"AUTO-PRODUCE":"HUMAN QUEUE"],["Materiel",fmt(f.materiel)],["Shots fired",fmt(s.shots_fired)],["Ammo delivered",`${fmt(s.ammo_delivered)} rounds`]].map(([a,b])=>`<div class="row"><span>${a}</span><b class="accent">${b}</b></div>`).join("");
+ const c=f.consensus;$("consensus").innerHTML=c.length?c.slice(0,4).map(x=>`<div class="threat"><b>${x.sector}</b><div class="bar"><i style="width:${Math.round(x.confidence*100)}%"></i></div><span>${Math.round(x.confidence*100)}% / ${x.votes}</span></div>`).join(""):'<div class="row"><span>Reports</span><b>Awaiting sensor reports</b></div>';
+ $("hive").innerHTML=`<div class="row"><span>Network gain</span><b class="accent">${f.hive_rage.toFixed(3)}×</b></div><div class="row"><span>Friendly losses</span><b>${fmt(s.humans_lost)}</b></div><div class="bar"><i style="width:${clamp((f.hive_rage-1)*200,0,100)}%"></i></div><div class="row"><span>Swarmer response</span><b>${f.hive_rage>1.05?"AMPLIFIED":"BASELINE"}</b></div>`;
+ const types=Object.entries(f.unit_totals);$("ledger").innerHTML=types.map(([k,v])=>`<div class="row unit" data-kind="${k}"><span>${k.toUpperCase()}</span><b>${v.active} active / ${v.lost} lost</b></div>`).join("")+`<div class="row"><span>Delivered ammo</span><b>${fmt(s.ammo_delivered)}</b></div><div class="row"><span>Fleet production</span><b>${fmt(s.humans_built)} built</b></div>`;
+ document.querySelectorAll(".unit").forEach(el=>el.onclick=()=>{const u=live.find(x=>x.kind===el.dataset.kind);if(u){selected=u.id;showUnit(u);draw()}});
+ const allEvents=frames.slice(0,index+1).flatMap(x=>x.events);$("event-count").textContent=`${allEvents.length} EVENTS`;const recent=allEvents.slice(-90).reverse();$("events").innerHTML=recent.map(e=>`<div class="event">${escapeHtml(e)}</div>`).join("")||'<div class="event">Battle initialization. Awaiting first tick.</div>';
+ if(selected!==null){const u=live.find(x=>x.id===selected);if(u)showUnit(u);else{$("selection").innerHTML="<b>UNIT LOST</b>: select another live unit."}}
+}
+function showUnit(u){$("selection").innerHTML=`<b>${escapeHtml(u.name)}</b> · ${u.role} · HP ${u.hp.toFixed(0)}/${u.hp_max.toFixed(0)} · ammo ${u.ammo.toFixed(0)} · fuel ${(u.fuel*100).toFixed(0)}% · cargo ${u.cargo.toFixed(0)} · ${u.engaged?"engaged":"standing by"}`}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function drawHistory(end){const{w,h}=fit(history,hctx);hctx.clearRect(0,0,w,h);const samples=frames.slice(0,end+1);if(samples.length<2)return;const max=Math.max(1,...samples.map(f=>f.stats.aliens_spawned));hctx.strokeStyle="#1c2b37";hctx.lineWidth=1;for(let i=1;i<4;i++){let y=h*i/4;hctx.beginPath();hctx.moveTo(0,y);hctx.lineTo(w,y);hctx.stroke()}for(const[key,color]of [["aliens_spawned","#ff5c6c"],["aliens_killed","#50e6dc"],["humans_lost","#ffbd5a"]]){hctx.strokeStyle=color;hctx.lineWidth=2;hctx.beginPath();samples.forEach((f,i)=>{let x=i/(samples.length-1)*w,y=h-8-(f.stats[key]/max)*(h-20);i?hctx.lineTo(x,y):hctx.moveTo(x,y)});hctx.stroke()}}
+function setIndex(i){index=clamp(i,0,frames.length-1);seek.value=String(index);draw()}
+function step(now){const dt=Math.min(.2,(now-last)/1000);last=now;if(playing){acc+=dt;const interval=Number($("speed").value);while(acc>=interval){acc-=interval;if(index>=frames.length-1){playing=false;$("play").textContent="▶ Play";break}index++}seek.value=String(index)}$("clock").textContent=mmss(frames[index]?.time||0);draw();requestAnimationFrame(step)}
+arena.addEventListener("click",e=>{const r=arena.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let best=null,dist=1e9;for(const t of hitTargets){const d=Math.hypot(t.x-x,t.y-y);if(d<t.r&&d<dist){best=t;dist=d}}if(best){selected=best.id;const u=frames[index].units.find(x=>x.id===selected);showUnit(u);draw()}});
+$("play").onclick=()=>{playing=!playing;$("play").textContent=playing?"Ⅱ Pause":"▶ Play";last=performance.now()};
+$("back").onclick=()=>setIndex(index-Math.round(10/(frames[1]?.time-frames[0]?.time||1)));$("forward").onclick=()=>setIndex(index+Math.round(10/(frames[1]?.time-frames[0]?.time||1)));seek.oninput=()=>{playing=false;$("play").textContent="▶ Play";setIndex(Number(seek.value))};window.addEventListener("resize",draw);
+if(!frames.length){document.body.innerHTML="<h1>Replay contains no frames</h1>"}else{setIndex(0);requestAnimationFrame(step)}
+</script>
+</body>
+</html>

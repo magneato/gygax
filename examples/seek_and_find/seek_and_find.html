@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="A fictional, non-operational simulation of communication recovery and UV-visible object search.">
+<title>GYGAX / SEEK &amp; FIND · SIMULATION ONLY</title>
+<style>
+:root{color-scheme:dark;--bg:#071018;--panel:#101c26;--line:#263946;--text:#e6f0f5;--muted:#95a9b5;--cyan:#69e9f2;--green:#a4f3b1;--violet:#d6a6ff;--gold:#ffdb8c}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 55% -20%,#173647 0,transparent 55%),var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:20px clamp(16px,4vw,48px);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:18px}
+.brand{font-weight:850;letter-spacing:.18em;color:var(--cyan);font-size:17px}.brand small{display:block;color:var(--muted);letter-spacing:.12em;font-size:10px;font-weight:500;margin-top:3px}
+.simulation-tag{border:1px solid #bd8b55;color:var(--gold);font-size:11px;font-weight:800;letter-spacing:.13em;padding:7px 10px;border-radius:3px;white-space:nowrap}
+main{max-width:1440px;margin:auto;padding:22px clamp(14px,3vw,36px) 38px}
+.notice{border:1px solid #815d39;background:#241b11;color:#f5d7a6;padding:13px 16px;border-radius:4px;margin-bottom:16px}.notice strong{color:#ffe6bc}.notice p{margin:4px 0 0}
+.intro{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:16px 0}.intro h1{font-size:clamp(25px,4vw,40px);margin:0;letter-spacing:-.03em}.intro p{max-width:620px;color:var(--muted);margin:0}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.metric,.panel{background:linear-gradient(145deg,#12202b,#0c151d);border:1px solid var(--line);border-radius:5px}.metric{padding:12px 14px}.label{font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}.value{font-size:17px;font-weight:700;margin-top:5px}.cyan{color:var(--cyan)}.green{color:var(--green)}.violet{color:var(--violet)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:12px}.panel{overflow:hidden}.panel-title{padding:10px 14px;border-bottom:1px solid var(--line);color:#b9cbd4;letter-spacing:.1em;font-size:10px;font-weight:750;display:flex;justify-content:space-between;gap:8px}
+#scene{display:block;width:100%;height:min(61vh,620px);min-height:390px;background:radial-gradient(ellipse at 50% 50%,#10232d,#09141c 76%)}
+.map-foot{padding:8px 13px;color:var(--muted);border-top:1px solid var(--line);font-size:11px;display:flex;justify-content:space-between;gap:10px}
+.controls{padding:11px 13px;border-top:1px solid var(--line);display:flex;gap:9px;align-items:center}.controls button{border:1px solid #3b5865;background:#142631;color:var(--text);border-radius:3px;padding:7px 11px;cursor:pointer}.controls button:hover{border-color:var(--cyan)}#seek{flex:1;accent-color:var(--cyan)}#clock{min-width:75px;text-align:right;color:var(--cyan);font-variant-numeric:tabular-nums}
+.side{display:flex;flex-direction:column;gap:12px}.rows{padding:11px 14px}.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #1a2a35}.row:last-child{border:0}.row span:first-child{color:var(--muted)}.event-log{padding:9px 14px;max-height:235px;overflow:auto}.event{padding:7px 0;border-bottom:1px solid #1a2a35;color:#c1d0d7}.event time{color:var(--cyan);margin-right:9px}
+.bottom{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.bottom p{padding:12px 14px;margin:0;color:var(--muted)}.bottom strong{color:var(--text)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:9px 13px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,1fr)}#scene{height:55vh}}
+@media(max-width:600px){header{align-items:flex-start}.brand small{max-width:185px}.simulation-tag{font-size:9px;padding:6px}.intro{display:block}.intro p{margin-top:7px}.side,.bottom{grid-template-columns:1fr}#scene{min-height:340px;height:48vh}.controls{gap:5px}.controls button{padding:7px}.metric{padding:10px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">GYGAX<small>SEEK &amp; FIND / COMMUNICATIONS + SIMULATION</small></div>
+  <div class="simulation-tag">SIMULATION ONLY · NO HARDWARE OR KEY MATERIAL</div>
+</header>
+<main>
+  <section class="notice" aria-label="Simulation safety notice">
+    <strong>Fictional, non-operational demo.</strong>
+    <p>This replay illustrates simulated agents restoring a communications path, using a mock quantum-inertial heading estimate, and demonstrating QKD basis sifting before sharing a UV-marker discovery. It does not connect to quantum sensors, QKD equipment, radios, GPS, robots, aircraft, weapons, or external services. It generates no key material and is not a training or deployment recipe.</p>
+  </section>
+  <section class="intro">
+    <div><h1>Seek. Reconnect. Find.</h1></div>
+    <p>Three simulated scouts explore a fictional test site. A mock quantum-sensor estimate informs one waypoint; a separate idealized QKD illustration counts matching measurement bases. Scouts then share a discovery over the story link, and an inspection drone follows visual breadcrumbs.</p>
+  </section>
+  <section class="metrics" aria-label="Simulation status">
+    <div class="metric"><div class="label">Scenario time</div><div class="value cyan" id="time-value">00:00</div></div>
+    <div class="metric"><div class="label">Communication path</div><div class="value" id="link-value">Searching</div></div>
+    <div class="metric"><div class="label">UV marker</div><div class="value" id="find-value">Not located</div></div>
+    <div class="metric"><div class="label">Inspection route</div><div class="value" id="route-value">Standby</div></div>
+  </section>
+  <section class="layout">
+    <div class="panel">
+      <div class="panel-title"><span>FICTIONAL TEST SITE / TOP-DOWN SIMULATION</span><span id="phase">SCOUTS DEPLOYED</span></div>
+      <canvas id="scene" aria-label="Animated top-down simulation site"></canvas>
+      <div class="map-foot"><span>Simulated coordinates only · no map or geolocation</span><span id="frame">FRAME 000 / 240</span></div>
+      <div class="controls">
+        <button id="play" type="button">Ⅱ Pause</button>
+        <button id="step" type="button">Step</button>
+        <input id="seek" type="range" min="0" max="240" value="0" aria-label="Scenario timeline">
+        <span id="clock">00:00</span>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:#69e9f2"></i>Scout</span>
+        <span><i class="dot" style="background:#d6a6ff"></i>Relay / link</span>
+        <span><i class="dot" style="background:#c5ff76;box-shadow:0 0 8px #c5ff76"></i>UV prop</span>
+        <span><i class="dot" style="background:#ffdb8c"></i>Inspection drone</span>
+        <span><i class="dot" style="background:#a4f3b1"></i>Visual breadcrumbs</span>
+      </div>
+    </div>
+    <aside class="side">
+      <section class="panel"><div class="panel-title">SIMULATED NETWORK</div><div class="rows">
+        <div class="row"><span>Scout Alpha</span><b class="cyan">Mobile node</b></div>
+        <div class="row"><span>Scout Beta</span><b class="cyan">Search node</b></div>
+        <div class="row"><span>Scout Gamma</span><b class="cyan">Relay candidate</b></div>
+        <div class="row"><span>Link state</span><b id="network-state">Partitioned</b></div>
+        <div class="row"><span>Path</span><b id="network-path">-</b></div>
+        <div class="row"><span>Messages delivered</span><b id="messages">0</b></div>
+      </div></section>
+      <section class="panel"><div class="panel-title">QUANTUM-SENSOR NAVIGATION / MOCK</div><div class="rows">
+        <div class="row"><span>Sensor input</span><b>Simulated inertial estimate</b></div>
+        <div class="row"><span>Heading estimate</span><b id="sensor-heading">Acquiring</b></div>
+        <div class="row"><span>Uncertainty</span><b id="sensor-uncertainty">-</b></div>
+        <div class="row"><span>Waypoint update</span><b id="sensor-use">Not applied</b></div>
+      </div></section>
+      <section class="panel"><div class="panel-title">QKD / BASIS-SIFTING ILLUSTRATION</div><div class="rows">
+        <div class="row"><span>Simulated signals</span><b id="qkd-signals">64</b></div>
+        <div class="row"><span>Matching bases kept</span><b id="qkd-sifted">-</b></div>
+        <div class="row"><span>Mismatched bases</span><b id="qkd-discarded">-</b></div>
+        <div class="row"><span>Authenticated classical channel</span><b>Not implemented</b></div>
+        <div class="row"><span>Error correction / privacy amplification</span><b>Not implemented</b></div>
+        <div class="row"><span>Secret key material</span><b>None generated</b></div>
+        <div class="row"><span>Activity gate</span><b id="qkd-gate">Storyboard only</b></div>
+      </div></section>
+      <section class="panel"><div class="panel-title">SEARCH RESULT</div><div class="rows">
+        <div class="row"><span>Target</span><b>UV-painted USB prop</b></div>
+        <div class="row"><span>Marker channel</span><b class="green">Fictional UV band</b></div>
+        <div class="row"><span>Located by</span><b id="located-by">-</b></div>
+        <div class="row"><span>Inspection status</span><b id="inspection">Waiting for link</b></div>
+        <div class="row"><span>Physical actions</span><b>None</b></div>
+      </div></section>
+      <section class="panel"><div class="panel-title">EVENT LOG <span>SIM CLOCK</span></div><div class="event-log" id="events" aria-live="polite"></div></section>
+    </aside>
+  </section>
+  <section class="bottom">
+    <div class="panel"><div class="panel-title">WHAT THIS DEMONSTRATES</div><p><strong>Simulated quantum-adjacent interfaces:</strong> a mock inertial heading estimate informs a waypoint, while a deterministic classical simulation illustrates QKD basis sifting. The scenario releases a fictional status event after both its story link and sifting step; this is not encryption, authentication, or a secure session. No quantum hardware, channel, bits, or key is used.</p></div>
+    <div class="panel"><div class="panel-title">SIM-TO-REAL BOUNDARY</div><p><strong>A simulation is not machine certification.</strong> Games, races, and policies can be developed or trained in simulation, but real-machine use needs separate authorization, hardware-in-the-loop validation, independent safety review, and controlled test conditions. This demo does not train or command real machines or provide cryptographic security.</p></div>
+  </section>
+</main>
+<script>
+"use strict";
+const LAST_FRAME=240;
+const FRAME_RATE=12;
+const SENSOR_HEADING_RADIANS=0.42;
+const SENSOR_HEADING_UNCERTAINTY_RADIANS=0.035;
+const QKD_SIGNAL_COUNT=64;
+const canvas=document.getElementById("scene");
+const ctx=canvas.getContext("2d");
+const seek=document.getElementById("seek");
+const eventsEl=document.getElementById("events");
+const eventPlan=[
+  [0,"Scouts begin a fictional visual search; network is partitioned."],
+  [18,"Mock quantum-inertial heading estimate becomes available to the simulated waypoint planner."],
+  [34,"Scout Gamma reaches the marked relay candidate."],
+  [38,"Idealized QKD illustration compares bases and discards mismatches; no key material is generated."],
+  [50,"Simulated link and storyboard sifting step complete; fictional status event is released."],
+  [86,"Scout Beta detects the UV-visible USB prop in the search area."],
+  [101,"Discovery coordinates are shared through the simulated link."],
+  [122,"Inspection drone begins following the visible breadcrumb trail."],
+  [188,"Inspection drone reaches the prop; simulated encounter complete."]
+];
+let frame=0,playing=true,lastTick=performance.now(),selectedAgent="Scout Beta";
+const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+const mix=(a,b,t)=>a+(b-a)*clamp(t,0,1);
+function smooth(start,end,t){const x=clamp((t-start)/(end-start),0,1);return x*x*(3-2*x)}
+function makeSiftingCounts(){
+  let state=0x47594741;
+  const randomBit=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state>>>31};
+  let matchingBases=0;
+  for(let signal=0;signal<QKD_SIGNAL_COUNT;signal++)if(randomBit()===randomBit())matchingBases++;
+  return{matchingBases,discardedBases:QKD_SIGNAL_COUNT-matchingBases};
+}
+const siftingCounts=makeSiftingCounts();
+const sensorWaypoint={x:0.22+Math.cos(SENSOR_HEADING_RADIANS)*0.25,y:0.73-Math.sin(SENSOR_HEADING_RADIANS)*0.25};
+function positionAt(keys,t){
+  for(let i=1;i<keys.length;i++){
+    if(t<=keys[i][0]){
+      const [t0,x0,y0]=keys[i-1],[t1,x1,y1]=keys[i];
+      const u=smooth(t0,t1,t);
+      return{x:mix(x0,x1,u),y:mix(y0,y1,u)};
+    }
+  }
+  const last=keys[keys.length-1];return{x:last[1],y:last[2]};
+}
+const routes={
+  alpha:[[0,0.17,0.25],[50,0.39,0.35],[120,0.42,0.38],[240,0.43,0.39]],
+  beta:[[0,0.22,0.73],[30,sensorWaypoint.x,sensorWaypoint.y],[75,0.53,0.57],[86,0.58,0.54],[120,0.57,0.56],[188,0.66,0.56],[240,0.66,0.56]],
+  gamma:[[0,0.18,0.51],[34,0.35,0.49],[50,0.42,0.47],[240,0.42,0.47]],
+  drone:[[0,0.78,0.22],[120,0.78,0.22],[188,0.66,0.56],[240,0.66,0.56]]
+};
+function fitCanvas(){
+  const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  const width=Math.max(1,Math.round(rect.width*dpr)),height=Math.max(1,Math.round(rect.height*dpr));
+  if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height}
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return{w:rect.width,h:rect.height};
+}
+function drawAgent(label,p,color,shape="circle"){
+  const x=p.x*canvas.clientWidth,y=p.y*canvas.clientHeight;
+  ctx.save();ctx.shadowColor=color;ctx.shadowBlur=13;ctx.fillStyle=color;ctx.strokeStyle=color;
+  if(shape==="diamond"){ctx.beginPath();ctx.moveTo(x,y-9);ctx.lineTo(x+9,y);ctx.lineTo(x,y+9);ctx.lineTo(x-9,y);ctx.closePath();ctx.fill()}
+  else{ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill()}
+  ctx.shadowBlur=0;ctx.fillStyle="#e6f0f5";ctx.font="11px system-ui";ctx.fillText(label,x+11,y+4);ctx.restore();
+}
+function draw(){
+  const{w,h}=fitCanvas();ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#203642";ctx.lineWidth=1;ctx.setLineDash([4,7]);
+  for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(w*i/5,0);ctx.lineTo(w*i/5,h);ctx.stroke()}
+  for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(0,h*i/4);ctx.lineTo(w,h*i/4);ctx.stroke()}
+  ctx.setLineDash([]);
+  const site={x:w*.5,y:h*.5};
+  ctx.strokeStyle="#294553";ctx.setLineWidth=1;ctx.beginPath();ctx.roundRect(w*.09,h*.12,w*.82,h*.76,14);ctx.stroke();
+  ctx.fillStyle="#8298a2";ctx.font="10px system-ui";ctx.fillText("FICTIONAL TEST ZONE",w*.11,h*.16);
+  const alpha=positionAt(routes.alpha,frame),beta=positionAt(routes.beta,frame),gamma=positionAt(routes.gamma,frame),drone=positionAt(routes.drone,frame);
+  const linked=frame>=50;
+  if(linked){
+    ctx.save();ctx.strokeStyle="#d6a6ff";ctx.lineWidth=1.5;ctx.globalAlpha=.45+.25*Math.sin(frame/5);ctx.setLineDash([6,5]);
+    [[alpha,gamma],[gamma,beta]].forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(a.x*w,a.y*h);ctx.lineTo(b.x*w,b.y*h);ctx.stroke()});
+    ctx.restore();
+  }else{
+    ctx.strokeStyle="#654e69";ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(alpha.x*w,alpha.y*h);ctx.lineTo(gamma.x*w,gamma.y*h);ctx.stroke();ctx.setLineDash([]);
+  }
+  const breadcrumbs=frame>=122?smooth(122,188,frame):0;
+  if(breadcrumbs>0){
+    const trail=[[.78,.22],[.75,.30],[.73,.39],[.70,.46],[.66,.56]];
+    ctx.save();ctx.globalAlpha=.25+.75*breadcrumbs;ctx.strokeStyle="#a4f3b1";ctx.lineWidth=3;ctx.setLineDash([2,8]);ctx.lineCap="round";ctx.beginPath();
+    trail.forEach(([x,y],i)=>i?ctx.lineTo(x*w,y*h):ctx.moveTo(x*w,y*h));ctx.stroke();ctx.restore();
+    trail.slice(0,Math.max(1,Math.ceil(breadcrumbs*(trail.length-1)))).forEach(([x,y])=>{ctx.fillStyle="#a4f3b1";ctx.globalAlpha=.85;ctx.beginPath();ctx.arc(x*w,y*h,2.4,0,Math.PI*2);ctx.fill()});ctx.globalAlpha=1;
+  }
+  const relay={x:w*.42,y:h*.47};
+  ctx.fillStyle="#d6a6ff";ctx.shadowColor="#d6a6ff";ctx.shadowBlur=linked?18:6;ctx.beginPath();ctx.arc(relay.x,relay.y,8,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle="#c6b1d6";ctx.font="10px system-ui";ctx.fillText("RELAY POINT",relay.x+12,relay.y+4);
+  const drive={x:w*.66,y:h*.56};
+  ctx.fillStyle="#c5ff76";ctx.shadowColor="#c5ff76";ctx.shadowBlur=frame>=86?24:4;ctx.fillRect(drive.x-5,drive.y-3,10,6);ctx.shadowBlur=0;
+  ctx.fillStyle=frame>=86?"#d5ff9c":"#758674";ctx.fillText("UV USB PROP",drive.x+10,drive.y-8);
+  drawAgent("Scout Alpha",alpha,"#69e9f2");
+  drawAgent("Scout Beta",beta,"#69e9f2");
+  drawAgent("Scout Gamma",gamma,"#69e9f2");
+  if(frame>=120)drawAgent("Inspection drone",drone,"#ffdb8c","diamond");
+  ctx.fillStyle="#95a9b5";ctx.font="10px system-ui";ctx.fillText("VISUAL WAYPOINTS",w*.77,h*.18);
+  updateStatus();
+}
+function updateStatus(){
+  const linked=frame>=50,found=frame>=86,shared=frame>=101,droneMoving=frame>=122,arrived=frame>=188;
+  const sensorAvailable=frame>=18;
+  const sifted=siftingCounts.matchingBases;
+  const seconds=Math.floor(frame/FRAME_RATE),clock=`${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
+  document.getElementById("time-value").textContent=clock;
+  document.getElementById("clock").textContent=clock;
+  document.getElementById("frame").textContent=`FRAME ${String(frame).padStart(3,"0")} / ${LAST_FRAME}`;
+  document.getElementById("link-value").textContent=linked?"Restored":"Searching";
+  document.getElementById("link-value").className=`value ${linked?"violet":""}`;
+  document.getElementById("find-value").textContent=found?"Located":"Not located";
+  document.getElementById("find-value").className=`value ${found?"green":""}`;
+  document.getElementById("route-value").textContent=arrived?"Inspection complete":droneMoving?"Following trail":"Standby";
+  document.getElementById("phase").textContent=arrived?"SIMULATION COMPLETE":droneMoving?"VISUAL TRAIL FOLLOWING":found?"UV PROP LOCATED":linked?"COMMUNICATIONS RESTORED":"SCOUTS DEPLOYED";
+  document.getElementById("network-state").textContent=linked?"Connected":"Partitioned";
+  document.getElementById("network-state").className=linked?"green":"";
+  document.getElementById("network-path").textContent=linked?"Alpha ⇄ Gamma ⇄ Beta":"No path";
+  document.getElementById("messages").textContent=linked?String(Math.min(14,1+Math.floor((frame-50)/10))):"0";
+  document.getElementById("sensor-heading").textContent=sensorAvailable?`${(SENSOR_HEADING_RADIANS*180/Math.PI).toFixed(1)}° (simulated)`:"Acquiring";
+  document.getElementById("sensor-uncertainty").textContent=sensorAvailable?`±${(SENSOR_HEADING_UNCERTAINTY_RADIANS*180/Math.PI).toFixed(1)}° (simulated)`:"-";
+  document.getElementById("sensor-use").textContent=frame>=30?"Waypoint selected":"Not applied";
+  document.getElementById("qkd-signals").textContent=String(QKD_SIGNAL_COUNT);
+  document.getElementById("qkd-sifted").textContent=frame>=38?`${sifted} / ${QKD_SIGNAL_COUNT}`:"Pending";
+  document.getElementById("qkd-discarded").textContent=frame>=38?`${siftingCounts.discardedBases} discarded`:"Pending";
+  document.getElementById("qkd-gate").textContent=linked&&sifted>0?"Demo event released":"Storyboard only";
+  document.getElementById("located-by").textContent=found?"Scout Beta":"-";
+  document.getElementById("inspection").textContent=arrived?"Prop inspected (simulated)":droneMoving?"Following visual markers":shared?"Route shared":"Waiting for discovery";
+  eventsEl.innerHTML=eventPlan.filter(([at])=>at<=frame).slice().reverse().map(([at,message])=>`<div class="event"><time>${String(Math.floor(at/FRAME_RATE)).padStart(2,"0")}s</time>${message}</div>`).join("");
+  seek.value=String(frame);
+}
+function advance(){frame=Math.min(LAST_FRAME,frame+1);if(frame===LAST_FRAME)playing=false;document.getElementById("play").textContent=playing?"Ⅱ Pause":"▶ Play";draw()}
+document.getElementById("play").addEventListener("click",()=>{playing=!playing;lastTick=performance.now();document.getElementById("play").textContent=playing?"Ⅱ Pause":"▶ Play"});
+document.getElementById("step").addEventListener("click",advance);
+seek.addEventListener("input",()=>{frame=Number(seek.value);draw()});
+function tick(now){if(playing&&now-lastTick>=1000/FRAME_RATE){advance();lastTick=now}requestAnimationFrame(tick)}
+window.addEventListener("resize",draw);
+draw();requestAnimationFrame(tick);
+</script>
+</body>
+</html>

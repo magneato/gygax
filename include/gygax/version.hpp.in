@@ -1,0 +1,12 @@
+#pragma once
+
+/*
+ * Generated Gygax project version.
+ *
+ * These macros identify the library release; they are not an ABI compatibility
+ * guarantee. The plugin ABI has its own explicit version in gygax/sdk/plugin.h.
+ */
+#define GYGAX_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define GYGAX_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define GYGAX_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define GYGAX_VERSION_STRING "@PROJECT_VERSION@"

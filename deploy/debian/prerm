@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+if [ -d /run/systemd/system ]; then
+    systemctl stop gygax.service >/dev/null 2>&1 || true
+    systemctl disable gygax.service >/dev/null 2>&1 || true
+    rm -f /etc/systemd/system/gygax.service
+    systemctl daemon-reload || true
+fi
+exit 0

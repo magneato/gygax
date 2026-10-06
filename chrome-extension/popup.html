@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gygax Grid Portal</title>
+    <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GYGAX</h1>
+            <p class="subtitle">Grid Portal Control Interface</p>
+        </header>
+
+        <section class="status-panel">
+            <div class="status-indicator" id="serverStatus">
+                <span class="status-dot offline"></span>
+                <span class="status-text">Checking server...</span>
+            </div>
+            <div class="status-details" id="statusDetails" style="display: none;">
+                <p>Server: <code id="serverAddress">127.0.0.1:1984</code></p>
+            </div>
+        </section>
+
+        <section class="directive-panel">
+            <h2>Access</h2>
+            <div class="form-group">
+                <label for="tokenInput">API token (only if the server requires one):</label>
+                <input type="password" id="tokenInput" autocomplete="off" />
+                <button id="saveToken" class="btn-secondary">Save token</button>
+            </div>
+        </section>
+
+        <section class="directive-panel">
+            <h2>Send Directive</h2>
+            <div class="form-group">
+                <label for="directiveSelect">Quick Presets:</label>
+                <select id="directiveSelect">
+                    <option value="">-- Choose a preset --</option>
+                    <option value="robotron">Create Robotron Game Page</option>
+                    <option value="tron">TRON Grid Interface</option>
+                    <option value="custom">Custom Directive</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="directiveText">Custom Directive:</label>
+                <textarea
+                    id="directiveText"
+                    placeholder="Describe what you want the agents to build..."
+                    rows="4"
+                ></textarea>
+            </div>
+
+            <button id="sendButton" class="btn-primary">
+                <span class="btn-text">Send Directive</span>
+                <span class="btn-spinner" style="display: none;">⟳</span>
+            </button>
+
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            <div id="successMessage" class="success-message" style="display: none;"></div>
+        </section>
+
+        <section class="response-panel">
+            <h2>Generated Page</h2>
+            <div id="responseContainer" class="response-container">
+                <p class="placeholder">Send a directive to see the generated page here...</p>
+            </div>
+            <button id="openButton" class="btn-secondary" style="display: none;">
+                Open in New Tab
+            </button>
+        </section>
+
+        <footer>
+            <p>Secure Swarm Interface v0.1.0</p>
+            <p class="footer-hint">Connect to Gygax server on port 1984</p>
+        </footer>
+    </div>
+
+    <script src="js/popup.js"></script>
+</body>
+</html>
