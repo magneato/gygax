@@ -1,11 +1,13 @@
 #include <gygax/service/mcp.hpp>
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <poll.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <chrono>
 #include <cstdlib>
 #include <mutex>
@@ -30,6 +32,35 @@ constexpr std::chrono::seconds kToolCallTimeout{60};
 constexpr std::chrono::milliseconds kChildExitPollInterval{50};
 constexpr int kChildExitPollAttempts = 20;
 constexpr const char* kProtocolVersion = "2024-11-05";
+
+// write() to a pipe whose reader has exited raises SIGPIPE, which would kill the whole
+// service when an MCP server crashes. Block it in this thread only, and if the write
+// failed with EPIPE, consume the pending signal before restoring the mask. Returns
+// write()'s result with errno preserved.
+ssize_t writeWithoutSigpipe(int fd, const char* data, std::size_t size) {
+    sigset_t pipeOnly;
+    sigset_t previous;
+    sigemptyset(&pipeOnly);
+    sigaddset(&pipeOnly, SIGPIPE);
+    sigset_t pending;
+    sigemptyset(&pending);
+    sigpending(&pending);
+    const bool alreadyPending = sigismember(&pending, SIGPIPE) == 1;
+    pthread_sigmask(SIG_BLOCK, &pipeOnly, &previous);
+    const ssize_t n = ::write(fd, data, size);
+    const int saved = errno;
+    if (n < 0 && saved == EPIPE && !alreadyPending) {
+        sigemptyset(&pending);
+        sigpending(&pending);
+        if (sigismember(&pending, SIGPIPE) == 1) {
+            int caught = 0;
+            sigwait(&pipeOnly, &caught);
+        }
+    }
+    pthread_sigmask(SIG_SETMASK, &previous, nullptr);
+    errno = saved;
+    return n;
+}
 
 std::vector<std::string> splitWords(const std::string& text) {
     std::vector<std::string> out;
@@ -138,7 +169,7 @@ private:
         const std::string line = text + "\n";
         std::size_t done = 0;
         while (done < line.size()) {
-            const ssize_t n = ::write(toChild_, line.data() + done, line.size() - done);
+            const ssize_t n = writeWithoutSigpipe(toChild_, line.data() + done, line.size() - done);
             if (n < 0) {
                 if (errno == EINTR) continue;
                 throw std::runtime_error("mcp server closed its input");
@@ -283,7 +314,7 @@ int serveMcp(int inFd, int outFd, const std::string& serverName, const std::stri
         const std::string line = v.dump() + "\n";
         std::size_t done = 0;
         while (done < line.size()) {
-            const ssize_t n = ::write(outFd, line.data() + done, line.size() - done);
+            const ssize_t n = writeWithoutSigpipe(outFd, line.data() + done, line.size() - done);
             if (n < 0 && errno == EINTR) continue;
             if (n <= 0) return false;
             done += static_cast<std::size_t>(n);

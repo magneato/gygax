@@ -8,18 +8,35 @@ set -euo pipefail
 gygax_bin=${1:?path to the gygax binary}
 gyde_bin=${2:?path to the gyde binary}
 
-port=$((20000 + RANDOM % 20000))
 token="gyde-selfcheck-$RANDOM"
 log="$(mktemp)"
+server_pid=""
 trap 'kill "$server_pid" 2>/dev/null || true; rm -f "$log"' EXIT
 
-"$gygax_bin" serve --port "$port" --token "$token" --engine echo --log-level error >"$log" 2>&1 &
-server_pid=$!
-
-for _ in $(seq 1 50); do
-    curl -fsS "http://127.0.0.1:$port/healthz" >/dev/null 2>&1 && break
-    sleep 0.1
+# Start the service on a random port and wait until it answers. If the port is taken
+# the server exits, so try another; a loaded CI machine can take several seconds to start.
+up=0
+for _attempt in 1 2 3 4 5; do
+    port=$((20000 + RANDOM % 20000))
+    "$gygax_bin" serve --port "$port" --token "$token" --engine echo --log-level error >"$log" 2>&1 &
+    server_pid=$!
+    for _ in $(seq 1 300); do
+        if curl -fsS "http://127.0.0.1:$port/healthz" >/dev/null 2>&1; then
+            up=1
+            break
+        fi
+        kill -0 "$server_pid" 2>/dev/null || break
+        sleep 0.1
+    done
+    [ "$up" = 1 ] && break
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
 done
+if [ "$up" != 1 ]; then
+    echo "gyde_selfcheck: the service never answered /healthz" >&2
+    cat "$log" >&2
+    exit 1
+fi
 
 out="$(printf 'status\nengines\nask hi\ntool math.eval 6*7\ntool no.such.tool x\nquit\n' | "$gyde_bin" --url "http://127.0.0.1:$port" --token "$token")"
 

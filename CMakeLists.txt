@@ -133,7 +133,12 @@ if(Eigen3_VERSION VERSION_LESS 3.3)
 endif()
 get_target_property(GYGAX_EIGEN_INCLUDE Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(gygax SYSTEM PRIVATE ${GYGAX_EIGEN_INCLUDE})
-target_link_libraries(gygax PRIVATE gmpxx gmp)
+# GMP's C++ interface. Searched for rather than named so Homebrew's /opt/homebrew prefix is found too.
+find_path(GYGAX_GMPXX_INCLUDE gmpxx.h REQUIRED)
+find_library(GYGAX_GMPXX_LIBRARY gmpxx REQUIRED)
+find_library(GYGAX_GMP_LIBRARY gmp REQUIRED)
+target_include_directories(gygax SYSTEM PRIVATE ${GYGAX_GMPXX_INCLUDE})
+target_link_libraries(gygax PRIVATE ${GYGAX_GMPXX_LIBRARY} ${GYGAX_GMP_LIBRARY})
 target_link_libraries(gygax PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
 
 add_library(gygax_c SHARED src/gygax/capi/capi.cpp)
