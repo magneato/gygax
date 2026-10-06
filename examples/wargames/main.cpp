@@ -1240,16 +1240,25 @@ int selfcheck() {
     for (const auto& line : rejected.log) logged = logged || line.find("error:") != std::string::npos;
     check(logged, "invalid human directives are rejected with an explanation");
 
+    // Every model call is its own HTTP connection, and each closed connection holds a local
+    // port for a while. A shorter battle keeps the three engines' calls well inside the
+    // ephemeral port range of every OS (macOS has about 16k ports, Linux about 28k).
+    RunConfig brief = base;
+    brief.game.seconds = 40.0;
+    brief.game.waves = 1;
+    const auto local = quiet(brief);
     DoctrineServer llm;
     check(llm.started(), "a loopback chat-API model server started");
     for (const char* flavour : {"ollama", "llama-cpp", "lmstudio"}) {
-        RunConfig remote = base;
+        RunConfig remote = brief;
         remote.engine = std::string(flavour) + "@127.0.0.1:" + std::to_string(llm.port());
         remote.model = "doctrine";
         const auto before = llm.requests();
         const auto served = quiet(remote);
-        check(served.digest == first.digest && served.toolCalls == first.toolCalls && served.failedRuns == 0,
-              std::format("{} engine: {} model calls over HTTP produce the identical battle", flavour, llm.requests() - before));
+        const bool same = served.digest == local.digest && served.toolCalls == local.toolCalls && served.failedRuns == 0;
+        check(same, same ? std::format("{} engine: {} model calls over HTTP produce the identical battle", flavour, llm.requests() - before)
+                         : std::format("{} engine: {} model calls over HTTP, {} failed runs, {} vs {} tool calls", flavour,
+                                       llm.requests() - before, served.failedRuns, served.toolCalls, local.toolCalls));
     }
 
     if (!selfPath.empty()) {

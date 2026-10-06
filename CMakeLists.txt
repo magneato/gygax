@@ -294,7 +294,9 @@ if(GYGAX_BUILD_TESTS)
     endif()
     add_test(NAME sdk_consumer
         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/sdk-check.sh ${CMAKE_BINARY_DIR} $<TARGET_FILE:gygax_cli>)
-    set_tests_properties(sdk_consumer PROPERTIES TIMEOUT 300)
+    # Build the consumer with this build's own compiler and link flags (e.g. Homebrew clang on macOS).
+    set_tests_properties(sdk_consumer PROPERTIES TIMEOUT 300
+        ENVIRONMENT "GYGAX_SDK_CXX=${CMAKE_CXX_COMPILER};GYGAX_SDK_LINKER_FLAGS=${CMAKE_MODULE_LINKER_FLAGS}")
 endif()
 
 install(TARGETS gygax_cli gygax_c gyde

@@ -14,8 +14,11 @@ cleanup() {
 trap cleanup EXIT
 
 cmake --install "$build_dir" --prefix "$work/prefix" >/dev/null
+# CXX wins if set; otherwise the compiler ctest passes in (the one that built Gygax).
 cmake -S "$root/examples/plugin-consumer" -B "$work/consumer" -G Ninja -DCMAKE_PREFIX_PATH="$work/prefix" \
-    -DCMAKE_CXX_COMPILER="${CXX:-clang++-18}" -DCMAKE_BUILD_TYPE=Release >/dev/null
+    -DCMAKE_CXX_COMPILER="${CXX:-${GYGAX_SDK_CXX:-clang++-18}}" \
+    -DCMAKE_MODULE_LINKER_FLAGS="${GYGAX_SDK_LINKER_FLAGS:-}" -DCMAKE_SHARED_LINKER_FLAGS="${GYGAX_SDK_LINKER_FLAGS:-}" \
+    -DCMAKE_BUILD_TYPE=Release >/dev/null
 cmake --build "$work/consumer" >/dev/null
 plugin=$(find "$work/consumer" -name fleet_plugin.so | head -n 1)
 test -f "$plugin"
