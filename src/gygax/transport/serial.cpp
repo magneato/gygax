@@ -326,7 +326,7 @@ void SerialTransport::readerLoop() {
                 handles.push_back(h);
             }
         }
-        const int rc = ::poll(fds.data(), fds.size(), static_cast<int>(kReaderPollInterval.count()));
+        const int rc = ::poll(fds.data(), static_cast<nfds_t>(fds.size()), static_cast<int>(kReaderPollInterval.count()));
         if (rc < 0 && errno != EINTR) return;
         if (rc <= 0) continue;
         if ((fds[0].revents & POLLIN) != 0) {
