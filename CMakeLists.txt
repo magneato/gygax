@@ -125,8 +125,14 @@ endfunction()
 gygax_warnings(gygax)
 
 find_package(Threads REQUIRED)
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-target_include_directories(gygax SYSTEM PRIVATE ${EIGEN3_INCLUDE_DIR})
+# Eigen 3.3+ (Ubuntu ships 3.4, Homebrew 5.x). Eigen's version file accepts only its own major
+# version, so ask for any and check the minimum here; 5.x no longer sets EIGEN3_INCLUDE_DIR.
+find_package(Eigen3 REQUIRED NO_MODULE)
+if(Eigen3_VERSION VERSION_LESS 3.3)
+  message(FATAL_ERROR "Eigen 3.3 or newer is required (found ${Eigen3_VERSION})")
+endif()
+get_target_property(GYGAX_EIGEN_INCLUDE Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(gygax SYSTEM PRIVATE ${GYGAX_EIGEN_INCLUDE})
 target_link_libraries(gygax PRIVATE gmpxx gmp)
 target_link_libraries(gygax PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
 
