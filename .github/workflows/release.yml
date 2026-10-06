@@ -124,7 +124,7 @@ jobs:
 
       - name: Create release checksums
         working-directory: release-assets
-        run: sha256sum gygax-* > SHA256SUMS
+        run: sha256sum gygax-* gygax_* > SHA256SUMS
 
       - name: Create or update GitHub Release
         env:
@@ -138,7 +138,9 @@ jobs:
           args=(--verify-tag)
           if [ -f "$notes" ]; then
             title="$(sed -n 's/^# //p' "$notes" | head -n 1)"
-            args+=(--title "${title:-Gygax ${TAG#v}}" --notes-file "$notes")
+            # The title is shown above the notes, so drop its heading from the body.
+            sed '0,/^# /{/^# /d}' "$notes" > ../release-notes.md
+            args+=(--title "${title:-Gygax ${TAG#v}}" --notes-file ../release-notes.md)
           else
             args+=(--title "Gygax ${TAG#v}" --generate-notes)
           fi
