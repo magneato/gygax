@@ -76,8 +76,7 @@ IOResult SysfsGpioPort::configure(std::uint32_t pin, GpioMode mode) {
     if (!exists(pinPath(pin))) {
         if (const auto rc = writeFile(root_ + "/export", std::to_string(pin)); rc < 0) return rc;
         exportedNow = true;
-        for (int i = 0; i < kPinExportPollAttempts && !exists(pinPath(pin)); ++i)
-            ::usleep(kPinExportPollIntervalMicroseconds);
+        for (int i = 0; i < kPinExportPollAttempts && !exists(pinPath(pin)); ++i) ::usleep(kPinExportPollIntervalMicroseconds);
         if (!exists(pinPath(pin))) return -ENODEV;
     }
     if (const auto rc = writeFile(pinPath(pin) + "/direction", mode == GpioMode::Output ? "out" : "in"); rc < 0) return rc;

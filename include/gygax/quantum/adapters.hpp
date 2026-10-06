@@ -46,16 +46,10 @@ struct QkdSession {
     std::unique_ptr<AuthenticatedSecureChannel> channel;
 
     [[nodiscard]] bool ready() const noexcept {
-        return channel != nullptr &&
-               report.siftedBits <= report.signalsSent &&
-               report.parameterSampleBits > 0 &&
-               report.parameterSampleBits <= report.siftedBits &&
-               report.observedErrors <= report.parameterSampleBits &&
-               report.finalKeyBits <= report.siftedBits - report.parameterSampleBits &&
-               report.finalKeyBits > 0 &&
-               report.classicalChannelAuthenticated &&
-               report.parameterEstimationAccepted &&
-               report.errorCorrectionComplete &&
+        return channel != nullptr && report.siftedBits <= report.signalsSent && report.parameterSampleBits > 0 &&
+               report.parameterSampleBits <= report.siftedBits && report.observedErrors <= report.parameterSampleBits &&
+               report.finalKeyBits <= report.siftedBits - report.parameterSampleBits && report.finalKeyBits > 0 &&
+               report.classicalChannelAuthenticated && report.parameterEstimationAccepted && report.errorCorrectionComplete &&
                report.privacyAmplificationComplete;
     }
 };
@@ -64,8 +58,7 @@ class QkdProvider {
 public:
     virtual ~QkdProvider() = default;
 
-    [[nodiscard]] virtual std::optional<QkdSession> establishSession(
-        std::span<const std::byte> peerIdentity) = 0;
+    [[nodiscard]] virtual std::optional<QkdSession> establishSession(std::span<const std::byte> peerIdentity) = 0;
 };
 
 } // namespace gygax::quantum

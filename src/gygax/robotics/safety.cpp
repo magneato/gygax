@@ -41,8 +41,7 @@ void validateShieldConfig(const ShieldConfig& config) {
         throw std::invalid_argument("shield alpha and maximum speed must be positive; margin and body radius nonnegative");
     if (config.boundsMin) validatePoint(*config.boundsMin, "minimum bounds must be finite");
     if (config.boundsMax) validatePoint(*config.boundsMax, "maximum bounds must be finite");
-    if (config.boundsMin && config.boundsMax &&
-        (config.boundsMin->x >= config.boundsMax->x || config.boundsMin->y >= config.boundsMax->y))
+    if (config.boundsMin && config.boundsMax && (config.boundsMin->x >= config.boundsMax->x || config.boundsMin->y >= config.boundsMax->y))
         throw std::invalid_argument("minimum bounds must be below maximum bounds on both axes");
 }
 

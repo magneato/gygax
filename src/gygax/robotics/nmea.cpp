@@ -68,8 +68,7 @@ std::optional<Sentence> parse(std::string_view line) {
     }
     const auto comma = body.find(',');
     const std::string_view head = body.substr(0, comma);
-    if (head.size() < kMinimumTalkerAndSentenceTypeLength || head.size() > kMaximumTalkerAndSentenceTypeLength)
-        return std::nullopt;
+    if (head.size() < kMinimumTalkerAndSentenceTypeLength || head.size() > kMaximumTalkerAndSentenceTypeLength) return std::nullopt;
     if (head.front() == 'P') {
         s.talker = "P";
         s.type = std::string(head.substr(1));
@@ -191,9 +190,7 @@ bool State::update(const Sentence& s) {
         windAngle = number(f, 0);
         auto speed = number(f, 2);
         const auto unit = field(f, 3);
-        if (speed)
-            windSpeed = unit == "K" ? *speed / kKilometersPerHourPerKnot
-                                    : (unit == "M" ? *speed * kKnotsPerMeterPerSecond : *speed);
+        if (speed) windSpeed = unit == "K" ? *speed / kKilometersPerHourPerKnot : (unit == "M" ? *speed * kKnotsPerMeterPerSecond : *speed);
         return true;
     }
     if (s.type == "VHW" && f.size() >= 6) {

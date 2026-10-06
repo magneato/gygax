@@ -543,8 +543,7 @@ struct Service::Impl {
         add("engines.add", "POST", "/v1/engines", [this](Params& p) {
             const auto id = p.getString("id");
             const auto spec = p.getString("spec");
-            if (id.empty() || spec.empty())
-                return fail(net::kHttpStatusBadRequest, "invalid_request", "'id' and 'spec' are required");
+            if (id.empty() || spec.empty()) return fail(net::kHttpStatusBadRequest, "invalid_request", "'id' and 'spec' are required");
             std::string error;
             auto backend = inference::makeBackend(spec, &error);
             if (!backend) return fail(net::kHttpStatusBadRequest, "invalid_engine", error);
@@ -626,8 +625,7 @@ struct Service::Impl {
         });
 
         add("agents.create", "POST", "/v1/agents", [this](Params& p) {
-            const auto steps =
-                static_cast<std::uint32_t>(std::clamp<std::int64_t>(p.getInt("max_steps", 0), 0, kMaximumAgentSteps));
+            const auto steps = static_cast<std::uint32_t>(std::clamp<std::int64_t>(p.getInt("max_steps", 0), 0, kMaximumAgentSteps));
             const auto sid = orchestrator->createAgent(p.getString("name"), steps);
             auto snap = orchestrator->inspect(sid);
             return okResult(toJson(*snap), net::kHttpStatusCreated);
@@ -657,19 +655,16 @@ struct Service::Impl {
                 return fail(net::kHttpStatusPayloadTooLarge, "payload_too_large", "objective too long");
             switch (orchestrator->submit(*sid, objective, p.getString("model"))) {
             case inference::SubmitResult::UnknownAgent: return fail(net::kHttpStatusNotFound, "not_found", "no such agent");
-            case inference::SubmitResult::Busy:
-                return fail(net::kHttpStatusConflict, "busy", "agent is already running an objective");
+            case inference::SubmitResult::Busy: return fail(net::kHttpStatusConflict, "busy", "agent is already running an objective");
             case inference::SubmitResult::Stopped:
                 return fail(net::kHttpStatusServiceUnavailable, "unavailable", "orchestrator is stopped");
-            case inference::SubmitResult::Invalid:
-                return fail(net::kHttpStatusBadRequest, "invalid_request", "invalid objective");
+            case inference::SubmitResult::Invalid: return fail(net::kHttpStatusBadRequest, "invalid_request", "invalid objective");
             case inference::SubmitResult::Accepted: break;
             }
             const auto waitSeconds = std::clamp(p.getDouble("wait_seconds", 0.0), 0.0, kMaximumWaitSeconds);
             std::optional<inference::AgentSnapshot> snap;
             if (waitSeconds > 0.0)
-                snap = orchestrator->wait(
-                    *sid, std::chrono::milliseconds(static_cast<std::int64_t>(waitSeconds * kMillisecondsPerSecond)));
+                snap = orchestrator->wait(*sid, std::chrono::milliseconds(static_cast<std::int64_t>(waitSeconds * kMillisecondsPerSecond)));
             else
                 snap = orchestrator->inspect(*sid);
             const bool finished = snap && snap->status != "running";
@@ -855,8 +850,7 @@ struct Service::Impl {
         ctx.forwarded = forwarded;
         ctx.stream = body.getBool("stream", ollama);
         if (model == kAgentModel || model.starts_with(std::string(kAgentModel) + ":")) {
-            if (forwarded)
-                return fail(net::kHttpStatusBadRequest, "invalid_request", "agent mode is not available for forwarded requests");
+            if (forwarded) return fail(net::kHttpStatusBadRequest, "invalid_request", "agent mode is not available for forwarded requests");
             ctx.agent = true;
             ctx.agentInner = model.size() > kAgentModel.size() ? model.substr(kAgentModel.size() + 1) : config.defaultModel;
         }
@@ -900,8 +894,7 @@ struct Service::Impl {
             r = pool->chat(ctx.request);
             if (!r.ok) {
                 ++chatErrors;
-                return fail(r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway,
-                            "engine_error", r.error);
+                return fail(r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway, "engine_error", r.error);
             }
         }
         return okResult(completionJson(std::format("chatcmpl-{}", ++completionCounter), ctx.request.model, r));
@@ -919,62 +912,61 @@ struct Service::Impl {
         ++chatRequests;
         const std::string id = std::format("chatcmpl-{}", ++completionCounter);
         const std::string modelName = ctx.request.model;
-        return net::Response::streaming(net::kHttpStatusOk, "text/event-stream",
-                                        [this, ctx = std::move(ctx), id, modelName](net::ChunkWriter& w) mutable {
-            auto chunk = [&](const json::Value& delta, std::string_view finish) {
-                json::Value c = json::Value::object();
-                c["id"] = id;
-                c["object"] = "chat.completion.chunk";
-                c["created"] = epochSeconds();
-                c["model"] = modelName;
-                json::Value choice = json::Value::object();
-                choice["index"] = 0;
-                choice["delta"] = delta;
-                choice["finish_reason"] = finish.empty() ? json::Value(nullptr) : json::Value(std::string(finish));
-                c["choices"].push(std::move(choice));
-                return "data: " + c.dump() + "\n\n";
-            };
-            auto failWith = [&](int status, const std::string& message) {
-                ++chatErrors;
-                if (!w.headersSent()) {
-                    w.setStatus(status);
-                    w.setHeader("Content-Type", "application/json");
-                    w.write(fail(status, "engine_error", message).body.dump());
+        return net::Response::streaming(
+            net::kHttpStatusOk, "text/event-stream", [this, ctx = std::move(ctx), id, modelName](net::ChunkWriter& w) mutable {
+                auto chunk = [&](const json::Value& delta, std::string_view finish) {
+                    json::Value c = json::Value::object();
+                    c["id"] = id;
+                    c["object"] = "chat.completion.chunk";
+                    c["created"] = epochSeconds();
+                    c["model"] = modelName;
+                    json::Value choice = json::Value::object();
+                    choice["index"] = 0;
+                    choice["delta"] = delta;
+                    choice["finish_reason"] = finish.empty() ? json::Value(nullptr) : json::Value(std::string(finish));
+                    c["choices"].push(std::move(choice));
+                    return "data: " + c.dump() + "\n\n";
+                };
+                auto failWith = [&](int status, const std::string& message) {
+                    ++chatErrors;
+                    if (!w.headersSent()) {
+                        w.setStatus(status);
+                        w.setHeader("Content-Type", "application/json");
+                        w.write(fail(status, "engine_error", message).body.dump());
+                    } else {
+                        json::Value e = json::Value::object();
+                        e["error"]["message"] = message;
+                        w.write("data: " + e.dump() + "\n\n");
+                        w.write("data: [DONE]\n\n");
+                    }
+                };
+                bool started = false;
+                auto emit = [&](std::string_view piece) {
+                    if (!started) {
+                        started = true;
+                        json::Value role = json::Value::object();
+                        role["role"] = "assistant";
+                        role["content"] = "";
+                        if (!w.write(chunk(role, ""))) return false;
+                    }
+                    json::Value delta = json::Value::object();
+                    delta["content"] = std::string(piece);
+                    return w.write(chunk(delta, ""));
+                };
+                if (ctx.agent) {
+                    std::string error;
+                    int status = kDefaultHttpErrorStatus;
+                    auto r = runAgentChat(ctx.agentInner, ctx.request.messages, error, status);
+                    if (!r.ok) return failWith(status, error);
+                    emit(r.text);
                 } else {
-                    json::Value e = json::Value::object();
-                    e["error"]["message"] = message;
-                    w.write("data: " + e.dump() + "\n\n");
-                    w.write("data: [DONE]\n\n");
+                    auto r = pool->chatStream(ctx.request, emit);
+                    if (!r.ok) return failWith(r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway, r.error);
                 }
-            };
-            bool started = false;
-            auto emit = [&](std::string_view piece) {
-                if (!started) {
-                    started = true;
-                    json::Value role = json::Value::object();
-                    role["role"] = "assistant";
-                    role["content"] = "";
-                    if (!w.write(chunk(role, ""))) return false;
-                }
-                json::Value delta = json::Value::object();
-                delta["content"] = std::string(piece);
-                return w.write(chunk(delta, ""));
-            };
-            if (ctx.agent) {
-                std::string error;
-                int status = kDefaultHttpErrorStatus;
-                auto r = runAgentChat(ctx.agentInner, ctx.request.messages, error, status);
-                if (!r.ok) return failWith(status, error);
-                emit(r.text);
-            } else {
-                auto r = pool->chatStream(ctx.request, emit);
-                if (!r.ok)
-                    return failWith(r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway, r.error);
-            }
-            if (!started) emit("");
-            w.write(chunk(json::Value::object(), "stop"));
-            w.write("data: [DONE]\n\n");
-        });
+                if (!started) emit("");
+                w.write(chunk(json::Value::object(), "stop"));
+                w.write("data: [DONE]\n\n");
+            });
     }
 
     net::Response listModels(net::Request& req) {
@@ -1073,46 +1065,45 @@ struct Service::Impl {
                 r = pool->chat(ctx.request);
                 if (!r.ok) {
                     ++chatErrors;
-                    return toResponse(fail(r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway,
-                                           "engine_error", r.error));
+                    return toResponse(
+                        fail(r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway, "engine_error", r.error));
                 }
             }
             return net::Response::json(net::kHttpStatusOk, frame(r.text, true));
         }
-        return net::Response::streaming(net::kHttpStatusOk, "application/x-ndjson",
-                                        [this, ctx = std::move(ctx), frame](net::ChunkWriter& w) mutable {
-            if (ctx.agent) {
-                std::string error;
-                int status = kDefaultHttpErrorStatus;
-                auto r = runAgentChat(ctx.agentInner, ctx.request.messages, error, status);
-                if (!r.ok) {
-                    w.setStatus(status);
-                    w.setHeader("Content-Type", "application/json");
-                    w.write(fail(status, "agent_error", error).body.dump());
+        return net::Response::streaming(
+            net::kHttpStatusOk, "application/x-ndjson", [this, ctx = std::move(ctx), frame](net::ChunkWriter& w) mutable {
+                if (ctx.agent) {
+                    std::string error;
+                    int status = kDefaultHttpErrorStatus;
+                    auto r = runAgentChat(ctx.agentInner, ctx.request.messages, error, status);
+                    if (!r.ok) {
+                        w.setStatus(status);
+                        w.setHeader("Content-Type", "application/json");
+                        w.write(fail(status, "agent_error", error).body.dump());
+                        return;
+                    }
+                    w.write(frame(r.text, false) + "\n");
+                    w.write(frame("", true) + "\n");
                     return;
                 }
-                w.write(frame(r.text, false) + "\n");
-                w.write(frame("", true) + "\n");
-                return;
-            }
-            auto r = pool->chatStream(ctx.request, [&](std::string_view piece) { return w.write(frame(piece, false) + "\n"); });
-            if (!r.ok) {
-                ++chatErrors;
-                if (!w.headersSent()) {
-                    const int status =
-                        r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway;
-                    w.setStatus(status);
-                    w.setHeader("Content-Type", "application/json");
-                    w.write(fail(status, "engine_error", r.error).body.dump());
-                } else {
-                    json::Value e = json::Value::object();
-                    e["error"] = r.error;
-                    w.write(e.dump() + "\n");
+                auto r = pool->chatStream(ctx.request, [&](std::string_view piece) { return w.write(frame(piece, false) + "\n"); });
+                if (!r.ok) {
+                    ++chatErrors;
+                    if (!w.headersSent()) {
+                        const int status = r.status >= net::kHttpStatusBadRequest ? r.status : net::kHttpStatusBadGateway;
+                        w.setStatus(status);
+                        w.setHeader("Content-Type", "application/json");
+                        w.write(fail(status, "engine_error", r.error).body.dump());
+                    } else {
+                        json::Value e = json::Value::object();
+                        e["error"] = r.error;
+                        w.write(e.dump() + "\n");
+                    }
+                    return;
                 }
-                return;
-            }
-            w.write(frame("", true) + "\n");
-        });
+                w.write(frame("", true) + "\n");
+            });
     }
 
     std::pair<std::optional<Params>, Result> parseJsonBody(const net::Request& req) {
@@ -1246,9 +1237,7 @@ struct Service::Impl {
             return r;
         });
 
-        server->route("GET", "/healthz", [](net::Request&) {
-            return net::Response::json(net::kHttpStatusOk, R"({"status":"ok"})");
-        });
+        server->route("GET", "/healthz", [](net::Request&) { return net::Response::json(net::kHttpStatusOk, R"({"status":"ok"})"); });
         server->route("GET", "/version", [](net::Request&) {
             json::Value v = json::Value::object();
             v["name"] = "gygax";
@@ -1264,10 +1253,9 @@ struct Service::Impl {
             v["status"] = ready ? "ready" : "not_ready";
             return net::Response::json(ready ? net::kHttpStatusOk : net::kHttpStatusServiceUnavailable, v.dump());
         });
-        server->route("GET", "/metrics",
-                      [this](net::Request&) {
-                          return net::Response::text(net::kHttpStatusOk, metrics(), "text/plain; version=0.0.4; charset=utf-8");
-                      });
+        server->route("GET", "/metrics", [this](net::Request&) {
+            return net::Response::text(net::kHttpStatusOk, metrics(), "text/plain; version=0.0.4; charset=utf-8");
+        });
 
         for (auto& op : ops) {
             if (op.rpcName == "chat.complete") continue;
@@ -1311,8 +1299,7 @@ struct Service::Impl {
             auto parsed = parseJsonBody(req);
             if (!parsed.first) return toResponse(parsed.second);
             const auto directive = parsed.first->getString("directive");
-            if (directive.empty())
-                return toResponse(fail(net::kHttpStatusBadRequest, "invalid_request", "'directive' is required"));
+            if (directive.empty()) return toResponse(fail(net::kHttpStatusBadRequest, "invalid_request", "'directive' is required"));
             auto [html, text] = brain::CoordinateWebPage();
             {
                 std::lock_guard lock(layoutMutex);

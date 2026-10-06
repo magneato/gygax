@@ -64,8 +64,7 @@ std::uint16_t crc16(std::span<const std::uint8_t> data) {
     for (const std::uint8_t byte : data) {
         crc ^= byte;
         for (int i = 0; i < 8; ++i)
-            crc = (crc & 1U) != 0 ? static_cast<std::uint16_t>((crc >> 1) ^ kModbusCrcPolynomial)
-                                  : static_cast<std::uint16_t>(crc >> 1);
+            crc = (crc & 1U) != 0 ? static_cast<std::uint16_t>((crc >> 1) ^ kModbusCrcPolynomial) : static_cast<std::uint16_t>(crc >> 1);
     }
     return crc;
 }
@@ -110,8 +109,7 @@ std::optional<Request> parseTcp(std::span<const std::uint8_t> frame, std::uint16
     Request r;
     r.unit = frame[6];
     r.function = frame[7];
-    r.data.assign(frame.begin() + kModbusTcpRequestBytes,
-                  frame.begin() + kModbusTcpHeaderBytes + static_cast<std::ptrdiff_t>(length));
+    r.data.assign(frame.begin() + kModbusTcpRequestBytes, frame.begin() + kModbusTcpHeaderBytes + static_cast<std::ptrdiff_t>(length));
     return r;
 }
 
@@ -394,7 +392,7 @@ bool Slave::serveOne(net::ByteLink& link, Mode mode, std::chrono::milliseconds t
         std::size_t consumed = 0;
         std::uint16_t transaction = 0;
         if (mode == Mode::Tcp) {
-                if (buffer_.size() < kModbusTcpRequestBytes) return true;
+            if (buffer_.size() < kModbusTcpRequestBytes) return true;
             const std::size_t length = be16(&buffer_[4]);
             if (buffer_.size() < kModbusTcpHeaderBytes + length) return true;
             request = parseTcp(buffer_, &transaction);

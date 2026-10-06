@@ -75,17 +75,16 @@ CommandResult failure(int status, std::string_view code, std::string_view messag
 CommandResult fromRc(int rc, const char* what) {
     if (rc == 0) return CommandResult::ok();
     const int status = rc == -ETIMEDOUT ? net::kHttpStatusGatewayTimeout
-                       : rc == -EINVAL ? net::kHttpStatusBadRequest
-                       : rc == -EPERM  ? net::kHttpStatusConflict
-                                       : net::kHttpStatusBadGateway;
+                       : rc == -EINVAL  ? net::kHttpStatusBadRequest
+                       : rc == -EPERM   ? net::kHttpStatusConflict
+                                        : net::kHttpStatusBadGateway;
     return failure(status, "device_error", std::format("{} failed: {}", what, errorText(rc)));
 }
 
 std::shared_ptr<net::ByteLink> openChecked(const std::string& uri, std::string* error) {
     if (uri.starts_with("serial://")) {
         const auto path = uri.substr(kSerialUriSchemeLength,
-                                     uri.find('?') == std::string::npos ? std::string::npos
-                                                                       : uri.find('?') - kSerialUriSchemeLength);
+                                     uri.find('?') == std::string::npos ? std::string::npos : uri.find('?') - kSerialUriSchemeLength);
         if (!serialPathAllowed(path)) {
             if (error != nullptr) *error = "serial devices must live under /dev/";
             return nullptr;
@@ -835,10 +834,10 @@ std::unique_ptr<Device> openDevice(const json::Value& config, std::string* error
         if (!canBus) return fail(err.empty() ? "cannot open the CAN interface" : err);
         if (kind == "obd") {
             return std::make_unique<ObdDevice>(
-                std::move(canBus), static_cast<std::uint8_t>(std::clamp<std::int64_t>(
-                                       config.getInt("ecu", 0), 0, kMaximumObdEcuAddress)),
-                std::chrono::milliseconds(std::clamp<std::int64_t>(
-                    config.getInt("poll_ms", 1000), kMinimumObdPollIntervalMs, kMaximumDevicePollIntervalMs)), iface);
+                std::move(canBus), static_cast<std::uint8_t>(std::clamp<std::int64_t>(config.getInt("ecu", 0), 0, kMaximumObdEcuAddress)),
+                std::chrono::milliseconds(
+                    std::clamp<std::int64_t>(config.getInt("poll_ms", 1000), kMinimumObdPollIntervalMs, kMaximumDevicePollIntervalMs)),
+                iface);
         }
         auto db = loadDbc(config, &err);
         if (!err.empty()) return fail(err);
@@ -856,8 +855,8 @@ std::unique_ptr<Device> openDevice(const json::Value& config, std::string* error
                 reg.name = item.getString("name");
                 reg.area = item.getString("area", "holding");
                 reg.type = item.getString("type", "u16");
-                reg.address = static_cast<std::uint16_t>(
-                    std::clamp<std::int64_t>(item.getInt("address", 0), 0, kMaximumModbusRegisterAddress));
+                reg.address =
+                    static_cast<std::uint16_t>(std::clamp<std::int64_t>(item.getInt("address", 0), 0, kMaximumModbusRegisterAddress));
                 reg.scale = item.getDouble("scale", 1.0);
                 reg.offset = item.getDouble("offset", 0.0);
                 if (reg.name.empty()) return fail("every register needs a name");
@@ -871,10 +870,9 @@ std::unique_ptr<Device> openDevice(const json::Value& config, std::string* error
         if (regs.size() > kMaximumModbusRegisters) return fail("too many registers (limit 256)");
         return std::make_unique<ModbusDevice>(
             std::move(link), modeName == "tcp" ? bus::modbus::Mode::Tcp : bus::modbus::Mode::Rtu,
-            static_cast<std::uint8_t>(
-                std::clamp<std::int64_t>(config.getInt("unit", 1), 0, kMaximumModbusUnitId)),
-            std::move(regs), std::chrono::milliseconds(std::clamp<std::int64_t>(
-                                 config.getInt("poll_ms", 1000), kMinimumModbusPollIntervalMs, kMaximumDevicePollIntervalMs)),
+            static_cast<std::uint8_t>(std::clamp<std::int64_t>(config.getInt("unit", 1), 0, kMaximumModbusUnitId)), std::move(regs),
+            std::chrono::milliseconds(
+                std::clamp<std::int64_t>(config.getInt("poll_ms", 1000), kMinimumModbusPollIntervalMs, kMaximumDevicePollIntervalMs)),
             uri);
     }
     if (kind == "nmea") {

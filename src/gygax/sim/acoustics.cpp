@@ -48,8 +48,8 @@ AcousticFieldSample sampleCoherentTone(Vec2 observationPoint, double frequencyHz
             throw std::invalid_argument("source pressure must be nonnegative and reference distance positive");
 
         const double distance = std::hypot(observationPoint.x - source.position.x, observationPoint.y - source.position.y);
-        const double propagatedPressure = source.rmsPressureAtReferencePa * source.referenceDistanceMeters /
-                                          std::max(distance, source.referenceDistanceMeters);
+        const double propagatedPressure =
+            source.rmsPressureAtReferencePa * source.referenceDistanceMeters / std::max(distance, source.referenceDistanceMeters);
         const double phase = source.phaseRadians - waveNumber * distance;
         sample.inPhasePressurePa += propagatedPressure * std::cos(phase);
         sample.quadraturePressurePa += propagatedPressure * std::sin(phase);

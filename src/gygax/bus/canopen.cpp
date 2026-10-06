@@ -37,8 +37,7 @@ CanFrame syncFrame() {
 }
 
 std::optional<Heartbeat> parseHeartbeat(const CanFrame& frame) {
-    if (frame.extended || frame.remote || frame.length != 1 || frame.id <= kHeartbeat ||
-        frame.id > kHeartbeat + kMaxNodeId)
+    if (frame.extended || frame.remote || frame.length != 1 || frame.id <= kHeartbeat || frame.id > kHeartbeat + kMaxNodeId)
         return std::nullopt;
     const auto state = frame.data[0] & 0x7F;
     if (state != 0x00 && state != 0x04 && state != 0x05 && state != 0x7F) return std::nullopt;
@@ -87,8 +86,8 @@ IOResult SdoClient::exchange(std::uint8_t nodeId, const std::uint8_t (&request)[
 IOResult SdoClient::read(std::uint8_t nodeId, std::uint16_t index, std::uint8_t subIndex, std::vector<std::uint8_t>& out) {
     abort_ = 0;
     out.clear();
-    std::uint8_t req[kCanOpenFrameBytes] = {0x40, static_cast<std::uint8_t>(index & 0xFF),
-                                            static_cast<std::uint8_t>(index >> 8), subIndex, 0, 0, 0, 0};
+    std::uint8_t req[kCanOpenFrameBytes] = {
+        0x40, static_cast<std::uint8_t>(index & 0xFF), static_cast<std::uint8_t>(index >> 8), subIndex, 0, 0, 0, 0};
     CanFrame reply;
     if (const auto rc = exchange(nodeId, req, reply); rc != 0) return rc;
     const std::uint8_t cs = reply.data[0];
@@ -123,20 +122,20 @@ IOResult SdoClient::write(std::uint8_t nodeId, std::uint16_t index, std::uint8_t
     CanFrame reply;
     if (data.size() <= 4) {
         std::uint8_t req[kCanOpenFrameBytes] = {static_cast<std::uint8_t>(0x23 | ((4 - data.size()) << 2)),
-                               static_cast<std::uint8_t>(index & 0xFF),
-                               static_cast<std::uint8_t>(index >> 8),
-                               subIndex,
-                               0,
-                               0,
-                               0,
-                               0};
+                                                static_cast<std::uint8_t>(index & 0xFF),
+                                                static_cast<std::uint8_t>(index >> 8),
+                                                subIndex,
+                                                0,
+                                                0,
+                                                0,
+                                                0};
         std::copy(data.begin(), data.end(), req + 4);
         if (const auto rc = exchange(nodeId, req, reply); rc != 0) return rc;
         return (reply.data[0] >> 5) == 3 ? 0 : -EPROTO;
     }
     const auto total = static_cast<std::uint32_t>(data.size());
-    std::uint8_t init[kCanOpenFrameBytes] = {0x21, static_cast<std::uint8_t>(index & 0xFF),
-                                             static_cast<std::uint8_t>(index >> 8), subIndex, 0, 0, 0, 0};
+    std::uint8_t init[kCanOpenFrameBytes] = {
+        0x21, static_cast<std::uint8_t>(index & 0xFF), static_cast<std::uint8_t>(index >> 8), subIndex, 0, 0, 0, 0};
     std::memcpy(&init[4], &total, 4);
     if (const auto rc = exchange(nodeId, init, reply); rc != 0) return rc;
     if ((reply.data[0] >> 5) != 3) return -EPROTO;

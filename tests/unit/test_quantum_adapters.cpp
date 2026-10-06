@@ -29,30 +29,28 @@ public:
         return true;
     }
 
-    std::optional<std::vector<std::byte>> receive() override {
-        return lastSent;
-    }
+    std::optional<std::vector<std::byte>> receive() override { return lastSent; }
 
     std::vector<std::byte> lastSent;
 };
 
 class SimulatedQkdProvider final : public gygax::quantum::QkdProvider {
 public:
-    std::optional<gygax::quantum::QkdSession> establishSession(
-        std::span<const std::byte>) override {
+    std::optional<gygax::quantum::QkdSession> establishSession(std::span<const std::byte>) override {
         using namespace gygax::quantum;
         return QkdSession{
-            .report = {
-                .signalsSent = 64,
-                .siftedBits = 32,
-                .parameterSampleBits = 8,
-                .observedErrors = 0,
-                .finalKeyBits = 16,
-                .classicalChannelAuthenticated = true,
-                .parameterEstimationAccepted = true,
-                .errorCorrectionComplete = true,
-                .privacyAmplificationComplete = true,
-            },
+            .report =
+                {
+                    .signalsSent = 64,
+                    .siftedBits = 32,
+                    .parameterSampleBits = 8,
+                    .observedErrors = 0,
+                    .finalKeyBits = 16,
+                    .classicalChannelAuthenticated = true,
+                    .parameterEstimationAccepted = true,
+                    .errorCorrectionComplete = true,
+                    .privacyAmplificationComplete = true,
+                },
             .channel = std::make_unique<SimulatedSecureChannel>(),
         };
     }
@@ -72,17 +70,18 @@ TEST(QuantumAdapters, QkdSessionRequiresAllPostProcessingAndSecureChannel) {
     using namespace gygax::quantum;
 
     QkdSession session{
-        .report = {
-            .signalsSent = 64,
-            .siftedBits = 32,
-            .parameterSampleBits = 8,
-            .observedErrors = 0,
-            .finalKeyBits = 16,
-            .classicalChannelAuthenticated = true,
-            .parameterEstimationAccepted = true,
-            .errorCorrectionComplete = true,
-            .privacyAmplificationComplete = true,
-        },
+        .report =
+            {
+                .signalsSent = 64,
+                .siftedBits = 32,
+                .parameterSampleBits = 8,
+                .observedErrors = 0,
+                .finalKeyBits = 16,
+                .classicalChannelAuthenticated = true,
+                .parameterEstimationAccepted = true,
+                .errorCorrectionComplete = true,
+                .privacyAmplificationComplete = true,
+            },
         .channel = std::make_unique<SimulatedSecureChannel>(),
     };
     EXPECT_TRUE(session.ready());
@@ -101,17 +100,18 @@ TEST(QuantumAdapters, SiftedReportRejectsImpossibleCounts) {
     using namespace gygax::quantum;
 
     QkdSession session{
-        .report = {
-            .signalsSent = 16,
-            .siftedBits = 17,
-            .parameterSampleBits = 4,
-            .observedErrors = 0,
-            .finalKeyBits = 8,
-            .classicalChannelAuthenticated = true,
-            .parameterEstimationAccepted = true,
-            .errorCorrectionComplete = true,
-            .privacyAmplificationComplete = true,
-        },
+        .report =
+            {
+                .signalsSent = 16,
+                .siftedBits = 17,
+                .parameterSampleBits = 4,
+                .observedErrors = 0,
+                .finalKeyBits = 8,
+                .classicalChannelAuthenticated = true,
+                .parameterEstimationAccepted = true,
+                .errorCorrectionComplete = true,
+                .privacyAmplificationComplete = true,
+            },
         .channel = std::make_unique<SimulatedSecureChannel>(),
     };
 

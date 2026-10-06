@@ -70,9 +70,7 @@ std::string BaseObject::summarizeThoughts() const {
     std::string goalList = std::accumulate(goals_.begin(), goals_.end(), std::string(),
                                            [](const std::string& a, const std::string& b) { return a + (a.empty() ? "" : ", ") + b; });
     std::string recent;
-    const std::size_t from = thoughts_.size() > kThoughtSummaryRecentCount
-                                 ? thoughts_.size() - kThoughtSummaryRecentCount
-                                 : 0;
+    const std::size_t from = thoughts_.size() > kThoughtSummaryRecentCount ? thoughts_.size() - kThoughtSummaryRecentCount : 0;
     for (std::size_t i = from; i < thoughts_.size(); ++i)
         recent += (recent.empty() ? "" : " | ") + clip(thoughts_[i], kThoughtSummaryEntryMaxLength);
     return std::format("{} thoughts; goals [{}]; latest: {}", thoughts_.size(), goalList.empty() ? "none" : goalList,

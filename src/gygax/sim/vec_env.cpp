@@ -81,8 +81,7 @@ std::optional<VecEnvConfig> vecEnvConfigFromJson(const json::Value& spec, std::s
                     number("obstacles", obstacles, 0, kMaximumObstacleCount, err) &&
                     number("obstacle_min_radius", c.obstacleMinRadius, kMinimumObstacleRadius, kMaximumObstacleRadius, err) &&
                     number("obstacle_max_radius", c.obstacleMaxRadius, kMinimumObstacleRadius, kMaximumObstacleRadius, err) &&
-                    number("beams", beams, 1, kMaximumBeamCount, err) &&
-                    number("max_range", c.maxRange, 0.1, kMaximumLidarRange, err) &&
+                    number("beams", beams, 1, kMaximumBeamCount, err) && number("max_range", c.maxRange, 0.1, kMaximumLidarRange, err) &&
                     number("dt", c.dt, 0.001, kMaximumTimeStepSeconds, err) &&
                     number("max_steps", maxSteps, 1, kMaximumEpisodeSteps, err) &&
                     number("goal_radius", c.goalRadius, kMinimumObstacleRadius, kMaximumObstacleRadius, err) &&
@@ -197,17 +196,14 @@ void VecEnv::resetEnv(std::size_t index) {
     cfg.start = {margin + (config_.width - 2 * margin) * e.rng.uniform(), margin + (config_.height - 2 * margin) * e.rng.uniform(),
                  (e.rng.uniform() * 2.0 - 1.0) * kPi};
     e.handle = e.world->spawn(cfg);
-    e.world->addRandomObstacles(config_.obstacles, config_.obstacleMinRadius, config_.obstacleMaxRadius,
-                                kObstacleClearanceMeters);
+    e.world->addRandomObstacles(config_.obstacles, config_.obstacleMinRadius, config_.obstacleMaxRadius, kObstacleClearanceMeters);
 
     const double minGoalDistance = std::min(config_.width, config_.height) * 0.3;
     for (int attempt = 0; attempt < kGoalPlacementAttempts; ++attempt) {
         Vec2 g{margin + (config_.width - 2 * margin) * e.rng.uniform(), margin + (config_.height - 2 * margin) * e.rng.uniform()};
         bool ok = std::hypot(g.x - cfg.start.x, g.y - cfg.start.y) >= minGoalDistance;
         for (const auto& o : e.world->obstacles())
-            if (std::hypot(g.x - o.center.x, g.y - o.center.y) <
-                o.radius + config_.goalRadius + kObstacleClearanceMeters)
-                ok = false;
+            if (std::hypot(g.x - o.center.x, g.y - o.center.y) < o.radius + config_.goalRadius + kObstacleClearanceMeters) ok = false;
         e.goal = g;
         if (ok) break;
     }

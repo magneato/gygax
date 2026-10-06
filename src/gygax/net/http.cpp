@@ -657,8 +657,7 @@ Response Server::dispatch(Request& request) {
         allowed.erase(std::unique(allowed.begin(), allowed.end()), allowed.end());
         std::string list;
         for (const auto& m : allowed) list += (list.empty() ? "" : ", ") + m;
-        Response r =
-            Response::error(kHttpStatusMethodNotAllowed, "method_not_allowed", "method not allowed for this resource");
+        Response r = Response::error(kHttpStatusMethodNotAllowed, "method_not_allowed", "method not allowed for this resource");
         r.headers["Allow"] = list;
         return r;
     }
@@ -721,8 +720,7 @@ void Server::serve(int fd, const std::string& remote) {
         }
         const auto rr = readSome(fd, chunk.data(), chunk.size(), options_.readTimeout);
         if (rr.kind == ReadResult::Timeout) {
-            if (!buffer.empty())
-                reject(kHttpStatusRequestTimeout, "request_timeout", "timed out waiting for request");
+            if (!buffer.empty()) reject(kHttpStatusRequestTimeout, "request_timeout", "timed out waiting for request");
             finish();
             return;
         }

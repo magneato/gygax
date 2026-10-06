@@ -280,8 +280,7 @@ std::shared_ptr<ByteLink> openUdpLink(const std::string& bindHost, std::uint16_t
     sockaddr_storage local{};
     socklen_t localLen = 0;
     int family = AF_INET;
-    if (!resolve(bindHost.empty() ? std::string(kWildcardIpv4Address) : bindHost, bindPort, SOCK_DGRAM, local, localLen, family,
-                 error))
+    if (!resolve(bindHost.empty() ? std::string(kWildcardIpv4Address) : bindHost, bindPort, SOCK_DGRAM, local, localLen, family, error))
         return nullptr;
     const int fd = ::socket(family, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     if (fd < 0) {

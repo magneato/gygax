@@ -33,10 +33,9 @@ std::chrono::microseconds decodeStMin(std::uint8_t raw) {
 std::uint8_t encodeStMin(std::chrono::microseconds t) {
     if (t.count() <= 0) return 0;
     if (t.count() < kMicrosecondsPerMillisecond)
-        return static_cast<std::uint8_t>(kStMinSubMillisecondBase +
-                                         std::clamp<std::int64_t>((t.count() + kStMinResolutionMicroseconds - 1) /
-                                                                      kStMinResolutionMicroseconds,
-                                                                  1, 9));
+        return static_cast<std::uint8_t>(
+            kStMinSubMillisecondBase +
+            std::clamp<std::int64_t>((t.count() + kStMinResolutionMicroseconds - 1) / kStMinResolutionMicroseconds, 1, 9));
     return static_cast<std::uint8_t>(
         std::min<std::int64_t>((t.count() + kMicrosecondsPerMillisecond - 1) / kMicrosecondsPerMillisecond, 127));
 }
@@ -71,8 +70,8 @@ bool IsoTpChannel::nextFrame(CanFrame& frame, std::chrono::steady_clock::time_po
 }
 
 IOResult IsoTpChannel::sendFlowControl(std::uint8_t status) {
-    const std::uint8_t bytes[kFlowControlFrameBytes] = {static_cast<std::uint8_t>((kFlow << 4) | status),
-                                                        options_.blockSize, encodeStMin(options_.separationTime)};
+    const std::uint8_t bytes[kFlowControlFrameBytes] = {static_cast<std::uint8_t>((kFlow << 4) | status), options_.blockSize,
+                                                        encodeStMin(options_.separationTime)};
     return sendFrame(bytes);
 }
 
@@ -98,8 +97,7 @@ IOResult IsoTpChannel::awaitFlowControl(std::uint8_t& blockSize, std::chrono::mi
 IOResult IsoTpChannel::send(std::span<const std::uint8_t> payload) {
     if (payload.empty() || payload.size() > kMaxPayload) return -EMSGSIZE;
     const std::size_t frameMax = options_.fd ? kMaxCanFdPayloadBytes : kClassicCanPayloadBytes;
-    const std::size_t singleMax =
-        options_.fd ? frameMax - kFirstFrameHeaderBytes : kMaxClassicSingleFramePayloadBytes;
+    const std::size_t singleMax = options_.fd ? frameMax - kFirstFrameHeaderBytes : kMaxClassicSingleFramePayloadBytes;
 
     if (payload.size() <= singleMax) {
         std::vector<std::uint8_t> bytes;

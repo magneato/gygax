@@ -35,8 +35,8 @@ constexpr std::size_t kMaximumDirectPayloadLength = kExtended16BitLengthMarker -
 constexpr std::uint64_t kMaximumExtended16BitPayloadLength = 0xFFFF;
 constexpr unsigned kMaximumPortNumber = 65535;
 constexpr int kWebSocketCloseNormalStatus = 1000;
-constexpr std::array<std::uint8_t, 2> kWebSocketCloseNormalPayload = {
-    static_cast<std::uint8_t>(kWebSocketCloseNormalStatus >> 8), static_cast<std::uint8_t>(kWebSocketCloseNormalStatus & 0xFF)};
+constexpr std::array<std::uint8_t, 2> kWebSocketCloseNormalPayload = {static_cast<std::uint8_t>(kWebSocketCloseNormalStatus >> 8),
+                                                                      static_cast<std::uint8_t>(kWebSocketCloseNormalStatus & 0xFF)};
 constexpr std::string_view kWebSocketAcceptGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 constexpr std::string_view kWebSocketHeaderTerminator = "\r\n\r\n";
 
@@ -186,8 +186,8 @@ std::string encodeWebSocketFrame(WsOpcode opcode, std::string_view payload, bool
             maskKey = static_cast<std::uint32_t>(rng());
         }
         const std::array<std::uint8_t, kWebSocketMaskKeyBytes> key = {
-            static_cast<std::uint8_t>(maskKey >> 24), static_cast<std::uint8_t>(maskKey >> 16),
-            static_cast<std::uint8_t>(maskKey >> 8), static_cast<std::uint8_t>(maskKey)};
+            static_cast<std::uint8_t>(maskKey >> 24), static_cast<std::uint8_t>(maskKey >> 16), static_cast<std::uint8_t>(maskKey >> 8),
+            static_cast<std::uint8_t>(maskKey)};
         for (const auto b : key) out.push_back(static_cast<char>(b));
         for (std::size_t i = 0; i < payload.size(); ++i)
             out.push_back(static_cast<char>(static_cast<std::uint8_t>(payload[i]) ^ key[i % kWebSocketMaskKeyBytes]));
@@ -236,9 +236,8 @@ std::vector<WsMessage> WebSocketParser::feed(std::span<const std::uint8_t> data)
         std::string payload = buffer_.substr(pos + header + maskLen, static_cast<std::size_t>(length));
         if (masked) {
             for (std::size_t i = 0; i < payload.size(); ++i)
-                payload[i] =
-                    static_cast<char>(static_cast<std::uint8_t>(payload[i]) ^
-                                      static_cast<std::uint8_t>(buffer_[pos + header + i % kWebSocketMaskKeyBytes]));
+                payload[i] = static_cast<char>(static_cast<std::uint8_t>(payload[i]) ^
+                                               static_cast<std::uint8_t>(buffer_[pos + header + i % kWebSocketMaskKeyBytes]));
         }
         pos += header + maskLen + static_cast<std::size_t>(length);
         const bool control = static_cast<std::uint8_t>(opcode) >= 8;
@@ -302,8 +301,7 @@ std::optional<WebSocketUrl> WebSocketUrl::parse(std::string_view url, std::strin
     if (colon != std::string_view::npos) {
         unsigned port = 0;
         const auto text = authority.substr(colon + 1);
-        if (std::from_chars(text.data(), text.data() + text.size(), port).ec != std::errc() || port == 0 ||
-            port > kMaximumPortNumber)
+        if (std::from_chars(text.data(), text.data() + text.size(), port).ec != std::errc() || port == 0 || port > kMaximumPortNumber)
             return fail("invalid port");
         out.port = static_cast<std::uint16_t>(port);
         authority = authority.substr(0, colon);
@@ -387,9 +385,8 @@ IOResult WebSocketClient::sendBinary(std::string_view data) {
 
 IOResult WebSocketClient::close() {
     if (closed_) return 0;
-    const auto rc = sendFrame(
-        WsOpcode::Close,
-        std::string_view(reinterpret_cast<const char*>(kWebSocketCloseNormalPayload.data()), kWebSocketCloseNormalPayload.size()));
+    const auto rc = sendFrame(WsOpcode::Close, std::string_view(reinterpret_cast<const char*>(kWebSocketCloseNormalPayload.data()),
+                                                                kWebSocketCloseNormalPayload.size()));
     closed_ = true;
     return rc;
 }

@@ -17,8 +17,7 @@ inline constexpr std::chrono::milliseconds kDefaultGpioPollInterval{5};
 
 class SysfsGpioPort final : public GpioPort {
 public:
-    explicit SysfsGpioPort(std::string root = kDefaultSysfsGpioRoot,
-                           std::chrono::milliseconds pollInterval = kDefaultGpioPollInterval);
+    explicit SysfsGpioPort(std::string root = kDefaultSysfsGpioRoot, std::chrono::milliseconds pollInterval = kDefaultGpioPollInterval);
     ~SysfsGpioPort() override;
     SysfsGpioPort(const SysfsGpioPort&) = delete;
     SysfsGpioPort& operator=(const SysfsGpioPort&) = delete;

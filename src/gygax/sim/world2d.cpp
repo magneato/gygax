@@ -110,8 +110,7 @@ void World2D::addRandomObstacles(std::size_t count, double minRadius, double max
             if (std::hypot(o.center.x - a.pose.x, o.center.y - a.pose.y) < o.radius + a.config.radius + keepClear) ok = false;
         }
         for (const auto& other : obstacles_) {
-            if (std::hypot(o.center.x - other.center.x, o.center.y - other.center.y) <
-                o.radius + other.radius + kObstacleClearanceMeters)
+            if (std::hypot(o.center.x - other.center.x, o.center.y - other.center.y) < o.radius + other.radius + kObstacleClearanceMeters)
                 ok = false;
         }
         if (ok) {

@@ -99,8 +99,7 @@ std::vector<Signal> decode(std::uint32_t pgn, std::span<const std::uint8_t> d) {
             out.push_back({"engine_speed", word(d, kEngineSpeedByteOffset) * kEngineSpeedResolutionRpm, "rpm"});
         break;
     case kPgnCcvs:
-        if (available16(word(d, 1)))
-            out.push_back({"wheel_based_speed", word(d, 1) / kWheelSpeedCountsPerKph, "km/h"});
+        if (available16(word(d, 1))) out.push_back({"wheel_based_speed", word(d, 1) / kWheelSpeedCountsPerKph, "km/h"});
         break;
     case kPgnEt1:
         if (available8(d[0])) out.push_back({"coolant_temperature", d[0] - kTemperatureRawOffsetCelsius, "degC"});
@@ -109,19 +108,16 @@ std::vector<Signal> decode(std::uint32_t pgn, std::span<const std::uint8_t> d) {
             out.push_back({"oil_temperature", word(d, 2) * kOilTemperatureResolutionCelsius - kTemperatureRawOffsetKelvin, "degC"});
         break;
     case kPgnLfe:
-        if (available16(word(d, 0)))
-            out.push_back({"fuel_rate", word(d, 0) * kFuelRateResolutionLitersPerHour, "L/h"});
+        if (available16(word(d, 0))) out.push_back({"fuel_rate", word(d, 0) * kFuelRateResolutionLitersPerHour, "L/h"});
         if (available8(d[6])) out.push_back({"throttle_position", d[6] * kThrottlePositionResolutionPercent, "%"});
         break;
     case kPgnVep1:
-        if (available16(word(d, 4)))
-            out.push_back({"battery_potential", word(d, 4) * kBatteryVoltageResolutionVolts, "V"});
+        if (available16(word(d, 4))) out.push_back({"battery_potential", word(d, 4) * kBatteryVoltageResolutionVolts, "V"});
         break;
     case kPgnAmbient:
         if (available8(d[0])) out.push_back({"barometric_pressure", d[0] * kBarometricPressureResolutionKpa, "kPa"});
         if (available16(word(d, 3)))
-            out.push_back({"ambient_temperature", word(d, 3) * kOilTemperatureResolutionCelsius - kTemperatureRawOffsetKelvin,
-                           "degC"});
+            out.push_back({"ambient_temperature", word(d, 3) * kOilTemperatureResolutionCelsius - kTemperatureRawOffsetKelvin, "degC"});
         break;
     default: break;
     }
@@ -131,8 +127,7 @@ std::vector<Signal> decode(std::uint32_t pgn, std::span<const std::uint8_t> d) {
 std::optional<std::vector<std::uint8_t>> encodeEec1(double rpm, double torquePercent) {
     if (rpm < 0.0 || rpm > kMaximumEncodableEngineSpeedRpm) return std::nullopt;
     std::vector<std::uint8_t> d(kJ1939DataBytes, kUnavailableDataByte);
-    const auto torque = static_cast<std::uint8_t>(
-        std::clamp(std::lround(torquePercent + kTorqueRawOffsetPercent), 0L, kTorqueRawMaximum));
+    const auto torque = static_cast<std::uint8_t>(std::clamp(std::lround(torquePercent + kTorqueRawOffsetPercent), 0L, kTorqueRawMaximum));
     d[1] = torque;
     d[2] = torque;
     const auto raw = static_cast<std::uint16_t>(std::lround(rpm / kEngineSpeedResolutionRpm));
@@ -143,8 +138,8 @@ std::optional<std::vector<std::uint8_t>> encodeEec1(double rpm, double torquePer
 
 std::vector<std::uint8_t> encodeCcvs(double speedKmh) {
     std::vector<std::uint8_t> d(kJ1939DataBytes, kUnavailableDataByte);
-    const auto raw = static_cast<std::uint16_t>(
-        std::clamp(std::lround(speedKmh * kWheelSpeedCountsPerKph), 0L, kMaximumWheelSpeedRawValue));
+    const auto raw =
+        static_cast<std::uint16_t>(std::clamp(std::lround(speedKmh * kWheelSpeedCountsPerKph), 0L, kMaximumWheelSpeedRawValue));
     d[1] = static_cast<std::uint8_t>(raw & 0xFF);
     d[2] = static_cast<std::uint8_t>(raw >> 8);
     return d;

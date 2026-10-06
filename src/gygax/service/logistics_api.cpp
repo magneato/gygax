@@ -162,20 +162,17 @@ LogisticsResult plan(Ledger& ledger, const robotics::DeviceRegistry& devices, co
     if (!(req.maxRangeM > 0.0))
         return error(net::kHttpStatusBadRequest, "invalid_request",
                      "max_range_m is required (or register a model for the sku with max_range_m)");
-    if (!logistics::withinRange(fuel, 0.0, 1.0))
-        return error(net::kHttpStatusBadRequest, "invalid_request", "fuel must be within 0..1");
+    if (!logistics::withinRange(fuel, 0.0, 1.0)) return error(net::kHttpStatusBadRequest, "invalid_request", "fuel must be within 0..1");
     if (!logistics::withinRange(req.reserveFraction, 0.0, kMaximumReserveFraction))
         return error(net::kHttpStatusBadRequest, "invalid_request", "reserve must be within 0..0.9");
     req.fuelFraction = fuel;
 
     const auto* wps = p.find("waypoints");
     if (wps != nullptr && wps->isArray()) {
-        if (wps->size() > kMaximumWaypoints)
-            return error(net::kHttpStatusBadRequest, "invalid_request", "at most 64 waypoints");
+        if (wps->size() > kMaximumWaypoints) return error(net::kHttpStatusBadRequest, "invalid_request", "at most 64 waypoints");
         for (const auto& w : wps->asArray()) {
             auto pt = pointOf(&w);
-            if (!pt)
-                return error(net::kHttpStatusBadRequest, "invalid_request", "each waypoint needs latitude and longitude within range");
+            if (!pt) return error(net::kHttpStatusBadRequest, "invalid_request", "each waypoint needs latitude and longitude within range");
             req.waypoints.push_back(*pt);
         }
     }
@@ -217,8 +214,7 @@ LogisticsResult plan(Ledger& ledger, const robotics::DeviceRegistry& devices, co
 } // namespace
 
 LogisticsResult handleLogistics(Ledger& ledger, const robotics::DeviceRegistry& devices, std::string_view op, const json::Value& p) {
-    const auto limit =
-        static_cast<std::size_t>(std::clamp<std::int64_t>(intParam(p, "limit", kDefaultPageSize), 1, kMaximumPageSize));
+    const auto limit = static_cast<std::size_t>(std::clamp<std::int64_t>(intParam(p, "limit", kDefaultPageSize), 1, kMaximumPageSize));
     if (op == "models.put") return fromOutcome(ledger.putModel(p));
     if (op == "models.list") {
         json::Value out = json::Value::object();

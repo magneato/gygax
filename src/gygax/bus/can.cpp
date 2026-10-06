@@ -23,9 +23,22 @@ namespace gygax::bus {
 
 namespace {
 
-constexpr std::array<std::uint8_t, kMaxCanDlc + 1> kDlcLengths = {
-    0, 1, 2, 3, 4, 5, 6, 7, static_cast<std::uint8_t>(kClassicCanPayloadBytes), 12, 16, 20, 24, 32, 48,
-    static_cast<std::uint8_t>(kMaxCanFdPayloadBytes)};
+constexpr std::array<std::uint8_t, kMaxCanDlc + 1> kDlcLengths = {0,
+                                                                  1,
+                                                                  2,
+                                                                  3,
+                                                                  4,
+                                                                  5,
+                                                                  6,
+                                                                  7,
+                                                                  static_cast<std::uint8_t>(kClassicCanPayloadBytes),
+                                                                  12,
+                                                                  16,
+                                                                  20,
+                                                                  24,
+                                                                  32,
+                                                                  48,
+                                                                  static_cast<std::uint8_t>(kMaxCanFdPayloadBytes)};
 
 std::uint64_t nowNs() {
     return static_cast<std::uint64_t>(
@@ -50,8 +63,7 @@ CanFrame CanFrame::make(std::uint32_t id, std::span<const std::uint8_t> bytes, b
     f.id = id;
     f.extended = extended;
     f.fd = fd || bytes.size() > kClassicCanPayloadBytes;
-    f.length = static_cast<std::uint8_t>(
-        std::min<std::size_t>(bytes.size(), f.fd ? kMaxCanFdPayloadBytes : kClassicCanPayloadBytes));
+    f.length = static_cast<std::uint8_t>(std::min<std::size_t>(bytes.size(), f.fd ? kMaxCanFdPayloadBytes : kClassicCanPayloadBytes));
     std::copy_n(bytes.begin(), f.length, f.data.begin());
     return f;
 }

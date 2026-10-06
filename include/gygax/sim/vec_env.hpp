@@ -61,9 +61,7 @@ public:
     VecEnv& operator=(const VecEnv&) = delete;
 
     [[nodiscard]] std::size_t numEnvs() const { return config_.numEnvs; }
-    [[nodiscard]] std::size_t observationSize() const {
-        return static_cast<std::size_t>(config_.beams) + kNonLidarObservationFeatures;
-    }
+    [[nodiscard]] std::size_t observationSize() const { return static_cast<std::size_t>(config_.beams) + kNonLidarObservationFeatures; }
     [[nodiscard]] std::size_t actionSize() const { return kDifferentialDriveActionSize; }
     [[nodiscard]] const VecEnvConfig& config() const { return config_; }
 

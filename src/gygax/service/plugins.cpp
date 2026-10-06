@@ -143,8 +143,7 @@ std::optional<ExternalModule> connectExtension(const std::string& spec, std::str
     m.source = base;
     if (!validPluginName(m.name)) return fail("extension name must be 1-32 characters of [a-z0-9_-]");
     const auto* tools = doc->find("tools");
-    if (tools == nullptr || !tools->isArray() || tools->size() > kMaxPluginTools)
-        return fail("describe must list at most 128 tools");
+    if (tools == nullptr || !tools->isArray() || tools->size() > kMaxPluginTools) return fail("describe must list at most 128 tools");
     for (const auto& t : tools->asArray()) {
         ExternalTool tool;
         tool.name = t.getString("name");

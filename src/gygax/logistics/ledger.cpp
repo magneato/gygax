@@ -267,8 +267,7 @@ std::optional<std::int64_t> parseSince(const json::Value& value, std::int64_t no
     }
     const bool dateOnly = count == 3 && at == s.size();
     const bool full = count == kDateTimeComponentCount && at == s.size() && s.back() == 'Z';
-    if ((dateOnly || full) && parts[0] >= kMinimumSupportedYear && parts[1] >= 1 && parts[1] <= 12 && parts[2] >= 1 &&
-        parts[2] <= 31) {
+    if ((dateOnly || full) && parts[0] >= kMinimumSupportedYear && parts[1] >= 1 && parts[1] <= 12 && parts[2] >= 1 && parts[2] <= 31) {
         std::tm tm{};
         tm.tm_year = parts[0] - 1900;
         tm.tm_mon = parts[1] - 1;
@@ -607,8 +606,7 @@ Outcome Ledger::putModel(const json::Value& spec) {
         return failure(400, "invalid_request", "invalid kind or power");
     m.maxRangeM = spec.getDouble("max_range_m", 0.0);
     m.cruiseMps = spec.getDouble("cruise_mps", 0.0);
-    if (!withinRange(m.maxRangeM, 0.0, kMaximumModelRangeMeters) ||
-        !withinRange(m.cruiseMps, 0.0, kMaximumCruiseSpeedMetersPerSecond))
+    if (!withinRange(m.maxRangeM, 0.0, kMaximumModelRangeMeters) || !withinRange(m.cruiseMps, 0.0, kMaximumCruiseSpeedMetersPerSecond))
         return failure(400, "invalid_request", "max_range_m must be within 0..1e7 and cruise_mps within 0..1000");
     std::string err;
     if (!attrsFrom(spec.find("attrs"), m.attrs, &err)) return failure(400, "invalid_request", err);

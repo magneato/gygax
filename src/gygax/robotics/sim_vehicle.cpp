@@ -222,8 +222,7 @@ void VirtualAutopilot::handleCommand(const json::Value& f) {
         break;
     case mavlink::kCmdNavReturnToLaunch:
         state_.mode = kModeRtl;
-        target_ = {true, options_.homeLatitude, options_.homeLongitude,
-                   std::max(state_.relativeAltitude, kRtlLandingThresholdMeters)};
+        target_ = {true, options_.homeLatitude, options_.homeLongitude, std::max(state_.relativeAltitude, kRtlLandingThresholdMeters)};
         ack(command, accepted);
         break;
     case mavlink::kCmdSetMessageInterval: {
@@ -271,8 +270,7 @@ void VirtualAutopilot::step(double dt) {
                 vEast_ = dEast / distance * speed;
                 state_.latitude += vNorth_ * dt / kMetersPerDegree;
                 state_.longitude += vEast_ * dt / (kMetersPerDegree * std::cos(toRadians(state_.latitude)));
-                state_.headingDegrees =
-                    std::fmod(toDegrees(std::atan2(vEast_, vNorth_)) + kHeadingWrapDegrees, kHeadingWrapDegrees);
+                state_.headingDegrees = std::fmod(toDegrees(std::atan2(vEast_, vNorth_)) + kHeadingWrapDegrees, kHeadingWrapDegrees);
             } else if (state_.mode == kModeRtl) {
                 state_.mode = kModeLand;
                 target_.active = false;
@@ -320,8 +318,7 @@ void VirtualAutopilot::emitTelemetry() {
         f["time_boot_ms"] = static_cast<std::int64_t>(timeSeconds_ * kMavlinkBootTimeScale);
         f["lat"] = static_cast<std::int64_t>(std::llround(state_.latitude * kMavlinkPositionScale));
         f["lon"] = static_cast<std::int64_t>(std::llround(state_.longitude * kMavlinkPositionScale));
-        f["alt"] = static_cast<std::int64_t>(
-            std::llround((options_.homeAltitudeMsl + state_.relativeAltitude) * kMavlinkAltitudeScale));
+        f["alt"] = static_cast<std::int64_t>(std::llround((options_.homeAltitudeMsl + state_.relativeAltitude) * kMavlinkAltitudeScale));
         f["relative_alt"] = static_cast<std::int64_t>(std::llround(state_.relativeAltitude * kMavlinkAltitudeScale));
         f["vx"] = static_cast<std::int64_t>(std::llround(vNorth_ * kMavlinkVelocityScale));
         f["vy"] = static_cast<std::int64_t>(std::llround(vEast_ * kMavlinkVelocityScale));
@@ -343,8 +340,7 @@ void VirtualAutopilot::emitTelemetry() {
         f["airspeed"] = state_.groundSpeed;
         f["alt"] = options_.homeAltitudeMsl + state_.relativeAltitude;
         f["climb"] = climb_;
-        f["heading"] = static_cast<std::int64_t>(std::llround(state_.headingDegrees)) %
-                       static_cast<std::int64_t>(kHeadingWrapDegrees);
+        f["heading"] = static_cast<std::int64_t>(std::llround(state_.headingDegrees)) % static_cast<std::int64_t>(kHeadingWrapDegrees);
         f["throttle"] = state_.flying ? 55 : 0;
         send("VFR_HUD", f);
     }
@@ -361,8 +357,7 @@ void VirtualAutopilot::emitTelemetry() {
         f["fix_type"] = 3;
         f["lat"] = static_cast<std::int64_t>(std::llround(state_.latitude * kMavlinkPositionScale));
         f["lon"] = static_cast<std::int64_t>(std::llround(state_.longitude * kMavlinkPositionScale));
-        f["alt"] = static_cast<std::int64_t>(
-            std::llround((options_.homeAltitudeMsl + state_.relativeAltitude) * kMavlinkAltitudeScale));
+        f["alt"] = static_cast<std::int64_t>(std::llround((options_.homeAltitudeMsl + state_.relativeAltitude) * kMavlinkAltitudeScale));
         f["satellites_visible"] = 14;
         send("GPS_RAW_INT", f);
     }

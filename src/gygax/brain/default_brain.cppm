@@ -54,8 +54,7 @@ extern "C++" {
 std::unique_ptr<gygax::AbstractAgent> CreateDefaultAgent() {
     auto& world = state::WorldModel::getInstance();
     const state::sid_t id = world.spawnAgent();
-    world.updateRepresentation(
-        id, state::EpisodicMemory{{}, "default research agent", state::kDefaultEpisodicMemoryCapacity});
+    world.updateRepresentation(id, state::EpisodicMemory{{}, "default research agent", state::kDefaultEpisodicMemoryCapacity});
     world.updateRepresentation(id, state::LatentSpace{});
     return std::make_unique<gygax::nodes::EtherAgentBrain>(id);
 }

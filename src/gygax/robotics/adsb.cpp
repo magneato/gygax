@@ -69,8 +69,7 @@ std::uint32_t crc24(const Frame& frame) {
 }
 
 bool crcValid(const Frame& frame) {
-    const std::uint32_t parity =
-        (static_cast<std::uint32_t>(frame[11]) << 16) | (static_cast<std::uint32_t>(frame[12]) << 8) | frame[13];
+    const std::uint32_t parity = (static_cast<std::uint32_t>(frame[11]) << 16) | (static_cast<std::uint32_t>(frame[12]) << 8) | frame[13];
     return crc24(frame) == parity;
 }
 

@@ -34,9 +34,7 @@ struct CanFrame {
     std::uint64_t timestampNs = 0;
 
     [[nodiscard]] std::span<const std::uint8_t> payload() const { return {data.data(), length}; }
-    [[nodiscard]] std::uint32_t maxId() const {
-        return extended ? kExtendedCanMaxIdentifier : kStandardCanMaxIdentifier;
-    }
+    [[nodiscard]] std::uint32_t maxId() const { return extended ? kExtendedCanMaxIdentifier : kStandardCanMaxIdentifier; }
 
     static CanFrame make(std::uint32_t id, std::span<const std::uint8_t> bytes, bool extended = false, bool fd = false);
     friend bool operator==(const CanFrame& a, const CanFrame& b);

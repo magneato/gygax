@@ -187,8 +187,7 @@ public:
         state::LatentSpace space;
         space.maxSteps = std::clamp<uint32_t>(maxSteps == 0 ? options_.defaultMaxSteps : maxSteps, 1, options_.maxStepsCeiling);
         world.updateRepresentation(sid, std::move(space));
-        world.updateRepresentation(
-            sid, state::EpisodicMemory{{}, "gygax agent", kOrchestratorEpisodicMemoryCapacity});
+        world.updateRepresentation(sid, state::EpisodicMemory{{}, "gygax agent", kOrchestratorEpisodicMemoryCapacity});
         auto rec = std::make_shared<Record>();
         rec->name = name.empty() ? std::format("agent-{}", sid) : std::move(name);
         rec->createdMs = nowMs();
@@ -374,9 +373,8 @@ private:
         }
         if (auto mem = state::WorldModel::getInstance().snapshot<state::EpisodicMemory>(sid); mem && !mem->eventLogs.empty()) {
             prompt += "Recent memory:\n";
-            const std::size_t from = mem->eventLogs.size() > kRecentMemoryEntriesInPrompt
-                                         ? mem->eventLogs.size() - kRecentMemoryEntriesInPrompt
-                                         : 0;
+            const std::size_t from =
+                mem->eventLogs.size() > kRecentMemoryEntriesInPrompt ? mem->eventLogs.size() - kRecentMemoryEntriesInPrompt : 0;
             for (std::size_t i = from; i < mem->eventLogs.size(); ++i)
                 prompt += "- " + mem->eventLogs[i].substr(0, kMaxPromptMemoryEntryBytes) + "\n";
         }

@@ -17,8 +17,7 @@ public:
     [[nodiscard]] virtual std::string name() const = 0;
 };
 
-[[nodiscard]] std::unique_ptr<Stream> CreateUdpStream(std::uint16_t bindPort = 0,
-                                                      const std::string& bindHost = kDefaultUdpBindHost);
+[[nodiscard]] std::unique_ptr<Stream> CreateUdpStream(std::uint16_t bindPort = 0, const std::string& bindHost = kDefaultUdpBindHost);
 [[nodiscard]] std::unique_ptr<Stream> CreateTcpLineStream();
 
 }

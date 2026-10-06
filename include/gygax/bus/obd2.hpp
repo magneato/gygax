@@ -26,8 +26,7 @@ struct Obd2Value {
 
 class Obd2Client {
 public:
-    explicit Obd2Client(std::shared_ptr<CanBus> bus, std::uint8_t ecuIndex = 0,
-                        std::chrono::milliseconds timeout = kDefaultObd2Timeout);
+    explicit Obd2Client(std::shared_ptr<CanBus> bus, std::uint8_t ecuIndex = 0, std::chrono::milliseconds timeout = kDefaultObd2Timeout);
 
     [[nodiscard]] IOResult request(std::uint8_t mode, std::span<const std::uint8_t> arguments, std::vector<std::uint8_t>& response);
     [[nodiscard]] std::optional<Obd2Value> readPid(std::uint8_t pid);

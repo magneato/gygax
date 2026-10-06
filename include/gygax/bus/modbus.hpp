@@ -37,8 +37,7 @@ const char* exceptionText(std::uint8_t code);
 
 class Client {
 public:
-    Client(std::shared_ptr<net::ByteLink> link, Mode mode,
-           std::chrono::milliseconds timeout = kDefaultClientTimeout);
+    Client(std::shared_ptr<net::ByteLink> link, Mode mode, std::chrono::milliseconds timeout = kDefaultClientTimeout);
 
     [[nodiscard]] IOResult readCoils(std::uint8_t unit, std::uint16_t address, std::uint16_t count, std::vector<bool>& out);
     [[nodiscard]] IOResult readDiscreteInputs(std::uint8_t unit, std::uint16_t address, std::uint16_t count, std::vector<bool>& out);

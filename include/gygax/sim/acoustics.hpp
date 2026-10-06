@@ -36,10 +36,7 @@ struct AcousticFieldSample {
  * The result is location- and frequency-specific. The model omits barriers,
  * reflections, air absorption, source directivity, wind, and background noise.
  */
-[[nodiscard]] AcousticFieldSample sampleCoherentTone(
-    Vec2 observationPoint,
-    double frequencyHz,
-    std::span<const AcousticSource> sources);
+[[nodiscard]] AcousticFieldSample sampleCoherentTone(Vec2 observationPoint, double frequencyHz, std::span<const AcousticSource> sources);
 
 /**
  * An explicitly synthetic amplitude-modulated tone for simulation and
