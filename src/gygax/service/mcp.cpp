@@ -172,7 +172,7 @@ private:
             const ssize_t n = writeWithoutSigpipe(toChild_, line.data() + done, line.size() - done);
             if (n < 0) {
                 if (errno == EINTR) continue;
-                throw std::runtime_error("mcp server closed its input");
+                throw std::runtime_error(errno == EPIPE ? "mcp server exited" : "mcp server closed its input");
             }
             done += static_cast<std::size_t>(n);
         }

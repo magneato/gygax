@@ -82,7 +82,9 @@ TEST(Json, TypedGettersFallBack) {
 }
 
 // The macOS floating-point parser must accept exactly what std::from_chars accepts, and
-// read the same value and the same length. Checked here on platforms that have both.
+// read the same value and the same length. Checked on platforms that have both (Apple's
+// libc++ lacks the std::from_chars side before macOS 26).
+#if !defined(__APPLE__)
 TEST(Charconv, PortableFloatParserMatchesFromChars) {
     const char* inputs[] = {"0",    "-0",       "3.25",   "-12.5e3",   "1e-7",  ".5",       "5.",
                             "1e",   "1e+",      "2E+10",  "+1",        " 1",    "abc",      "-",
@@ -109,3 +111,4 @@ TEST(Charconv, PortableFloatParserMatchesFromChars) {
     ASSERT_EQ(gygax::detail::parseFloating(small.data(), small.data() + small.size(), f).ec, std::errc());
     EXPECT_EQ(f, 0.1F);
 }
+#endif
