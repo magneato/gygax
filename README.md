@@ -1,12 +1,15 @@
 # Gygax
 
-Gygax is a C++26 runtime for autonomous agents. It ships as three things that share one core:
+Gygax is a C++26 runtime for autonomous systems. It ships as four things that share one core:
 
 - **A service** (`gygax serve`): an inference router that speaks the standard chat-completions API and the Ollama API, with model-aware routing, failover and peer nodes, plus a tool-using agent runtime, Prometheus metrics and JSON-RPC. One static-ish binary, no Python, Go or Node runtime.
 - **A neuromorphic simulator**: deterministic LIF and Izhikevich spiking networks with delayed sparse projections and pair-based STDP, usable from C++, JSON, HTTP, a C ABI and Python.
 - **An embodiment toolkit**: hardware node trees with capability aggregation, hierarchical state machines, a message hub, a 2D physics world with LiDAR, a sim-to-real link, USD export, and real serial, GPIO, modem, printer and G-code transports.
+- **SatLink**: satellite tracking for ground stations. SGP4/SDP4 that reproduces the reference implementation to a tenth of a millimetre, look angles, exact range-rate Doppler, pass prediction, radio retuning through Hamlib `rigctld`, and reception with an RTL-SDR over `rtl_tcp`.
 
-Everything documented here is exercised by the test suite, the built-in `gygax doctor`, and the sanitizer builds.
+Everything documented here is exercised by the test suite (404 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
+
+**New in 0.3.0 "Skynet":** SatLink, with SDR reception. See the [release notes](docs/releases/v0.3.0.md) and the [changelog](CHANGELOG.md).
 
 ## Quick start: run it as a service
 
@@ -14,7 +17,7 @@ Everything documented here is exercised by the test suite, the built-in `gygax d
 git clone https://github.com/magneato/gygax && cd gygax
 ./setup.sh                      # checks clang-18, cmake >= 3.28, ninja
 ./build.sh                      # builds into ./build
-./build/gygax doctor            # 20 self-tests, in-process, no network needed
+./build/gygax doctor            # 21 self-tests, in-process, no network needed
 ```
 
 On Windows 11, run the same commands as `.\setup.ps1`, `.\build.ps1` and `.\build\gygax doctor` through Docker Desktop (WSL2 backend). No native Windows toolchain is needed; see [docs/WINDOWS.md](docs/WINDOWS.md).
@@ -76,6 +79,28 @@ with neuro.Network(dt_ms=0.1, seed=7) as net:
 
 The same network from the shell (`gygax neuro spec.json`), over HTTP (`POST /v1/neuro/simulate`), or as an agent tool (`neuro.run`). A 10,000-neuron, 2.3M-synapse network simulates 1 s of biological time in about 1.4 s on one core. Model equations, units, determinism guarantees and validation are in [docs/NEUROMORPHIC.md](docs/NEUROMORPHIC.md).
 
+## Quick start: satellite tracking
+
+```
+$ ./build/gygax track --tle examples/satlink/sample.tle --at 51.4779,-0.0015,46 --start 2024-01-01T12:00 --downlink 437.8e6
+...
+  rise (UTC)            from       peak (UTC)  max el   set (UTC)   to         lasts    doppler rise → set
+  2024-01-01 13:22:56   219.5° SW   13:26:02     35.2°  13:29:08    84.7° E     6m11s    +9.21 kHz → -9.22 kHz
+  2024-01-01 14:59:15   260.2° W    15:02:37     87.7°  15:05:58    82.8° E     6m43s    +9.93 kHz → -9.93 kHz
+```
+
+```python
+from gygax import satlink
+
+iss = satlink.Satellite(line1, line2, "ISS (ZARYA)")
+home = satlink.Observer(51.4779, -0.0015, 46)
+look = iss.observe(home, satlink.timescale.now())          # elevation, azimuth, range, range rate
+with satlink.Rig("127.0.0.1", 4532) as rig:                 # Hamlib rigctld
+    rig.set_frequency(437.8e6 + look.doppler_shift_hz(437.8e6))
+```
+
+`gygax track --live --rig 127.0.0.1` follows a pass and retunes the radio every second; `--sdr 127.0.0.1:1234` does the same for an RTL-SDR and reports where the carrier actually is. Scripts written for Skyfield's satellite API (`EarthSatellite`, `wgs84.latlon`, `(sat - station).at(t).altaz()`, `find_events`) run against SatLink unchanged. Propagation is checked against all 33 satellites of Vallado's SGP4 verification set (worst difference 0.12 mm) and against Skyfield (0.0003° in elevation). Frames, Doppler, pass search, accuracy and limits: [docs/SATLINK.md](docs/SATLINK.md).
+
 ## What is in the box
 
 | Area | What you get | Where |
@@ -85,6 +110,7 @@ The same network from the shell (`gygax neuro spec.json`), over HTTP (`POST /v1/
 | Tools | `math.eval`, `time.now`, `node.info`, `neuro.run`, `webpage.construct`, plus your own via `ToolRegistry` | `src/gygax/skills`, `src/gygax/service` |
 | Operations | `/healthz`, `/readyz`, `/metrics`, bearer auth, rate limiting, JSON logs, graceful shutdown, JSON-RPC over HTTP and stdio | `docs/OPERATIONS.md` |
 | Neuromorphic | LIF, Izhikevich, Poisson and spike-source populations, delays, STDP, seedable RNG, C ABI, Python | `include/gygax/neuro`, `python/` |
+| SatLink | Checksum-verified TLE parsing, SGP4/SDP4 (Vallado 2006, verified against `tcppver.out`), TEME, Earth-fixed and geodetic frames, look angles, exact range rate and Doppler, pass prediction, Hamlib `rigctld` control, rtl_tcp SDR client with FFT spectrum and Doppler mixer; C++, C ABI, Python (with a Skyfield-shaped subset), `gygax track` | `include/gygax/satlink`, `src/gygax/satlink`, `python/gygax/satlink`, [docs/SATLINK.md](docs/SATLINK.md) |
 | Embodiment | Node hierarchy, capabilities, state machines, message hub with offline buffering, embodiment taxonomy with live telemetry | `src/gygax/hardware`, `src/gygax/brain` |
 | Simulation | Differential-drive world, collisions, LiDAR, UDP/TCP robot link, `.usda` export with trajectories | `include/gygax/sim`, `examples/arrival` |
 | Acoustic study | In-tree simulation-only coherent tone estimates at defined points and synthetic amplitude-modulated tone samples; not currently part of the installed SDK and has no audio output or hardware control | [`include/gygax/sim/acoustics.hpp`](include/gygax/sim/acoustics.hpp), [model limits and example](docs/ACOUSTICS.md) |
@@ -93,6 +119,7 @@ The same network from the shell (`gygax neuro spec.json`), over HTTP (`POST /v1/
 | Transports | POSIX serial, sysfs GPIO, Hayes modem, raw/PJL printing, Marlin G-code with line numbers, checksums and resend | `include/gygax/transport`, [docs/TRANSPORTS.md](docs/TRANSPORTS.md) |
 | Robotics | MAVLink drones and vehicles, SocketCAN/CAN FD, ISO-TP, OBD-II, J1939, DBC, CANopen, Modbus, NMEA, ADS-B, ARINC 429, ROS bridge, virtual autopilot; commands off by default | `src/gygax/robotics`, `src/gygax/bus`, [docs/ROBOTICS.md](docs/ROBOTICS.md) |
 | Supply chain | GUID-tracked units, append-only ledger (`-3 ba99x drone=quadcopter power=solar`), flow reports, range-aware routing with refuel stops | `src/gygax/logistics`, [docs/LOGISTICS.md](docs/LOGISTICS.md) |
+| Showcase | `ohflock`: twenty-four unarmed kites hold a relief corridor open against fighters, a SAM battery, AAA and strike jets with light on sensors, thrown sound and SatLink (Doppler navigation under GNSS jamming, relay windows, a reconnaissance pass waited out), and fire nothing; a 3D replay, gyde control, and a `--no-satlink` counterfactual | `examples/ohflock`, [docs/OHFLOCK.md](docs/OHFLOCK.md) |
 | Showcase | `wargames`: Gygax agents defend a last bunker against an alien invasion with drones, tanks, turrets and supply drones, using the agent runtime, collective consensus, the ledger, route planner and a spiking hive; a human can direct them live | `examples/wargames`, [docs/WARGAMES.md](docs/WARGAMES.md) |
 | SDKs | Native plugin SDK (C ABI, C++ helper, CMake package), Python extension SDK, Python bindings and client, all built by `cmake --build` | `include/gygax/sdk`, `python/`, [docs/EXTENSIONS.md](docs/EXTENSIONS.md), [public API and trust boundaries](docs/SDK_API.md) |
 | Retro toolchain | 6502/6809 assembler and a CoCo-style emulator (`./assemble.sh`) | `tools/`, `examples/coco` |
@@ -116,13 +143,13 @@ for the tag, validation, and artifact details.
 ## Repository layout
 
 ```
-src/gygax/        core, brain, hardware, signals modules (*.cppm) and plain C++ (net, inference, neuro, service, sim, transport, capi)
+src/gygax/        core, brain, hardware, signals modules (*.cppm) and plain C++ (net, inference, neuro, satlink, service, sim, transport, capi)
 include/gygax/    public headers
 tools/            gygax CLI, gyde (terminal IDE preview, docs/GYDE.md), 6502/6809 assembler and emulator
-examples/         arrival (multi-agent + sim-to-real), wargames (autonomous defence, human-directable), hardware_demo, research_swarm, python, coco
+examples/         arrival (multi-agent + sim-to-real), wargames (autonomous defence, human-directable), ohflock (unarmed flock, 3D replay), satlink (pass planner, sample elements), hardware_demo, research_swarm, python, coco
 python/           ctypes bindings and HTTP client (Python 3.9+, numpy optional)
 deploy/           systemd unit, env file, compose file, Debian maintainer scripts
-docs/             service, operations, neuromorphic, architecture, transports, robotics, quantum integration, logistics, extensions, research, windows, gyde, atari
+docs/             service, operations, neuromorphic, satlink, ohflock, architecture, transports, robotics, quantum integration, logistics, extensions, research, windows, gyde, atari, releases
 ```
 
 ## Platform support

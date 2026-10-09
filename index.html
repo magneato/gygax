@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#090d12">
-  <meta name="description" content="The complete field guide to Gygax: an open-source C++26 runtime for autonomous agents, simulation, neuromorphic computing, robotics, and operational control.">
+  <meta name="description" content="The complete field guide to Gygax: an open-source C++26 runtime for autonomous agents, simulation, neuromorphic computing, robotics, satellite tracking, and operational control.">
   <title>Gygax: God Doesn't Play Dice</title>
   <link rel="icon" type="image/svg+xml" href="chrome-extension/icons/icon.svg">
   <link rel="canonical" href="https://magneato.github.io/gygax/">
@@ -89,7 +89,9 @@
     .terminal-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #26323a; color: var(--dim); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
     .terminal pre { overflow-x: auto; margin: 0; padding: 19px 21px; color: #c4d1d5; font: 12px/1.9 var(--mono); }
     code { color: var(--cyan); font-family: var(--mono); font-size: .92em; }
-    pre code { color: inherit; }
+    pre code { color: inherit; overflow-wrap: normal; }
+    p code, li code, .card code { overflow-wrap: anywhere; }
+    .grid > *, .showcase > *, .safety > *, .sky > *, .flock > * { min-width: 0; }
     .copy { cursor: pointer; border: 1px solid #33434c; padding: 5px 9px; background: transparent; color: var(--muted); font: 10px var(--mono); }
     .copy:hover { border-color: var(--cyan); color: var(--cyan); }
     .capability { display: grid; grid-template-columns: 46px 1fr; gap: 18px; padding: 22px 0; border-top: 1px solid var(--line); }
@@ -103,6 +105,26 @@
     .showcase-item .eyebrow { margin-bottom: 17px; }
     .showcase-item p { color: var(--muted); font-size: 13px; }
     .showcase-item pre { white-space: pre-wrap; margin: 17px 0 0; color: #c3d0d3; font: 11px/1.7 var(--mono); }
+    .sky { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 34px; align-items: center; background: radial-gradient(120% 140% at 0% 0%, #12202a 0%, var(--panel) 55%); }
+    .sky-plot svg, .sky-doppler svg { display: block; width: 100%; height: auto; }
+    .sky-plot { max-width: 440px; width: 100%; justify-self: center; }
+    .sky h3 { font-size: 28px; }
+    .sky-passes { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 18px; }
+    .sky-passes button { cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 11px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 11px var(--mono); }
+    .sky-passes button i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+    .sky-passes button[aria-pressed="true"] { border-color: var(--c); color: var(--ink); }
+    .sky-readout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 16px; border: 1px solid var(--line); background: var(--line); }
+    .sky-readout div { padding: 10px 12px; background: #0b1117; }
+    .sky-readout span { display: block; color: var(--dim); font: 9px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+    .sky-readout strong { display: block; color: var(--ink); font: 500 17px/1.4 var(--mono); font-variant-numeric: tabular-nums; }
+    .flock { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 34px; align-items: center; }
+    .flock-shot { display: block; border: 1px solid var(--line); overflow: hidden; }
+    .flock-shot img { display: block; width: 100%; height: auto; transition: transform .6s ease; }
+    .flock-shot:hover img { transform: scale(1.03); }
+    .flock pre { overflow-x: auto; white-space: pre; }
+    .sky pre { overflow-x: auto; white-space: pre; padding-bottom: 4px; }
+    .sky-proof { margin-top: 16px; color: var(--dim); font: 10.5px/1.7 var(--mono); }
+    .sky-proof b { color: var(--gold); font-weight: 400; }
     .callout { margin-top: 23px; padding: 18px 20px; border: 1px solid #efbd7444; color: #c8c2b6; font-size: 13px; }
     .safety { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .safety-item { padding: 21px; border: 1px solid var(--line); }
@@ -130,6 +152,7 @@
       .grid.three { grid-template-columns: 1fr; }
       .card { min-height: auto; }
       .docs-grid { grid-template-columns: repeat(2, 1fr); }
+      .sky, .flock { grid-template-columns: 1fr; gap: 22px; }
     }
     @media (max-width: 620px) {
       .top-inner, main, .hero-inner, .foot-inner { width: min(100% - 32px, 1200px); }
@@ -140,6 +163,8 @@
       .docs-grid { grid-template-columns: 1fr 1fr; }
       .doc-link { min-height: 95px; padding: 12px; }
       .foot-inner { flex-direction: column; }
+      .sky-readout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sky h3 { font-size: 24px; }
     }
   </style>
 </head>
@@ -162,12 +187,14 @@
   <div class="hero" id="top">
     <canvas id="field" aria-hidden="true"></canvas>
     <div class="hero-inner">
-      <div class="eyebrow">A field guide to autonomous systems · v0.2.0</div>
+      <div class="eyebrow">A field guide to autonomous systems · v0.3.0 “Skynet”</div>
       <h1>God doesn't<br>play <em>dice.</em></h1>
-      <p class="hero-sub">Neither should the systems we trust with the physical world. Gygax is an open-source runtime for agents, simulation, robotics, and neuromorphic computing, designed to make behavior testable and authority explicit.</p>
+      <p class="hero-sub">Neither should the systems we trust with the physical world. Gygax is an open-source runtime for agents, simulation, robotics, neuromorphic computing, and satellite tracking, designed to make behavior testable and authority explicit.</p>
       <div class="hero-actions">
         <a class="button primary" href="#start">Run Gygax <span aria-hidden="true">↓</span></a>
         <a class="button" href="#capabilities">Explore the system</a>
+        <a class="button" href="#skynet">Track a satellite</a>
+        <a class="button" href="examples/ohflock/ohflock.html">Watch OHFLOCK ↗</a>
         <a class="button" href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md">See the wargames demo ↗</a>
         <a class="button" href="examples/seek_and_find/seek_and_find.html">Try Seek &amp; Find ↗</a>
       </div>
@@ -266,6 +293,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="capability"><div class="cap-icon">08</div><div><h3>Logistics and supply chain</h3><p>GUID-tracked entities, append-only ledger events, flow summaries, and range-aware route planning with refuel stops. The API is also available for tools and service integration.</p><div class="tag-list"><span class="tag">GUID ledger</span><span class="tag">Routes</span><span class="tag">Refueling</span><span class="tag">Flow report</span></div></div></article>
         <article class="capability"><div class="cap-icon">09</div><div><h3>SDKs, transports, and developer tools</h3><p>C and C++ plugin SDKs, Python bindings and extension SDK, serial, GPIO, modem, printer and G-code transports, plus Gyde, the optional terminal console for inspecting and querying a running node.</p><div class="tag-list"><span class="tag">C/C++ SDK</span><span class="tag">Python</span><span class="tag">Gyde CLI</span><span class="tag">6502 / 6809 tools</span></div></div></article>
         <article class="capability"><div class="cap-icon">10</div><div><h3>Acoustic study (simulation only)</h3><p>Compare phase-aware tone estimates at explicit 2D observation points and sample synthetic amplitude-modulated alerts. This model has no speaker, audio-output, or flight-control integration; modeled cancellation at one point says nothing conclusive about other locations.</p><div class="tag-list"><span class="tag">Coherent tones</span><span class="tag">Point-specific estimate</span><span class="tag">No hardware output</span></div></div></article>
+        <article class="capability"><div class="cap-icon">11</div><div><h3>SatLink satellite tracking</h3><p>Checksum-verified two-line elements, SGP4 and SDP4 that reproduce the reference implementation&rsquo;s verification output to 0.12&nbsp;mm, look angles, Doppler from the exact range rate, rise/culminate/set pass prediction, radio retuning through Hamlib <code>rigctld</code>, and SDR reception over <code>rtl_tcp</code> with an FFT spectrum and a Doppler-removing mixer. From C++, the C ABI, Python (with a Skyfield-shaped subset), or <code>gygax track</code>. It never downloads elements; you bring them.</p><div class="tag-list"><span class="tag">SGP4 / SDP4</span><span class="tag">Doppler</span><span class="tag">Pass prediction</span><span class="tag">Hamlib rigctld</span><span class="tag">RTL-SDR</span><span class="tag">gygax track</span></div><p style="margin-top:10px"><a href="https://github.com/magneato/gygax/blob/main/docs/SATLINK.md">Read the SatLink guide ↗</a></p></div></article>
       </div>
     </section>
 
@@ -284,6 +312,37 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="showcase-item"><div class="eyebrow">SHOWCASE 02 / ARRIVAL</div><h3>Simulation meets a robot link</h3><p>Four rovers traverse a 2D environment with obstacles and LiDAR. One uses a spiking controller; a rover is then promoted over a UDP link to a hardware-style target. The example's far end is an emulator, not a field robot.</p><pre>./build/arrival
 ./build/arrival --seconds 30 --real-seconds 5 \
   --usd build/arrival.usda</pre><p style="margin-top:15px">Source: <a href="https://github.com/magneato/gygax/blob/main/examples/arrival/main.cpp">examples/arrival</a> · Simulation docs: <a href="https://github.com/magneato/gygax/blob/main/docs/ROBOTICS.md">Robotics</a></p></article>
+        <article class="showcase-item sky" id="skynet" aria-labelledby="skynet-title">
+          <div class="sky-plot"><svg id="sky-chart" viewBox="0 0 400 400" role="img" aria-label="Sky chart: azimuth around the edge, elevation inward from the horizon to the zenith at the centre, with three ISS passes over Greenwich"></svg></div>
+          <div>
+            <div class="eyebrow">SHOWCASE 03 / SKYNET · SATLINK</div>
+            <h3 id="skynet-title">Three passes over Greenwich</h3>
+            <p>An ISS element set, propagated by Gygax&rsquo;s SGP4 and seen from the Royal Observatory on 1&nbsp;January 2024. Each track runs horizon to horizon; the curve below is the Doppler shift of a 437.8&nbsp;MHz downlink from the exact range rate: high as it rises, through zero overhead, low as it sets. Every point on this page was computed by <code>gygax.satlink</code>. Add <code>--live --sdr</code> and an RTL-SDR follows this curve second by second, reporting where the carrier really is.</p>
+            <div class="sky-passes" role="group" aria-label="Choose a pass"></div>
+            <div class="sky-doppler"><svg id="sky-doppler" viewBox="0 0 560 200" role="img" aria-label="Doppler shift in kilohertz against minutes since rise for the three passes"></svg></div>
+            <div class="sky-readout" aria-hidden="true">
+              <div><span>UTC</span><strong id="ro-time">–</strong></div>
+              <div><span>Azimuth</span><strong id="ro-az">–</strong></div>
+              <div><span>Elevation</span><strong id="ro-el">–</strong></div>
+              <div><span>Doppler</span><strong id="ro-dop">–</strong></div>
+            </div>
+            <pre>./build/gygax track --tle examples/satlink/sample.tle \
+  --at 51.4779,-0.0015,46 --start 2024-01-01T12:00 --downlink 437.8e6</pre>
+            <p class="sky-proof">SGP4/SDP4 vs. Vallado&rsquo;s reference set: <b>667 states, worst 0.12&nbsp;mm</b> · vs. Skyfield: <b>0.0003&deg; elevation, 2.5&nbsp;m range</b> · <a href="https://github.com/magneato/gygax/blob/main/docs/SATLINK.md">How it is checked ↗</a></p>
+          </div>
+        </article>
+        <article class="showcase-item flock" id="ohflock">
+          <a class="flock-shot" href="examples/ohflock/ohflock.html" aria-label="Open the OHFLOCK 3D replay"><img src="examples/ohflock/ohflock-preview.jpg" alt="The OHFLOCK replay at night: kites in red, green, blue and white sections over moonlit dunes, a laser painting a decoy spot, thrown-sound rings over the guns, and counters reading 240 fired at the flock, 0 fired by it" loading="lazy"></a>
+          <div>
+            <div class="eyebrow">SHOWCASE 04 / OHFLOCK</div>
+            <h3>The flock that fires nothing</h3>
+            <p>Twenty-four small unarmed aircraft hold a relief corridor open at night against fighters, a SAM battery, AAA and strike jets. Hundreds of rounds are fired at them. Lasers blind trackers and paint decoy spots (sensors only, never people), thrown sound draws the guns, radar missiles lose them in the notch, and SatLink keeps them navigating to tens of metres by satellite Doppler while GNSS is jammed. The convoy gets through untouched.</p>
+            <pre>./build/ohflock --html build/ohflock.html
+./build/ohflock --no-satlink        # what the satellites were worth
+./build/ohflock --serve 1987        # gyde --url http://127.0.0.1:1987</pre>
+            <p style="margin-top:15px"><a href="examples/ohflock/ohflock.html">Watch the 3D replay ↗</a> · <a href="https://github.com/magneato/gygax/blob/main/docs/OHFLOCK.md">How it works and what is real</a></p>
+          </div>
+        </article>
       </div>
       <div class="callout">
   <strong>Seek &amp; Find: communications and quantum-interface simulation.</strong>
@@ -376,6 +435,8 @@ ctest --test-dir build --output-on-failure
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md"><strong>Wargames</strong><span>Agent coordination and human directives</span></a>
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/examples/seek_and_find/README.md"><strong>Seek &amp; Find</strong><span>Standalone simulated communications and visual search demo</span></a>
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/QUANTUM_INTEGRATION.md"><strong>Quantum integration</strong><span>Sensor and QKD adapter interfaces, limitations, and security boundary</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/OHFLOCK.md"><strong>OHFLOCK</strong><span>An unarmed flock, light, sound and SatLink</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/SATLINK.md"><strong>SatLink</strong><span>SGP4/SDP4, Doppler, passes, rigctld, RTL-SDR</span></a>
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/GYDE.md"><strong>Gyde</strong><span>Optional terminal runtime console</span></a>
       </div>
     </section>
@@ -437,6 +498,96 @@ ctest --test-dir build --output-on-failure
       }
       new ResizeObserver(resize).observe(canvas);
       resize(); draw();
+    })();
+    (() => {
+      // ISS passes over Greenwich (51.4779N, 0.0015W, 46 m) on 2024-01-01, computed by gygax.satlink:
+      // [seconds since rise, azimuth deg, elevation deg, Doppler kHz at 437.8 MHz] every 5 s.
+      const passes = [{"rise":"2024-01-01T13:20:45Z","peak":"2024-01-01T13:26:02Z","max":35.2,"dur":633,"pts":[[0.0,228.16,0.0,9.829],[5.0,227.96,0.31,9.82],[10.0,227.75,0.61,9.81],[15.0,227.53,0.93,9.8],[20.0,227.3,1.25,9.789],[25.0,227.07,1.57,9.777],[30.0,226.83,1.9,9.765],[35.0,226.58,2.23,9.751],[40.0,226.33,2.57,9.736],[45.0,226.06,2.91,9.721],[50.0,225.79,3.26,9.704],[55.0,225.5,3.62,9.686],[60.0,225.21,3.98,9.667],[65.0,224.9,4.35,9.647],[70.0,224.58,4.73,9.625],[75.0,224.25,5.11,9.602],[80.0,223.91,5.5,9.578],[85.0,223.55,5.9,9.551],[90.0,223.18,6.31,9.523],[95.0,222.8,6.73,9.493],[100.0,222.4,7.16,9.461],[105.0,221.98,7.59,9.427],[110.0,221.54,8.04,9.39],[115.0,221.08,8.5,9.351],[120.0,220.61,8.97,9.309],[125.0,220.11,9.45,9.264],[130.0,219.59,9.94,9.216],[135.0,219.04,10.45,9.165],[140.0,218.46,10.97,9.109],[145.0,217.86,11.51,9.05],[150.0,217.23,12.06,8.987],[155.0,216.57,12.62,8.918],[160.0,215.87,13.21,8.845],[165.0,215.13,13.81,8.766],[170.0,214.35,14.42,8.681],[175.0,213.53,15.06,8.59],[180.0,212.66,15.72,8.491],[185.0,211.75,16.39,8.385],[190.0,210.78,17.09,8.27],[195.0,209.75,17.81,8.146],[200.0,208.65,18.55,8.012],[205.0,207.49,19.31,7.868],[210.0,206.26,20.09,7.711],[215.0,204.94,20.9,7.541],[220.0,203.54,21.72,7.358],[225.0,202.05,22.57,7.159],[230.0,200.46,23.43,6.945],[235.0,198.75,24.31,6.712],[240.0,196.94,25.21,6.461],[245.0,195.0,26.11,6.19],[250.0,192.93,27.02,5.899],[255.0,190.72,27.94,5.584],[260.0,188.36,28.84,5.247],[265.0,185.85,29.73,4.886],[270.0,183.19,30.59,4.501],[275.0,180.36,31.42,4.092],[280.0,177.38,32.19,3.659],[285.0,174.24,32.91,3.203],[290.0,170.95,33.55,2.726],[295.0,167.53,34.1,2.229],[300.0,163.99,34.55,1.717],[305.0,160.36,34.89,1.191],[310.0,156.65,35.11,0.655],[315.0,152.91,35.21,0.115],[320.0,149.17,35.17,-0.427],[325.0,145.44,35.01,-0.965],[330.0,141.78,34.72,-1.495],[335.0,138.19,34.32,-2.014],[340.0,134.72,33.81,-2.518],[345.0,131.37,33.2,-3.004],[350.0,128.17,32.52,-3.469],[355.0,125.12,31.77,-3.912],[360.0,122.22,30.96,-4.331],[365.0,119.49,30.11,-4.727],[370.0,116.91,29.24,-5.098],[375.0,114.49,28.34,-5.445],[380.0,112.22,27.43,-5.769],[385.0,110.09,26.52,-6.07],[390.0,108.1,25.62,-6.35],[395.0,106.23,24.72,-6.61],[400.0,104.48,23.83,-6.85],[405.0,102.84,22.96,-7.072],[410.0,101.31,22.1,-7.277],[415.0,99.87,21.27,-7.467],[420.0,98.52,20.46,-7.642],[425.0,97.25,19.66,-7.804],[430.0,96.06,18.89,-7.954],[435.0,94.94,18.15,-8.093],[440.0,93.88,17.42,-8.221],[445.0,92.89,16.71,-8.34],[450.0,91.95,16.03,-8.45],[455.0,91.06,15.37,-8.551],[460.0,90.22,14.72,-8.646],[465.0,89.43,14.1,-8.734],[470.0,88.68,13.49,-8.815],[475.0,87.96,12.9,-8.891],[480.0,87.28,12.33,-8.961],[485.0,86.64,11.77,-9.027],[490.0,86.03,11.23,-9.088],[495.0,85.44,10.7,-9.145],[500.0,84.89,10.19,-9.198],[505.0,84.36,9.69,-9.247],[510.0,83.85,9.2,-9.293],[515.0,83.36,8.73,-9.337],[520.0,82.9,8.27,-9.377],[525.0,82.46,7.81,-9.415],[530.0,82.03,7.37,-9.45],[535.0,81.63,6.94,-9.483],[540.0,81.23,6.52,-9.514],[545.0,80.86,6.11,-9.543],[550.0,80.5,5.7,-9.571],[555.0,80.15,5.31,-9.596],[560.0,79.82,4.92,-9.62],[565.0,79.5,4.54,-9.642],[570.0,79.19,4.17,-9.663],[575.0,78.89,3.8,-9.683],[580.0,78.61,3.44,-9.701],[585.0,78.33,3.09,-9.718],[590.0,78.06,2.74,-9.735],[595.0,77.81,2.4,-9.75],[600.0,77.56,2.07,-9.764],[605.0,77.32,1.74,-9.777],[610.0,77.08,1.41,-9.789],[615.0,76.86,1.09,-9.801],[620.0,76.64,0.78,-9.811],[625.0,76.43,0.47,-9.821],[630.0,76.22,0.16,-9.83]]},{"rise":"2024-01-01T14:57:10Z","peak":"2024-01-01T15:02:36Z","max":87.7,"dur":653,"pts":[[0.0,260.07,0,10.084],[5.0,260.08,0.31,10.084],[10.0,260.09,0.63,10.084],[15.0,260.1,0.95,10.083],[20.0,260.11,1.28,10.082],[25.0,260.12,1.61,10.08],[30.0,260.12,1.95,10.079],[35.0,260.13,2.29,10.076],[40.0,260.14,2.65,10.074],[45.0,260.15,3.0,10.071],[50.0,260.15,3.37,10.067],[55.0,260.16,3.74,10.063],[60.0,260.17,4.12,10.059],[65.0,260.17,4.5,10.053],[70.0,260.18,4.9,10.048],[75.0,260.19,5.31,10.041],[80.0,260.19,5.72,10.034],[85.0,260.2,6.14,10.027],[90.0,260.2,6.58,10.018],[95.0,260.2,7.03,10.009],[100.0,260.21,7.48,9.999],[105.0,260.21,7.96,9.988],[110.0,260.21,8.44,9.975],[115.0,260.21,8.94,9.962],[120.0,260.21,9.45,9.948],[125.0,260.21,9.98,9.932],[130.0,260.21,10.53,9.915],[135.0,260.21,11.1,9.896],[140.0,260.21,11.69,9.876],[145.0,260.21,12.3,9.853],[150.0,260.2,12.93,9.829],[155.0,260.19,13.58,9.803],[160.0,260.19,14.27,9.774],[165.0,260.18,14.98,9.742],[170.0,260.17,15.72,9.707],[175.0,260.16,16.5,9.669],[180.0,260.14,17.31,9.628],[185.0,260.13,18.17,9.582],[190.0,260.11,19.06,9.531],[195.0,260.09,20.01,9.476],[200.0,260.07,21.0,9.414],[205.0,260.04,22.05,9.346],[210.0,260.01,23.17,9.271],[215.0,259.97,24.35,9.187],[220.0,259.93,25.6,9.094],[225.0,259.89,26.94,8.99],[230.0,259.84,28.37,8.873],[235.0,259.78,29.89,8.742],[240.0,259.71,31.53,8.595],[245.0,259.64,33.29,8.429],[250.0,259.55,35.18,8.241],[255.0,259.44,37.22,8.029],[260.0,259.32,39.42,7.788],[265.0,259.18,41.8,7.514],[270.0,259.0,44.38,7.203],[275.0,258.8,47.18,6.85],[280.0,258.54,50.2,6.45],[285.0,258.21,53.47,5.996],[290.0,257.8,57.0,5.485],[295.0,257.25,60.78,4.912],[300.0,256.48,64.83,4.275],[305.0,255.36,69.13,3.574],[310.0,253.56,73.65,2.814],[315.0,250.23,78.34,2.002],[320.0,242.16,83.07,1.15],[325.0,205.35,87.23,0.274],[330.0,115.05,85.84,-0.608],[335.0,96.71,81.26,-1.477],[340.0,91.22,76.52,-2.315],[345.0,88.65,71.89,-3.109],[350.0,87.17,67.45,-3.847],[355.0,86.21,63.24,-4.524],[360.0,85.54,59.29,-5.137],[365.0,85.05,55.6,-5.686],[370.0,84.67,52.17,-6.175],[375.0,84.38,49.0,-6.608],[380.0,84.14,46.06,-6.99],[385.0,83.95,43.35,-7.326],[390.0,83.78,40.85,-7.622],[395.0,83.65,38.54,-7.883],[400.0,83.54,36.4,-8.113],[405.0,83.44,34.42,-8.315],[410.0,83.35,32.58,-8.494],[415.0,83.28,30.87,-8.653],[420.0,83.22,29.27,-8.794],[425.0,83.16,27.79,-8.919],[430.0,83.11,26.39,-9.031],[435.0,83.07,25.09,-9.131],[440.0,83.04,23.86,-9.221],[445.0,83.0,22.71,-9.301],[450.0,82.97,21.62,-9.374],[455.0,82.95,20.59,-9.439],[460.0,82.93,19.62,-9.498],[465.0,82.91,18.69,-9.552],[470.0,82.89,17.81,-9.6],[475.0,82.88,16.97,-9.645],[480.0,82.86,16.17,-9.685],[485.0,82.85,15.41,-9.722],[490.0,82.84,14.68,-9.755],[495.0,82.84,13.98,-9.786],[500.0,82.83,13.3,-9.814],[505.0,82.83,12.66,-9.839],[510.0,82.82,12.03,-9.863],[515.0,82.82,11.43,-9.884],[520.0,82.82,10.85,-9.904],[525.0,82.82,10.29,-9.922],[530.0,82.82,9.75,-9.939],[535.0,82.82,9.23,-9.954],[540.0,82.82,8.72,-9.968],[545.0,82.82,8.23,-9.981],[550.0,82.82,7.75,-9.993],[555.0,82.83,7.28,-10.004],[560.0,82.83,6.83,-10.014],[565.0,82.84,6.38,-10.023],[570.0,82.84,5.95,-10.031],[575.0,82.85,5.53,-10.038],[580.0,82.85,5.12,-10.045],[585.0,82.86,4.72,-10.051],[590.0,82.87,4.33,-10.057],[595.0,82.87,3.94,-10.062],[600.0,82.88,3.57,-10.066],[605.0,82.89,3.2,-10.07],[610.0,82.9,2.84,-10.073],[615.0,82.91,2.48,-10.076],[620.0,82.91,2.13,-10.079],[625.0,82.92,1.79,-10.081],[630.0,82.93,1.46,-10.082],[635.0,82.94,1.13,-10.084],[640.0,82.95,0.8,-10.085],[645.0,82.96,0.48,-10.085],[650.0,82.97,0.16,-10.086]]},{"rise":"2024-01-01T16:33:57Z","peak":"2024-01-01T16:39:24Z","max":81.4,"dur":651,"pts":[[0.0,279.01,0,10.085],[5.0,279.0,0.31,10.085],[10.0,279.0,0.63,10.084],[15.0,278.99,0.95,10.084],[20.0,278.98,1.28,10.082],[25.0,278.97,1.61,10.081],[30.0,278.95,1.95,10.079],[35.0,278.94,2.29,10.077],[40.0,278.93,2.64,10.074],[45.0,278.91,3.0,10.071],[50.0,278.9,3.36,10.067],[55.0,278.88,3.73,10.063],[60.0,278.86,4.11,10.059],[65.0,278.84,4.5,10.053],[70.0,278.82,4.89,10.048],[75.0,278.8,5.29,10.041],[80.0,278.77,5.71,10.034],[85.0,278.75,6.13,10.026],[90.0,278.72,6.57,10.018],[95.0,278.69,7.01,10.008],[100.0,278.66,7.47,9.998],[105.0,278.63,7.94,9.986],[110.0,278.59,8.42,9.974],[115.0,278.55,8.92,9.961],[120.0,278.51,9.43,9.946],[125.0,278.47,9.96,9.93],[130.0,278.42,10.51,9.913],[135.0,278.37,11.07,9.894],[140.0,278.32,11.66,9.873],[145.0,278.26,12.26,9.85],[150.0,278.2,12.89,9.826],[155.0,278.13,13.55,9.799],[160.0,278.06,14.23,9.77],[165.0,277.99,14.94,9.737],[170.0,277.91,15.68,9.702],[175.0,277.82,16.45,9.664],[180.0,277.72,17.26,9.622],[185.0,277.62,18.11,9.575],[190.0,277.51,19.0,9.524],[195.0,277.39,19.94,9.468],[200.0,277.25,20.93,9.406],[205.0,277.11,21.97,9.337],[210.0,276.95,23.08,9.261],[215.0,276.78,24.25,9.176],[220.0,276.59,25.5,9.082],[225.0,276.37,26.82,8.976],[230.0,276.14,28.24,8.859],[235.0,275.88,29.75,8.726],[240.0,275.58,31.37,8.578],[245.0,275.25,33.11,8.41],[250.0,274.88,34.97,8.221],[255.0,274.44,36.99,8.007],[260.0,273.95,39.16,7.765],[265.0,273.37,41.5,7.49],[270.0,272.69,44.03,7.177],[275.0,271.88,46.77,6.823],[280.0,270.89,49.72,6.421],[285.0,269.67,52.89,5.967],[290.0,268.13,56.3,5.455],[295.0,266.13,59.94,4.883],[300.0,263.42,63.78,4.247],[305.0,259.6,67.78,3.549],[310.0,253.87,71.86,2.792],[315.0,244.59,75.82,1.984],[320.0,228.43,79.26,1.137],[325.0,201.25,81.26,0.267],[330.0,169.33,80.7,-0.609],[335.0,146.9,77.96,-1.472],[340.0,134.11,74.22,-2.305],[345.0,126.56,70.18,-3.095],[350.0,121.75,66.11,-3.83],[355.0,118.45,62.16,-4.504],[360.0,116.07,58.4,-5.115],[365.0,114.28,54.85,-5.663],[370.0,112.88,51.53,-6.152],[375.0,111.77,48.44,-6.585],[380.0,110.86,45.58,-6.968],[385.0,110.11,42.93,-7.305],[390.0,109.47,40.47,-7.603],[395.0,108.93,38.19,-7.865],[400.0,108.46,36.09,-8.095],[405.0,108.05,34.13,-8.299],[410.0,107.69,32.32,-8.48],[415.0,107.38,30.63,-8.64],[420.0,107.1,29.05,-8.782],[425.0,106.85,27.58,-8.908],[430.0,106.62,26.2,-9.021],[435.0,106.42,24.9,-9.122],[440.0,106.23,23.69,-9.212],[445.0,106.07,22.54,-9.294],[450.0,105.91,21.46,-9.367],[455.0,105.77,20.44,-9.433],[460.0,105.64,19.47,-9.493],[465.0,105.53,18.55,-9.547],[470.0,105.42,17.68,-9.597],[475.0,105.32,16.84,-9.641],[480.0,105.22,16.05,-9.682],[485.0,105.14,15.29,-9.719],[490.0,105.06,14.56,-9.753],[495.0,104.98,13.86,-9.784],[500.0,104.91,13.19,-9.813],[505.0,104.85,12.55,-9.839],[510.0,104.79,11.93,-9.863],[515.0,104.73,11.33,-9.885],[520.0,104.68,10.75,-9.905],[525.0,104.63,10.19,-9.923],[530.0,104.59,9.66,-9.94],[535.0,104.54,9.13,-9.956],[540.0,104.5,8.63,-9.97],[545.0,104.46,8.13,-9.983],[550.0,104.43,7.66,-9.995],[555.0,104.39,7.19,-10.006],[560.0,104.36,6.74,-10.016],[565.0,104.33,6.3,-10.025],[570.0,104.31,5.87,-10.034],[575.0,104.28,5.45,-10.041],[580.0,104.26,5.04,-10.048],[585.0,104.23,4.64,-10.055],[590.0,104.21,4.25,-10.06],[595.0,104.19,3.86,-10.065],[600.0,104.17,3.49,-10.07],[605.0,104.15,3.12,-10.074],[610.0,104.14,2.76,-10.077],[615.0,104.12,2.4,-10.08],[620.0,104.11,2.06,-10.083],[625.0,104.09,1.71,-10.085],[630.0,104.08,1.38,-10.087],[635.0,104.07,1.05,-10.088],[640.0,104.06,0.72,-10.089],[645.0,104.05,0.4,-10.09],[650.0,104.04,0.09,-10.091]]}];
+      const colors = ["#efbd74", "#86e1d1", "#ee897f"];
+      const svgNS = "http://www.w3.org/2000/svg";
+      const el = (tag, attrs, parent) => { const n = document.createElementNS(svgNS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
+      const sky = document.querySelector("#sky-chart"), dop = document.querySelector("#sky-doppler");
+      if (!sky || !dop) return;
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // Sky chart: zenith at the centre, horizon at the rim, north up, east right.
+      const C = 200, R = 168;
+      const polar = (az, e) => { const r = (90 - e) / 90 * R, a = az * Math.PI / 180; return [C + r * Math.sin(a), C - r * Math.cos(a)]; };
+      el("circle", { cx: C, cy: C, r: R, fill: "#0a1016", stroke: "#33434c" }, sky);
+      for (const e of [30, 60]) el("circle", { cx: C, cy: C, r: (90 - e) / 90 * R, fill: "none", stroke: "#22303a", "stroke-dasharray": "2 4" }, sky);
+      for (let az = 0; az < 360; az += 30) { const [x, y] = polar(az, 0); el("line", { x1: C, y1: C, x2: x, y2: y, stroke: "#1b262e" }, sky); }
+      for (const [label, az] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) {
+        const [x, y] = polar(az, -8.5);
+        const t = el("text", { x, y: y + 4, "text-anchor": "middle", fill: "#99a8b1", "font-size": 12, "font-family": "ui-monospace, monospace" }, sky); t.textContent = label;
+      }
+      for (const e of [30, 60]) { const t = el("text", { x: C + 4, y: C - (90 - e) / 90 * R - 4, fill: "#63737e", "font-size": 9, "font-family": "ui-monospace, monospace" }, sky); t.textContent = e + "°"; }
+      el("circle", { cx: C, cy: C, r: 2, fill: "#63737e" }, sky);
+
+      // Doppler chart: minutes since rise against kHz.
+      const W = 560, H = 200, L = 46, Rt = 10, T = 24, B = 30, maxS = Math.max(...passes.map(p => p.dur)), maxK = 11;
+      const dx = s => L + s / maxS * (W - L - Rt), dy = k => T + (maxK - k) / (2 * maxK) * (H - T - B);
+      for (const k of [-10, -5, 0, 5, 10]) {
+        el("line", { x1: L, x2: W - Rt, y1: dy(k), y2: dy(k), stroke: k ? "#1b262e" : "#33434c" }, dop);
+        const t = el("text", { x: L - 8, y: dy(k) + 4, "text-anchor": "end", fill: "#63737e", "font-size": 12, "font-family": "ui-monospace, monospace" }, dop); t.textContent = (k > 0 ? "+" : "") + k;
+      }
+      for (let m = 0; m * 60 <= maxS; m += 2) {
+        const t = el("text", { x: dx(m * 60), y: H - 8, "text-anchor": "middle", fill: "#63737e", "font-size": 12, "font-family": "ui-monospace, monospace" }, dop); t.textContent = m + (m ? "" : " min");
+      }
+      const unit = el("text", { x: L - 8, y: 11, "text-anchor": "end", fill: "#63737e", "font-size": 11, "font-family": "ui-monospace, monospace" }, dop); unit.textContent = "kHz";
+
+      const tracks = passes.map((p, i) => {
+        const skyPath = el("path", { d: "M" + p.pts.map(q => polar(q[1], q[2]).map(v => v.toFixed(1)).join(",")).join("L"), fill: "none", stroke: colors[i], "stroke-width": 2, "stroke-linecap": "round", opacity: .35 }, sky);
+        const dopPath = el("path", { d: "M" + p.pts.map(q => dx(q[0]).toFixed(1) + "," + dy(q[3]).toFixed(1)).join("L"), fill: "none", stroke: colors[i], "stroke-width": 2, opacity: .35 }, dop);
+        return { p, skyPath, dopPath, color: colors[i] };
+      });
+      const dot = el("circle", { r: 5.5, fill: "#fff", stroke: "#090d12", "stroke-width": 2 }, sky);
+      const halo = el("circle", { r: 12, fill: "none", "stroke-width": 1.5, opacity: .6 }, sky);
+      const cursor = el("line", { y1: T, y2: H - B, stroke: "#99a8b1", "stroke-dasharray": "2 3" }, dop);
+      const dopDot = el("circle", { r: 4.5, fill: "#fff", stroke: "#090d12", "stroke-width": 2 }, dop);
+
+      const group = document.querySelector(".sky-passes");
+      const ro = { time: "#ro-time", az: "#ro-az", el: "#ro-el", dop: "#ro-dop" };
+      for (const k in ro) ro[k] = document.querySelector(ro[k]);
+      let current = 1, start = performance.now();
+      const buttons = passes.map((p, i) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.style.setProperty("--c", colors[i]);
+        b.innerHTML = "<i></i>" + p.rise.slice(11, 16) + " UTC · peak " + p.max + "°";
+        b.addEventListener("click", () => { current = i; start = performance.now(); select(); if (reducedMotion) frame(start); });
+        group.appendChild(b); return b;
+      });
+      function select() {
+        tracks.forEach((t, i) => { const on = i === current; t.skyPath.setAttribute("opacity", on ? 1 : .28); t.dopPath.setAttribute("opacity", on ? 1 : .28); t.skyPath.setAttribute("stroke-width", on ? 3 : 2); t.dopPath.setAttribute("stroke-width", on ? 2.5 : 1.5); buttons[i].setAttribute("aria-pressed", on); });
+        tracks[current].skyPath.parentNode.appendChild(tracks[current].skyPath);
+        sky.appendChild(halo); sky.appendChild(dot);
+        halo.setAttribute("stroke", colors[current]);
+      }
+      function show(q, p) {
+        const [x, y] = polar(q[1], q[2]);
+        dot.setAttribute("cx", x); dot.setAttribute("cy", y); halo.setAttribute("cx", x); halo.setAttribute("cy", y);
+        cursor.setAttribute("x1", dx(q[0])); cursor.setAttribute("x2", dx(q[0]));
+        dopDot.setAttribute("cx", dx(q[0])); dopDot.setAttribute("cy", dy(q[3]));
+        const t = new Date(Date.parse(p.rise) + q[0] * 1000);
+        ro.time.textContent = t.toISOString().slice(11, 19);
+        ro.az.textContent = q[1].toFixed(1) + "°";
+        ro.el.textContent = q[2].toFixed(1) + "°";
+        ro.dop.textContent = (q[3] > 0 ? "+" : "") + q[3].toFixed(2) + " kHz";
+      }
+      const loopMs = 9000, holdMs = 1200;
+      function frame(now) {
+        const p = passes[current], n = p.pts.length;
+        let i;
+        if (reducedMotion) {
+          i = p.pts.reduce((best, q, k) => q[2] > p.pts[best][2] ? k : best, 0); // the peak
+        } else {
+          const phase = Math.min(1, (Math.max(0, now - start) % (loopMs + holdMs)) / loopMs);
+          i = Math.min(n - 1, Math.floor(phase * (n - 1)));
+        }
+        show(p.pts[i], p);
+        if (!reducedMotion) requestAnimationFrame(frame);
+      }
+      select();
+      requestAnimationFrame(frame);
     })();
     document.querySelectorAll(".copy").forEach(button => button.addEventListener("click", async () => {
       try {

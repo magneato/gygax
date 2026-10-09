@@ -1,5 +1,21 @@
 cmake_minimum_required(VERSION 3.28)
-project(gygax VERSION 0.2.0 LANGUAGES CXX)
+project(gygax VERSION 0.3.0 LANGUAGES CXX)
+
+# Pre-release label and release name. A pre-release is tagged v<version>-<label>
+# (v0.3.1-alpha.1); a final release leaves it empty and is tagged v<version> (v0.3.0).
+set(GYGAX_VERSION_PRERELEASE "")
+set(GYGAX_RELEASE_NAME "Skynet")
+if(GYGAX_VERSION_PRERELEASE AND NOT GYGAX_VERSION_PRERELEASE MATCHES "^(alpha|beta|rc)\\.[0-9]+$")
+    # Only these map one to one onto PEP 440 (alpha.1 -> a1) and Debian (~alpha.1) versions.
+    message(FATAL_ERROR "GYGAX_VERSION_PRERELEASE must be alpha.N, beta.N or rc.N, not '${GYGAX_VERSION_PRERELEASE}'")
+endif()
+if(GYGAX_VERSION_PRERELEASE)
+    set(GYGAX_VERSION_FULL "${PROJECT_VERSION}-${GYGAX_VERSION_PRERELEASE}")
+    set(GYGAX_DEBIAN_VERSION "${PROJECT_VERSION}~${GYGAX_VERSION_PRERELEASE}") # sorts before the final release
+else()
+    set(GYGAX_VERSION_FULL "${PROJECT_VERSION}")
+    set(GYGAX_DEBIAN_VERSION "${PROJECT_VERSION}")
+endif()
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -97,6 +113,9 @@ target_sources(gygax
         src/gygax/transport/modem.cpp
         src/gygax/transport/printer.cpp
         src/gygax/transport/gcode.cpp
+        src/gygax/satlink/satlink.cpp
+        src/gygax/satlink/sgp4.cpp
+        src/gygax/satlink/sdr.cpp
 )
 
 target_include_directories(gygax PUBLIC
@@ -176,10 +195,11 @@ gygax_warnings(gygax_geo_plugin)
 find_package(Python3 COMPONENTS Interpreter)
 set(GYGAX_PYTHON_STAGE ${CMAKE_CURRENT_BINARY_DIR}/python)
 if(Python3_FOUND)
-    file(GLOB GYGAX_PYTHON_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/python/gygax/*.py)
+    file(GLOB_RECURSE GYGAX_PYTHON_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/python/*.py)
     add_custom_target(gygax_python ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory ${GYGAX_PYTHON_STAGE}/gygax
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GYGAX_PYTHON_SOURCES} ${GYGAX_PYTHON_STAGE}/gygax
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/python/gygax ${GYGAX_PYTHON_STAGE}/gygax
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/python/satlink ${GYGAX_PYTHON_STAGE}/satlink
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/python/pyproject.toml ${CMAKE_CURRENT_SOURCE_DIR}/python/README.md ${GYGAX_PYTHON_STAGE}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:gygax_c> ${GYGAX_PYTHON_STAGE}/gygax
         DEPENDS gygax_c ${GYGAX_PYTHON_SOURCES}
@@ -204,6 +224,10 @@ if(GYGAX_BUILD_EXAMPLES)
     target_link_libraries(wargames PRIVATE gygax)
     target_compile_definitions(wargames PRIVATE GYGAX_WARGAMES_VIEWER="${CMAKE_CURRENT_SOURCE_DIR}/examples/wargames/viewer.html")
     gygax_warnings(wargames)
+    add_executable(ohflock examples/ohflock/main.cpp examples/ohflock/sim.cpp)
+    target_link_libraries(ohflock PRIVATE gygax)
+    target_compile_definitions(ohflock PRIVATE GYGAX_OHFLOCK_VIEWER="${CMAKE_CURRENT_SOURCE_DIR}/examples/ohflock/viewer.html")
+    gygax_warnings(ohflock)
 
     add_executable(arrival examples/arrival/main.cpp)
     target_link_libraries(arrival PRIVATE gygax)
@@ -263,18 +287,26 @@ if(GYGAX_BUILD_TESTS)
         tests/unit/test_math.cpp
         tests/unit/test_mcp.cpp
         tests/unit/test_atari.cpp
+        tests/unit/test_satlink.cpp
+        tests/unit/test_sdr.cpp
     )
     target_include_directories(gygax_tests PRIVATE tests/unit)
     target_link_libraries(gygax_tests PRIVATE gygax gtest gtest_main)
-    target_compile_definitions(gygax_tests PRIVATE GYGAX_TEST_PLUGIN_PATH="$<TARGET_FILE:gygax_geo_plugin>" GYGAX_TEST_C_PLUGIN_PATH="$<TARGET_FILE:gygax_c_plugin>" GYGAX_TEST_FAKE_MCP="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fake_mcp_server.py")
+    target_compile_definitions(gygax_tests PRIVATE GYGAX_TEST_PLUGIN_PATH="$<TARGET_FILE:gygax_geo_plugin>" GYGAX_TEST_C_PLUGIN_PATH="$<TARGET_FILE:gygax_c_plugin>" GYGAX_TEST_FAKE_MCP="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fake_mcp_server.py" GYGAX_TEST_SGP4_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/sgp4")
     add_dependencies(gygax_tests gygax_geo_plugin gygax_c_plugin)
     gygax_warnings(gygax_tests)
     include(GoogleTest)
     gtest_discover_tests(gygax_tests DISCOVERY_TIMEOUT 60 PROPERTIES TIMEOUT 120)
 
     add_test(NAME gygax_doctor COMMAND gygax_cli doctor)
+    add_test(NAME satlink_track_cli
+        COMMAND gygax_cli track --tle ${CMAKE_CURRENT_SOURCE_DIR}/examples/satlink/sample.tle --at 51.4779,-0.0015,46
+                --start 2024-01-01T12:00 --hours 24 --downlink 437.8e6)
+    set_tests_properties(satlink_track_cli PROPERTIES PASS_REGULAR_EXPRESSION "4 passes above 10.* 87\\.7°")
     if(GYGAX_BUILD_EXAMPLES)
         add_test(NAME wargames_selfcheck COMMAND wargames --selfcheck)
+        add_test(NAME ohflock_selfcheck COMMAND ohflock --selfcheck)
+        set_tests_properties(ohflock_selfcheck PROPERTIES TIMEOUT 300)
         set_tests_properties(wargames_selfcheck PROPERTIES TIMEOUT 300)
         add_test(NAME gyde_selfcheck COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/gyde-check.sh $<TARGET_FILE:gygax_cli> $<TARGET_FILE:gyde>)
         set_tests_properties(gyde_selfcheck PROPERTIES TIMEOUT 60)
@@ -288,6 +320,11 @@ if(GYGAX_BUILD_TESTS)
         add_test(NAME python_bindings
             COMMAND ${CMAKE_COMMAND} -E env GYGAX_BIN=$<TARGET_FILE:gygax_cli> GYGAX_PLUGIN=$<TARGET_FILE:gygax_geo_plugin> PYTHONPATH=${GYGAX_PYTHON_STAGE}
                     ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/python/tests)
+        add_test(NAME python_example_satlink
+            COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${GYGAX_PYTHON_STAGE}
+                    ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/satlink/track.py
+                    ${CMAKE_CURRENT_SOURCE_DIR}/examples/satlink/sample.tle --at 51.4779,-0.0015,46 --start 2024-01-01T12:00)
+        set_tests_properties(python_example_satlink PROPERTIES PASS_REGULAR_EXPRESSION "ISS \\(ZARYA\\): 4 passes")
         add_test(NAME python_example_stdp
             COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${GYGAX_PYTHON_STAGE}
                     ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/python/stdp_demo.py)
@@ -321,7 +358,7 @@ install(FILES examples/plugin/geo_plugin.cpp examples/plugin/c_plugin.c DESTINAT
 install(DIRECTORY examples/plugin-consumer DESTINATION ${CMAKE_INSTALL_DATADIR}/gygax/examples)
 install(FILES include/gygax/capi/gygax.h ${CMAKE_CURRENT_BINARY_DIR}/generated/gygax/version.hpp
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/gygax)
-install(DIRECTORY python/gygax DESTINATION ${CMAKE_INSTALL_DATADIR}/gygax/python
+install(DIRECTORY python/gygax python/satlink DESTINATION ${CMAKE_INSTALL_DATADIR}/gygax/python
     PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
 install(FILES deploy/gygax.service DESTINATION ${CMAKE_INSTALL_DATADIR}/gygax/deploy)
 install(FILES deploy/gygax.env.example DESTINATION ${CMAKE_INSTALL_DATADIR}/gygax/deploy)
@@ -329,13 +366,22 @@ install(FILES README.md LICENSE PATENTS.md THIRD_PARTY_NOTICES.md DESTINATION ${
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DOCDIR} FILES_MATCHING PATTERN "*.md")
 
 set(CPACK_PACKAGE_NAME "gygax")
-set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_VERSION ${GYGAX_VERSION_FULL})
 set(CPACK_PACKAGE_VENDOR "Neural Splines")
 set(CPACK_PACKAGE_CONTACT "robert.sitton@neuralsplines.com")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Autonomous agent runtime, inference router and neuromorphic simulator")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Autonomous agent runtime, inference router, neuromorphic simulator and satellite tracker")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_GENERATOR "TGZ")
-set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_DEBIAN_PACKAGE_VERSION ${GYGAX_DEBIAN_VERSION})
+find_program(GYGAX_DPKG dpkg)
+if(GYGAX_DPKG)
+    execute_process(COMMAND ${GYGAX_DPKG} --print-architecture OUTPUT_VARIABLE GYGAX_DEBIAN_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+if(NOT GYGAX_DEBIAN_ARCH)
+    set(GYGAX_DEBIAN_ARCH amd64)
+endif()
+# Name the file with the release version: '~' is not safe in release asset names.
+set(CPACK_DEBIAN_FILE_NAME "gygax_${GYGAX_VERSION_FULL}_${GYGAX_DEBIAN_ARCH}.deb")
 if(UNIX AND NOT APPLE)
     list(APPEND CPACK_GENERATOR "DEB")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)

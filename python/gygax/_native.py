@@ -128,4 +128,20 @@ def _bind(L):
     for name in ("terminated", "truncated", "collided", "reached_goal"):
         sig("gygax_vecenv_" + name, u8_p, vec)
     sig("gygax_lif_rate_hz", c.c_double, *([c.c_double] * 7))
+
+    # SatLink (structs are passed by pointer, so c_void_p keeps the signatures simple)
+    sat = c.c_void_p
+    ptr = c.c_void_p
+    sig("gygax_satlink_create", sat, c.c_char_p, c.c_char_p, c.c_char_p)
+    sig("gygax_satlink_destroy", None, sat)
+    sig("gygax_satlink_epoch_unix", c.c_double, sat)
+    sig("gygax_satlink_period_minutes", c.c_double, sat)
+    sig("gygax_satlink_is_deep_space", c.c_int, sat)
+    sig("gygax_satlink_state", c.c_int, sat, c.c_double, c.c_int, dbl_p, dbl_p)
+    sig("gygax_satlink_subpoint", c.c_int, sat, c.c_double, dbl_p, dbl_p, dbl_p)
+    sig("gygax_satlink_observe", c.c_int, sat, c.c_double, c.c_double, c.c_double, c.c_double, ptr)
+    sig("gygax_satlink_doppler_hz", c.c_double, sat, *([c.c_double] * 5))
+    sig("gygax_satlink_passes", c.c_longlong, sat, *([c.c_double] * 6), ptr, c.c_size_t)
+    sig("gygax_satlink_rig_set_freq", c.c_void_p, c.c_char_p, c.c_int, c.c_double, c.c_int)
+
     return L

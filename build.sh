@@ -8,7 +8,7 @@ BUILD_TYPE="${BUILD_TYPE:-RelWithDebInfo}"
 
 pick_compiler() {
     if [ -n "${CXX:-}" ]; then echo "$CXX"; return; fi
-    for c in clang++-19 clang++-18 clang++; do
+    for c in clang++-21 clang++-20 clang++-19 clang++ clang++-18; do
         if command -v "$c" >/dev/null 2>&1; then echo "$c"; return; fi
     done
     echo "no clang++ found; install clang-18 or newer" >&2

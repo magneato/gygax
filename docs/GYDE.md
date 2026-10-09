@@ -16,7 +16,7 @@ You never need an IDE to develop Gygax today: `./build.sh`, `./scripts/lint.sh`,
 
 ```
 $ gyde --url http://127.0.0.1:1984 --token "$GYGAX_API_TOKEN"
-gyde 0.2.0 - type 'help' for commands, 'quit' to leave
+gyde 0.3.0 - type 'help' for commands, 'quit' to leave
 [up] engines 1/1  agents 0  http://127.0.0.1:1984 > ask what is sqrt(2)*sqrt(2)?
 echo: what is sqrt(2)*sqrt(2)?
 [up] engines 1/1  agents 0  http://127.0.0.1:1984 > tool math.eval 6*7

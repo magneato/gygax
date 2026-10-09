@@ -1,8 +1,11 @@
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <csignal>
+#include <cstdio>
 #include <cstdlib>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <future>
@@ -16,6 +19,7 @@
 #include <thread>
 #include <vector>
 
+#include <gygax/core/charconv.hpp>
 #include <gygax/core/json.hpp>
 #include <gygax/core/log.hpp>
 #include <gygax/inference/backend.hpp>
@@ -25,6 +29,8 @@
 #include <gygax/neuro/network.hpp>
 #include <gygax/robotics/mavlink.hpp>
 #include <gygax/robotics/sim_vehicle.hpp>
+#include <gygax/satlink/satlink.hpp>
+#include <gygax/satlink/sdr.hpp>
 #include <gygax/service/expression.hpp>
 #include <gygax/service/service.hpp>
 #include <gygax/version.hpp>
@@ -102,6 +108,7 @@ void printUsage() {
         << "  status     show node, engines and agents of a running service\n"
         << "  ask        send a prompt to a running service (--agent to use the tool-using agent)\n"
         << "  sim-autopilot  run a virtual MAVLink multicopter (--uri LINK, --system-id N) to develop against\n"
+        << "  track      predict satellite passes, or follow one live with Doppler and rig tuning (gygax track --help)\n"
         << "  version    print the version\n\n"
         << "serve options (environment variables in brackets):\n"
         << "  --host H [GYGAX_HOST]            bind address (default 127.0.0.1)\n"
@@ -278,6 +285,297 @@ int cmdNeuro(const Args& a) {
     }
     std::cout << out.dump(2) << "\n";
     return 0;
+}
+
+// --- gygax track ---------------------------------------------------------------------------------
+
+namespace satlink = gygax::satlink;
+
+void printTrackUsage() {
+    std::cout << "usage: gygax track --tle FILE --at LAT,LON[,METRES] [options]\n\n"
+              << "Predict passes of a satellite over a station from a two-line element set, or follow it live.\n\n"
+              << "  --tle FILE          TLE file (two- or three-line sets; - for stdin)\n"
+              << "  --sat NAME|NUMBER   which satellite in the file (name substring or catalog number; default: the first)\n"
+              << "  --at LAT,LON[,M]    station: degrees north, degrees east, metres above the WGS-84 ellipsoid\n"
+              << "  --start TIME        'now' (default), Unix seconds, or UTC as YYYY-MM-DD[THH:MM[:SS]]\n"
+              << "  --hours H           how far ahead to look for passes (default 24)\n"
+              << "  --min-elevation D   only passes that rise above D degrees (default 10)\n"
+              << "  --downlink HZ       show the Doppler-corrected receive frequency\n"
+              << "  --live              print look angles once a second instead of a pass table (Ctrl-C to stop)\n"
+              << "  --count N           with --live, stop after N lines\n"
+              << "  --rig HOST[:PORT]   with --live and --downlink, retune Hamlib rigctld every second (port 4532)\n"
+              << "  --sdr HOST[:PORT]   with --live and --downlink, retune an rtl_tcp SDR every second (port 1234) and report\n"
+              << "                      the strongest signal: its offset from the predicted carrier and its SNR\n"
+              << "  --sdr-rate S/s      SDR sample rate (default 1024000)    --sdr-gain DB  manual gain (default: tuner AGC)\n"
+              << "  --sdr-ppm N         SDR frequency correction in ppm\n";
+}
+
+double nowUnix() {
+    return std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+// A whole string as a number, or nothing.
+std::optional<double> number(std::string_view text) {
+    double v = 0.0;
+    const auto [end, ec] = gygax::fromChars(text.data(), text.data() + text.size(), v);
+    if (text.empty() || ec != std::errc() || end != text.data() + text.size() || !std::isfinite(v)) return std::nullopt;
+    return v;
+}
+
+std::vector<std::string_view> split(std::string_view text, char sep) {
+    std::vector<std::string_view> out;
+    for (std::size_t from = 0;;) {
+        const auto at = text.find(sep, from);
+        out.push_back(text.substr(from, at == std::string_view::npos ? std::string_view::npos : at - from));
+        if (at == std::string_view::npos) return out;
+        from = at + 1;
+    }
+}
+
+// 'now', Unix seconds, or UTC as YYYY-MM-DD[THH:MM[:SS[.fff]]].
+std::optional<double> parseUtc(const std::string& text) {
+    if (text.empty() || text == "now") return nowUnix();
+    if (text.find('-', 1) == std::string::npos) return number(text);
+    const std::string_view all(text);
+    const auto t = all.find_first_of("T ");
+    const auto date = split(all.substr(0, t), '-');
+    const auto clock = t == std::string_view::npos ? std::vector<std::string_view>{} : split(all.substr(t + 1), ':');
+    if (date.size() != 3 || clock.size() == 1 || clock.size() > 3) return std::nullopt;
+    double parts[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; // year month day hour minute second
+    for (std::size_t i = 0; i < 3 + clock.size(); ++i) {
+        const auto v = number(i < 3 ? date[i] : clock[i - 3]);
+        if (!v) return std::nullopt;
+        parts[i] = *v;
+    }
+    using namespace std::chrono;
+    const year_month_day ymd{year{static_cast<int>(parts[0])}, month{static_cast<unsigned>(parts[1])},
+                             day{static_cast<unsigned>(parts[2])}};
+    if (!ymd.ok() || parts[3] >= 24 || parts[4] >= 60 || parts[5] >= 61) return std::nullopt;
+    return static_cast<double>(sys_days{ymd}.time_since_epoch().count()) * 86400.0 + parts[3] * 3600.0 + parts[4] * 60.0 + parts[5];
+}
+
+std::string utc(double unix_seconds, bool withDate = true) {
+    using namespace std::chrono;
+    const sys_seconds t{seconds{static_cast<long long>(std::floor(unix_seconds + 0.5))}};
+    return withDate ? std::format("{:%F %T}", t) : std::format("{:%T}", t);
+}
+
+std::string duration(double seconds) {
+    const auto s = static_cast<long long>(std::llround(seconds));
+    if (s >= 3600) return std::format("{}h{:02}m", s / 3600, (s % 3600) / 60);
+    return std::format("{}m{:02}s", s / 60, s % 60);
+}
+
+std::string compass(double azimuth_deg) {
+    static constexpr const char* kPoints[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                                              "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
+    return kPoints[static_cast<int>(std::floor(azimuth_deg / 22.5 + 0.5)) % 16];
+}
+
+std::string kilohertz(double hz) {
+    return std::format("{:+.2f} kHz", hz / 1000.0);
+}
+
+// Reads every element set in a file; a line before "1 ..." that is not itself an element line names it.
+std::vector<satlink::Tle> readTles(std::istream& in) {
+    std::vector<satlink::Tle> out;
+    std::string line, name, line1;
+    while (std::getline(in, line)) {
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+        if (line.empty() || line.starts_with("#")) continue;
+        if (line.starts_with("1 ") && line.size() >= 64) {
+            line1 = line;
+        } else if (line.starts_with("2 ") && !line1.empty()) {
+            out.push_back(satlink::Tle::parse(line1, line, name));
+            line1.clear();
+            name.clear();
+        } else {
+            name = line;
+            line1.clear();
+        }
+    }
+    return out;
+}
+
+int cmdTrack(const Args& a) {
+    if (a.has("help") || a.has("h")) {
+        printTrackUsage();
+        return 0;
+    }
+    if (!a.has("tle") || !a.has("at")) {
+        printTrackUsage();
+        return 2;
+    }
+    try {
+        std::vector<satlink::Tle> tles;
+        if (a.get("tle") == "-") {
+            tles = readTles(std::cin);
+        } else {
+            std::ifstream f(a.get("tle"));
+            if (!f) throw std::runtime_error("cannot read " + a.get("tle"));
+            tles = readTles(f);
+        }
+        if (tles.empty()) throw std::runtime_error("no two-line element sets in " + a.get("tle"));
+
+        const satlink::Tle* chosen = &tles.front();
+        if (a.has("sat")) {
+            const auto want = a.get("sat");
+            auto lower = [](std::string t) {
+                for (auto& c : t) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                return t;
+            };
+            chosen = nullptr;
+            for (const auto& t : tles) {
+                if (t.catalog == want || lower(t.name).find(lower(want)) != std::string::npos) {
+                    chosen = &t;
+                    break;
+                }
+            }
+            if (chosen == nullptr) throw std::runtime_error("no satellite matching '" + want + "'");
+        }
+
+        satlink::Observer station;
+        {
+            const auto at = a.get("at");
+            const auto fields = split(at, ',');
+            const auto lat = fields.size() >= 2 ? number(fields[0]) : std::nullopt;
+            const auto lon = fields.size() >= 2 ? number(fields[1]) : std::nullopt;
+            const auto height = fields.size() == 3 ? number(fields[2]) : std::optional<double>(0.0);
+            if (fields.size() > 3 || !lat || !lon || !height || std::abs(*lat) > 90.0 || std::abs(*lon) > 180.0)
+                throw std::runtime_error("--at wants LAT,LON[,METRES] in degrees, e.g. 51.4779,-0.0015,46");
+            station = {*lat, *lon, *height};
+        }
+        const auto start = parseUtc(a.get("start", "now"));
+        if (!start) throw std::runtime_error("--start wants 'now', Unix seconds or YYYY-MM-DD[THH:MM[:SS]]");
+        const auto option = [&](const char* name, const char* fallback) {
+            const auto v = number(a.get(name, fallback));
+            if (!v) throw std::runtime_error(std::format("--{} wants a number, not '{}'", name, a.get(name)));
+            return *v;
+        };
+        const double hours = option("hours", "24");
+        const double minEl = option("min-elevation", "10");
+        const double downlink = option("downlink", "0");
+        if (!(hours > 0.0)) throw std::runtime_error("--hours must be positive");
+        if (downlink < 0.0) throw std::runtime_error("--downlink must be a frequency in Hz");
+
+        const satlink::Satellite sat(*chosen);
+        const auto& t = sat.tle();
+        const auto title = t.name.empty() ? "NORAD " + t.catalog : t.name;
+        std::cout << std::format("{}  ·  NORAD {}  ·  epoch {} UTC  ·  period {:.1f} min  ·  {}\n", title, t.catalog,
+                                 utc(t.epochUnixSeconds()), t.periodMinutes(), sat.deepSpace() ? "SDP4 (deep space)" : "SGP4");
+        std::cout << std::format("station {:.4f}°{} {:.4f}°{} {:.0f} m", std::abs(station.latitude_deg),
+                                 station.latitude_deg >= 0 ? 'N' : 'S', std::abs(station.longitude_deg),
+                                 station.longitude_deg >= 0 ? 'E' : 'W', station.elevation_m);
+        const double age = (*start - t.epochUnixSeconds()) / 86400.0;
+        if (std::abs(age) > 14.0) std::cout << std::format("  ·  elements are {:.0f} days from epoch: refresh them for accuracy", age);
+        std::cout << "\n\n";
+
+        if (a.has("live")) {
+            installSignals();
+            const long count = std::lround(option("count", "0"));
+            std::optional<satlink::RigClient> rig;
+            if (a.has("rig")) {
+                if (!(downlink > 0.0)) throw std::runtime_error("--rig needs --downlink HZ");
+                auto spec = a.get("rig");
+                int port = satlink::kHamlibDefaultPort;
+                if (const auto colon = spec.rfind(':'); colon != std::string::npos) {
+                    const auto p = number(std::string_view(spec).substr(colon + 1));
+                    if (!p) throw std::runtime_error("--rig wants HOST[:PORT]");
+                    port = static_cast<int>(*p);
+                    spec.resize(colon);
+                }
+                rig.emplace(spec, port);
+            }
+            std::optional<satlink::RtlTcpClient> sdr;
+            constexpr std::size_t kSdrFft = 8192, kSdrCapture = 8 * kSdrFft;
+            if (a.has("sdr")) {
+                if (!(downlink > 0.0)) throw std::runtime_error("--sdr needs --downlink HZ");
+                auto spec = a.get("sdr");
+                int port = satlink::kRtlTcpDefaultPort;
+                if (const auto colon = spec.rfind(':'); colon != std::string::npos) {
+                    const auto p = number(std::string_view(spec).substr(colon + 1));
+                    if (!p) throw std::runtime_error("--sdr wants HOST[:PORT]");
+                    port = static_cast<int>(*p);
+                    spec.resize(colon);
+                }
+                sdr.emplace(spec, port);
+                sdr->setSampleRate(static_cast<std::uint32_t>(option("sdr-rate", "1024000")));
+                if (a.has("sdr-gain")) {
+                    sdr->setGainDb(option("sdr-gain", "0"));
+                } else {
+                    sdr->setAutomaticGain();
+                }
+                if (a.has("sdr-ppm")) sdr->setFrequencyCorrection(static_cast<int>(std::lround(option("sdr-ppm", "0"))));
+                std::cout << std::format("sdr     rtl_tcp {}:{}  ·  {} tuner  ·  {} S/s  ·  {:.1f} Hz bins\n\n", spec, port,
+                                         sdr->info().tunerName(), sdr->sampleRate(), sdr->sampleRate() / static_cast<double>(kSdrFft));
+            }
+            std::cout << "  time (UTC)    azimuth      elev      range     rate km/s"
+                      << (downlink > 0.0 ? "   doppler       receive Hz" : "") << (sdr ? "   sdr peak     snr" : "") << "\n";
+            const bool fromNow = a.get("start", "now") == "now";
+            for (long i = 0; (count <= 0 || i < count) && !gStop.load(); ++i) {
+                const double when = fromNow ? nowUnix() : *start + static_cast<double>(i);
+                const auto look = sat.observe(station, when);
+                std::cout << std::format("  {}   {:6.1f}° {:<3}  {:+6.1f}°  {:7.1f} km  {:+7.3f}", utc(when, false), look.azimuth_deg,
+                                         compass(look.azimuth_deg), look.elevation_deg, look.range_km, look.range_rate_km_s);
+                if (downlink > 0.0) {
+                    const double shift = satlink::dopplerShiftHz(downlink, look.range_rate_km_s);
+                    std::cout << std::format("   {:>11}   {:>12.0f}", kilohertz(shift), downlink + shift);
+                    if (rig) {
+                        try {
+                            rig->setFrequency(downlink + shift);
+                            std::cout << "  rig ok";
+                        } catch (const satlink::RigError& e) {
+                            std::cout << "  rig: " << e.what();
+                        }
+                    }
+                    if (sdr) {
+                        try {
+                            // Retune, let the queue of samples from the old frequency drain, then look.
+                            sdr->setCenterFrequency(downlink + shift);
+                            sdr->discard(sdr->sampleRate() / 20);
+                            const auto iq = sdr->read(kSdrCapture);
+                            const auto peak = satlink::strongestPeak(satlink::powerSpectrumDb(iq, kSdrFft), sdr->sampleRate());
+                            std::cout << std::format("   {:+8.0f} Hz  {:4.1f} dB", peak.offset_hz, peak.snr_db);
+                        } catch (const satlink::SdrError& e) {
+                            std::cout << "  sdr: " << e.what();
+                        }
+                    }
+                }
+                std::cout << (look.elevation_deg >= 0.0 ? "" : "  (below horizon)") << std::endl;
+                // Following the clock: wake on the next whole second, so lines land on the tick.
+                if (fromNow && (count <= 0 || i + 1 < count)) {
+                    using namespace std::chrono;
+                    const auto now = system_clock::now();
+                    std::this_thread::sleep_until(ceil<seconds>(now + milliseconds(1)));
+                }
+            }
+            return 0;
+        }
+
+        const auto passes = sat.passes(station, *start, *start + hours * 3600.0, minEl);
+        std::cout << std::format("{} pass{} above {:g}° in the {:g} hours from {} UTC\n\n", passes.size(), passes.size() == 1 ? "" : "es",
+                                 minEl, hours, utc(*start));
+        if (passes.empty()) return 0;
+        std::cout << "  rise (UTC)            from       peak (UTC)  max el   set (UTC)   to         lasts"
+                  << (downlink > 0.0 ? "    doppler rise → set" : "") << "\n";
+        for (const auto& p : passes) {
+            std::cout << std::format("  {}{}  {:5.1f}° {:<3}  {}    {:5.1f}°  {}{}  {:5.1f}° {:<3}  {:>6}", utc(p.rise_unix),
+                                     p.rise_clipped ? "<" : " ", p.rise_azimuth_deg, compass(p.rise_azimuth_deg),
+                                     utc(p.culmination_unix, false), p.max_elevation_deg, utc(p.set_unix, false), p.set_clipped ? ">" : " ",
+                                     p.set_azimuth_deg, compass(p.set_azimuth_deg), duration(p.durationSeconds()));
+            if (downlink > 0.0) {
+                std::cout << std::format("    {} → {}", kilohertz(sat.dopplerShiftHz(station, p.rise_unix, downlink)),
+                                         kilohertz(sat.dopplerShiftHz(station, p.set_unix, downlink)));
+            }
+            std::cout << "\n";
+        }
+        if (std::any_of(passes.begin(), passes.end(), [](const auto& p) { return p.rise_clipped || p.set_clipped; }))
+            std::cout << "\n  < already up when the window opened   > still up when it closed\n";
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "gygax track: " << e.what() << "\n";
+        return 1;
+    }
 }
 
 struct Remote {
@@ -625,6 +923,32 @@ int cmdDoctor(const Args& a) {
         const auto plan = gygax::logistics::planRoute(req, {site});
         return expect(plan.getBool("feasible") && plan.getInt("refuel_stops") == 1, "plan: " + plan.dump());
     });
+    d.add("satlink: SGP4 and SDP4 reproduce the Vallado reference to 1 mm", [] {
+        // Vanguard 1 (near Earth) and 04632 (deep space, 20 h) from tcppver.out; TEME km.
+        struct Case {
+            const char* l1;
+            const char* l2;
+            double minutes;
+            satlink::Vector3 r;
+        };
+        const Case cases[] = {
+            {"1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753",
+             "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667",
+             360.0,
+             {-7154.03120202, -3783.17682504, -3536.19412294}},
+            {"1 04632U 70093B   04031.91070959 -.00000084  00000-0  10000-3 0  9955",
+             "2 04632  11.4628 273.1101 1450506 207.6000 143.9350  1.20231981 44145",
+             -5184.0,
+             {-29020.02587128, 13819.84419063, -5713.33679183}},
+        };
+        for (const auto& c : cases) {
+            const satlink::Sgp4 sgp4(satlink::Tle::parse(c.l1, c.l2));
+            const double err = (sgp4.propagate(c.minutes).position_km - c.r).norm();
+            if (err > 1e-6)
+                return std::format("{} at {} min is {:.3f} mm from the reference", std::string(c.l1).substr(2, 5), c.minutes, err * 1e6);
+        }
+        return std::string();
+    });
     d.add("robotics: MAVLink client flies the virtual autopilot", [] {
         auto [autopilotLink, clientLink] = net::makeLinkPair();
         gygax::robotics::VirtualAutopilotOptions options;
@@ -809,7 +1133,9 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (cmd == "version" || cmd == "--version") {
-        std::cout << "gygax " << GYGAX_VERSION_STRING << "\n";
+        std::cout << "gygax " << GYGAX_VERSION_STRING;
+        if (!std::string_view(GYGAX_VERSION_CODENAME).empty()) std::cout << " \"" << GYGAX_VERSION_CODENAME << "\"";
+        std::cout << "\n";
         return 0;
     }
     const auto args = Args::parse(argc, argv, 2);
@@ -820,6 +1146,7 @@ int main(int argc, char** argv) {
     if (cmd == "neuro") return cmdNeuro(args);
     if (cmd == "status") return cmdStatus(args);
     if (cmd == "ask") return cmdAsk(args);
+    if (cmd == "track") return cmdTrack(args);
     std::cerr << "gygax: unknown command '" << cmd << "'\n\n";
     printUsage();
     return 2;

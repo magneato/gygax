@@ -3,12 +3,15 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 
 #include <gygax/core/json.hpp>
 #include <gygax/neuro/network.hpp>
+#include <gygax/satlink/satlink.hpp>
 #include <gygax/sim/vec_env.hpp>
 #include <gygax/version.hpp>
 
@@ -18,6 +21,10 @@ struct gygax_network {
 
 struct gygax_vecenv {
     std::unique_ptr<gygax::sim::VecEnv> env;
+};
+
+struct gygax_satellite {
+    std::unique_ptr<gygax::satlink::Satellite> sat;
 };
 
 namespace {
@@ -441,5 +448,108 @@ const uint8_t* gygax_vecenv_collided(const gygax_vecenv* env) {
 }
 const uint8_t* gygax_vecenv_reached_goal(const gygax_vecenv* env) {
     return env->env->reachedGoal().data();
+}
+
+gygax_satellite* gygax_satlink_create(const char* name, const char* line1, const char* line2) {
+    if (line1 == nullptr || line2 == nullptr) {
+        setError("TLE line is null");
+        return nullptr;
+    }
+    try {
+        auto handle = std::make_unique<gygax_satellite>();
+        handle->sat = std::make_unique<gygax::satlink::Satellite>(name ? name : "", line1, line2);
+        return handle.release();
+    } catch (const std::exception& e) {
+        setError(e.what());
+        return nullptr;
+    }
+}
+
+void gygax_satlink_destroy(gygax_satellite* sat) {
+    delete sat;
+}
+
+double gygax_satlink_epoch_unix(const gygax_satellite* sat) {
+    return sat->sat->tle().epochUnixSeconds();
+}
+
+double gygax_satlink_period_minutes(const gygax_satellite* sat) {
+    return sat->sat->tle().periodMinutes();
+}
+
+int gygax_satlink_is_deep_space(const gygax_satellite* sat) {
+    return sat->sat->deepSpace() ? 1 : 0;
+}
+
+int gygax_satlink_state(const gygax_satellite* sat, double unix_seconds, int frame, double position_km[3], double velocity_km_s[3]) {
+    return guarded([&] {
+        if (frame != 0 && frame != 1) throw std::invalid_argument("frame must be 0 (TEME) or 1 (ECEF)");
+        const auto state = frame == 0 ? sat->sat->teme(unix_seconds) : sat->sat->ecef(unix_seconds);
+        if (position_km != nullptr) {
+            position_km[0] = state.position_km.x;
+            position_km[1] = state.position_km.y;
+            position_km[2] = state.position_km.z;
+        }
+        if (velocity_km_s != nullptr) {
+            velocity_km_s[0] = state.velocity_km_s.x;
+            velocity_km_s[1] = state.velocity_km_s.y;
+            velocity_km_s[2] = state.velocity_km_s.z;
+        }
+        return 0;
+    });
+}
+
+int gygax_satlink_subpoint(const gygax_satellite* sat, double unix_seconds, double* lat_deg, double* lon_deg, double* alt_km) {
+    return guarded([&] {
+        const auto g = sat->sat->subpoint(unix_seconds);
+        if (lat_deg != nullptr) *lat_deg = g.latitude_deg;
+        if (lon_deg != nullptr) *lon_deg = g.longitude_deg;
+        if (alt_km != nullptr) *alt_km = g.altitude_km;
+        return 0;
+    });
+}
+
+int gygax_satlink_observe(const gygax_satellite* sat, double lat_deg, double lon_deg, double elevation_m, double unix_seconds,
+                          gygax_satlink_look* out) {
+    return guarded([&] {
+        if (out == nullptr) throw std::invalid_argument("output is null");
+        const auto look = sat->sat->observe({lat_deg, lon_deg, elevation_m}, unix_seconds);
+        *out = {look.elevation_deg, look.azimuth_deg, look.range_km, look.range_rate_km_s};
+        return 0;
+    });
+}
+
+double gygax_satlink_doppler_hz(const gygax_satellite* sat, double lat_deg, double lon_deg, double elevation_m, double unix_seconds,
+                                double carrier_hz) {
+    try {
+        return sat->sat->dopplerShiftHz({lat_deg, lon_deg, elevation_m}, unix_seconds, carrier_hz);
+    } catch (const std::exception& e) {
+        setError(e.what());
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+}
+
+long long gygax_satlink_passes(const gygax_satellite* sat, double lat_deg, double lon_deg, double elevation_m, double start_unix,
+                               double end_unix, double min_elevation_deg, gygax_satlink_pass* out, size_t capacity) {
+    return guardedLong([&] {
+        const auto passes = sat->sat->passes({lat_deg, lon_deg, elevation_m}, start_unix, end_unix, min_elevation_deg);
+        for (std::size_t i = 0; i < passes.size() && i < capacity && out != nullptr; ++i) {
+            const auto& p = passes[i];
+            out[i] = {p.rise_unix,       p.culmination_unix,     p.set_unix,           p.max_elevation_deg, p.rise_azimuth_deg,
+                      p.set_azimuth_deg, p.rise_clipped ? 1 : 0, p.set_clipped ? 1 : 0};
+        }
+        return static_cast<long long>(passes.size());
+    });
+}
+
+char* gygax_satlink_rig_set_freq(const char* host, int port, double freq_hz, int timeout_ms) {
+    try {
+        const std::string h = (host != nullptr && host[0] != '\0') ? host : "127.0.0.1";
+        return duplicate(
+            gygax::satlink::RigClient::setRigFrequency(h, port == 0 ? gygax::satlink::kHamlibDefaultPort : port, freq_hz, timeout_ms));
+    } catch (const std::exception& e) {
+        setError(e.what());
+        return nullptr;
+    }
 }
 }

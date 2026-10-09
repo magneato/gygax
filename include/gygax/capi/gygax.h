@@ -4,8 +4,8 @@
 /*
  * Gygax C API
  *
- * This header exposes the supported C interface for neuromorphic networks
- * and vectorized simulation environments. Handles are opaque; callers own
+ * This header exposes the supported C interface for neuromorphic networks,
+ * vectorized simulation environments and SatLink satellite tracking. Handles are opaque; callers own
  * each successful handle returned by a create function and must destroy it.
  *
  * Versioning: gygax_version() reports the library's project version.
@@ -143,6 +143,79 @@ GYGAX_API const uint8_t* gygax_vecenv_terminated(const gygax_vecenv* env);
 GYGAX_API const uint8_t* gygax_vecenv_truncated(const gygax_vecenv* env);
 GYGAX_API const uint8_t* gygax_vecenv_collided(const gygax_vecenv* env);
 GYGAX_API const uint8_t* gygax_vecenv_reached_goal(const gygax_vecenv* env);
+
+/*
+ * SatLink: SGP4/SDP4 satellite tracking. Times are Unix seconds (UTC); positions are km,
+ * velocities km/s; observers are WGS-84 latitude/longitude in degrees and height in metres.
+ */
+
+/** Opaque handle to a satellite (a parsed two-line element set and its propagator). */
+typedef struct gygax_satellite gygax_satellite;
+
+/** What a ground station sees. Range rate is positive while the satellite recedes. */
+typedef struct gygax_satlink_look {
+    double elevation_deg;
+    double azimuth_deg;
+    double range_km;
+    double range_rate_km_s;
+} gygax_satlink_look;
+
+/** One pass above a minimum elevation. Clipped flags mark a pass cut by the search window. */
+typedef struct gygax_satlink_pass {
+    double rise_unix;
+    double culmination_unix;
+    double set_unix;
+    double max_elevation_deg;
+    double rise_azimuth_deg;
+    double set_azimuth_deg;
+    int rise_clipped;
+    int set_clipped;
+} gygax_satlink_pass;
+
+/**
+ * Parse a two-line element set (name may be NULL). Checksums are verified.
+ * Returns NULL on failure; gygax_last_error() names the offending line and column.
+ */
+GYGAX_API gygax_satellite* gygax_satlink_create(const char* name, const char* line1, const char* line2);
+/** Destroy a satellite handle; NULL is accepted. */
+GYGAX_API void gygax_satlink_destroy(gygax_satellite* sat);
+/** Element epoch as Unix seconds. */
+GYGAX_API double gygax_satlink_epoch_unix(const gygax_satellite* sat);
+/** Orbital period in minutes. */
+GYGAX_API double gygax_satlink_period_minutes(const gygax_satellite* sat);
+/** 1 when the SDP4 deep-space terms apply (period of 225 minutes or more), else 0. */
+GYGAX_API int gygax_satlink_is_deep_space(const gygax_satellite* sat);
+
+/**
+ * State at a time. frame 0 is TEME (SGP4's inertial frame), 1 is Earth-fixed (ECEF).
+ * Either output may be NULL. Returns 0, or -1 with gygax_last_error() set (e.g. a decayed orbit).
+ */
+GYGAX_API int gygax_satlink_state(const gygax_satellite* sat, double unix_seconds, int frame, double position_km[3],
+                                  double velocity_km_s[3]);
+/** Sub-satellite point: geodetic latitude, longitude (degrees) and altitude (km). Returns 0 or -1. */
+GYGAX_API int gygax_satlink_subpoint(const gygax_satellite* sat, double unix_seconds, double* lat_deg, double* lon_deg, double* alt_km);
+/** Look angles, range and range rate from an observer. Returns 0 or -1. */
+GYGAX_API int gygax_satlink_observe(const gygax_satellite* sat, double lat_deg, double lon_deg, double elevation_m, double unix_seconds,
+                                    gygax_satlink_look* out);
+/**
+ * Doppler shift (Hz) of a downlink carrier at the observer, from the exact range rate.
+ * Returns NaN on failure, with gygax_last_error() set.
+ */
+GYGAX_API double gygax_satlink_doppler_hz(const gygax_satellite* sat, double lat_deg, double lon_deg, double elevation_m,
+                                          double unix_seconds, double carrier_hz);
+/**
+ * Passes above min_elevation_deg between two times, earliest first. Copies up to capacity passes
+ * into out (which may be NULL when capacity is 0) and returns how many there are in total, or -1.
+ */
+GYGAX_API long long gygax_satlink_passes(const gygax_satellite* sat, double lat_deg, double lon_deg, double elevation_m, double start_unix,
+                                         double end_unix, double min_elevation_deg, gygax_satlink_pass* out, size_t capacity);
+
+/**
+ * Send `F <hz>` to Hamlib rigctld (host NULL or "" means 127.0.0.1; port 0 means 4532) and
+ * return its reply, e.g. "RPRT 0", allocated by Gygax and freed with gygax_free().
+ * Returns NULL if rigctld cannot be reached or does not answer within timeout_ms.
+ */
+GYGAX_API char* gygax_satlink_rig_set_freq(const char* host, int port, double freq_hz, int timeout_ms);
 
 #ifdef __cplusplus
 }

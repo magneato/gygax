@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OHFLOCK · Gygax</title>
+<style>
+  :root {
+    --ink: #e8edf0; --muted: #99a8b1; --dim: #63737e; --night: #05080c; --panel: #0b1117e6; --line: #24323c;
+    --cyan: #86e1d1; --gold: #efbd74; --red: #ee897f; --r: #ff4d5e; --g: #4dff9a; --b: #5aa8ff; --w: #fff3d6;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--night); color: var(--ink); font: 13px/1.5 var(--sans); }
+  canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  canvas#scene:active { cursor: grabbing; }
+  .panel { position: fixed; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(6px); }
+  #title { top: 14px; left: 14px; padding: 14px 16px 12px; width: 352px; }
+  #title h1 { margin: 0; font: 400 30px/1 var(--serif); letter-spacing: .02em; }
+  #title h1 span { color: var(--gold); }
+  #title .sub { margin-top: 6px; color: var(--muted); font-size: 12px; }
+  #clock { margin-top: 10px; font: 500 15px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  #clock small { color: var(--dim); font-size: 11px; }
+  .big { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; margin-top: 12px; background: var(--line); border: 1px solid var(--line); }
+  .big div { padding: 8px 9px; background: #070b10; }
+  .big span { display: block; color: var(--dim); font: 9px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+  .big strong { display: block; font: 600 22px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  #zero { color: var(--cyan); }
+  #outcomes { margin-top: 12px; }
+  .bar { display: grid; grid-template-columns: 112px 1fr 34px; gap: 8px; align-items: center; font: 10.5px/1.9 var(--mono); color: var(--muted); }
+  .bar i { display: block; height: 6px; background: var(--c); border-radius: 1px; transition: width .2s; }
+  .bar b { color: var(--ink); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+  #state { top: 14px; right: 14px; width: 250px; padding: 12px; }
+  #state h2, #log h2 { margin: 0 0 6px; color: var(--dim); font: 9px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+  #sky { display: block; width: 226px; height: 226px; }
+  .chip { display: inline-block; margin: 6px 4px 0 0; padding: 2px 6px; border: 1px solid var(--line); color: var(--muted); font: 10px var(--mono); }
+  .chip.on { border-color: var(--c, var(--cyan)); color: var(--ink); }
+  #nav { margin-top: 8px; font: 11px/1.6 var(--mono); color: var(--muted); }
+  #nav b { color: var(--ink); font-weight: 500; }
+  #log { left: 14px; bottom: 74px; width: min(620px, calc(100% - 28px)); padding: 10px 12px; max-height: 172px; overflow: hidden; }
+  #log div { font: 11.5px/1.55 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #log div b { font-weight: 500; }
+  #log .brain b { color: var(--cyan); } #log .opfor b { color: var(--red); } #log .sky b { color: var(--gold); } #log .outcome b { color: var(--ink); } #log .order b { color: var(--gold); }
+  #controls { left: 14px; right: 14px; bottom: 14px; height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+  #controls button { cursor: pointer; min-width: 34px; height: 30px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 12px var(--mono); }
+  #controls button.on { border-color: var(--cyan); color: var(--cyan); }
+  #seek { flex: 1; accent-color: var(--cyan); }
+  #camname { color: var(--dim); font: 10px var(--mono); min-width: 120px; text-align: right; }
+  #caption { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); max-width: min(560px, 46vw); text-align: center; font: 400 17px/1.35 var(--serif); color: #f1ead9; text-shadow: 0 1px 12px #000; pointer-events: none; transition: opacity .6s; }
+  #help { position: fixed; right: 14px; bottom: 74px; width: 250px; padding: 10px 12px; font: 10.5px/1.7 var(--mono); color: var(--muted); }
+  #help b { color: var(--ink); font-weight: 500; }
+  @media (max-width: 900px) { #state, #help { display: none; } #title { width: calc(100% - 28px); } #log { display: none; } #caption { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="A 3D replay of the OHFLOCK simulation"></canvas>
+
+<section id="title" class="panel">
+  <h1>OH<span>FLOCK</span></h1>
+  <div class="sub">Twenty-four unarmed kites hold a relief corridor open with light, sound and SatLink. A fictional Gygax simulation.</div>
+  <div id="clock">T+00:00 <small></small></div>
+  <div class="big">
+    <div><span>Fired at flock</span><strong id="shots">0</strong></div>
+    <div><span>Fired by flock</span><strong id="zero">0</strong></div>
+    <div><span>Hits taken</span><strong id="hits">0</strong></div>
+  </div>
+  <div id="outcomes"></div>
+</section>
+
+<section id="state" class="panel">
+  <h2>Sky over the corridor · SatLink</h2>
+  <canvas id="sky" width="452" height="452"></canvas>
+  <div id="chips"></div>
+  <div id="nav"></div>
+</section>
+
+<section id="log" class="panel"><h2>Narrative</h2><div id="lines"></div></section>
+<div id="caption"></div>
+<section id="help" class="panel">
+  <b>drag</b> orbit · <b>wheel</b> zoom · <b>space</b> play/pause<br>
+  <b>1</b> director · <b>2</b> overview · <b>3</b> convoy · <b>4</b> SAM · <b>5</b> chase a kite<br>
+  lasers aim at <b>sensors only</b>; nobody in this scenario is hurt
+</section>
+
+<section id="controls" class="panel">
+  <button id="play" class="on" title="Play or pause (space)">❚❚</button>
+  <button data-speed="4">4×</button><button data-speed="8" class="on">8×</button><button data-speed="16">16×</button><button data-speed="32">32×</button>
+  <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek">
+  <span id="camname">director</span>
+</section>
+
+<script>
+window.OHFLOCK = /*OHFLOCK_DATA*/null;
+</script>
+<script>
+(() => {
+  "use strict";
+  const D = window.OHFLOCK;
+  const $ = (s) => document.querySelector(s);
+  if (!D) { document.body.insertAdjacentHTML("beforeend", "<p style='padding:40px'>No replay data. Generate one with <code>ohflock --html FILE</code>.</p>"); return; }
+  const U = D.meta.units, S = D.meta.strings, F = D.frames, E = D.events;
+  const T0 = F[0].t, T1 = F[F.length - 1].t;
+  const kindOf = U.map(u => u.kind);
+  const colours = { R: "#ff4d5e", G: "#4dff9a", B: "#5aa8ff", E: "#fff3d6", W: "#fff3d6" };
+  const OUT = ["in flight", "hit", "notched", "outmanoeuvred", "dazzled", "phantom", "decoy spot", "lost lock", "spent"];
+  const OUTC = ["#888888", "#ee897f", "#5aa8ff", "#c79bff", "#ff4d5e", "#efbd74", "#4dff9a", "#86e1d1", "#666666"];
+  const WEAP = ["IR missile", "radar missile", "SAM (radar)", "SAM (optical)", "cannon", "AAA", "laser-guided bomb"];
+
+  // ---- terrain: deterministic dunes ---------------------------------------------------------
+  const N = 60, HALF = 22000, RELIEF = 2.4; // dune relief exaggerated for legibility at this scale
+  function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+  function noise(x, y) {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  }
+  function ground(x, y) {
+    // Long seif dunes running north-west, flattened along the road.
+    const ridge = Math.pow(Math.abs(Math.sin((x * 0.8 + y * 0.6) / 1300 + noise(x / 4000, y / 4000) * 2.4)), 2.2) * 95;
+    const swell = noise(x / 6000 + 9, y / 6000 + 3) * 70 + noise(x / 1500, y / 1500) * 12;
+    const road = Math.min(1, Math.abs(x) / 900);
+    return ((ridge + swell) * (0.25 + 0.75 * road) - 30) * RELIEF;
+  }
+  const grid = [];
+  for (let j = 0; j <= N; j++) { grid.push([]); for (let i = 0; i <= N; i++) { const x = -HALF + 2 * HALF * i / N, y = -HALF + 2 * HALF * j / N; grid[j].push([x, y, ground(x, y)]); } }
+  // Contours (marching squares on the height grid, once): the topographic linework that makes dunes legible at night.
+  const contours = [];
+  for (let level = -60; level <= 400; level += 30) {
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const c = [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]];
+      const pts = [];
+      for (let e = 0; e < 4; e++) {
+        const a = c[e], b = c[(e + 1) % 4];
+        if ((a[2] - level) * (b[2] - level) < 0) { const k = (level - a[2]) / (b[2] - a[2]); pts.push([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, level + 3]); }
+      }
+      if (pts.length >= 2) contours.push([pts[0], pts[1], level]);
+      if (pts.length === 4) contours.push([pts[2], pts[3], level]);
+    }
+  }
+  const stars = Array.from({ length: 420 }, (_, i) => ({ az: hash(i, 3) * 360, el: Math.pow(hash(i, 7), 0.7) * 88 + 1, m: 0.25 + hash(i, 11) * 0.75 }));
+
+  // ---- camera ---------------------------------------------------------------------------------
+  const canvas = $("#scene"), ctx = canvas.getContext("2d");
+  let W = 0, H = 0, DPR = 1;
+  function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; canvas.width = W * DPR; canvas.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+  addEventListener("resize", resize); resize();
+  const cam = { yaw: -0.55, pitch: 0.26, dist: 14000, target: [0, 0, 400], fov: 1.0, mode: "director", kite: 7, userUntil: 0 };
+  let eye = [0, 0, 0], basis = null;
+  function setupCamera() {
+    const cp = Math.cos(cam.pitch);
+    eye = [cam.target[0] + Math.sin(cam.yaw) * cp * cam.dist, cam.target[1] - Math.cos(cam.yaw) * cp * cam.dist, cam.target[2] + Math.sin(cam.pitch) * cam.dist];
+    const f = norm([cam.target[0] - eye[0], cam.target[1] - eye[1], cam.target[2] - eye[2]]);
+    const r = norm([f[1], -f[0], 0]);
+    const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+    basis = { f, r, u };
+  }
+  function norm(v) { const n = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / n, v[1] / n, v[2] / n]; }
+  function project(p) {
+    const d = [p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]];
+    const z = d[0] * basis.f[0] + d[1] * basis.f[1] + d[2] * basis.f[2];
+    if (z < 50) return null;
+    const s = (H * 0.5) / Math.tan(cam.fov / 2) / z;
+    return [W / 2 + (d[0] * basis.r[0] + d[1] * basis.r[1] + d[2] * basis.r[2]) * s, H / 2 - (d[0] * basis.u[0] + d[1] * basis.u[1] + d[2] * basis.u[2]) * s, z, s];
+  }
+  function skyDir(azDeg, elDeg) { // a direction on the celestial sphere, drawn far away
+    const a = azDeg * Math.PI / 180, e = elDeg * Math.PI / 180, R = 900000;
+    return [eye[0] + Math.sin(a) * Math.cos(e) * R, eye[1] + Math.cos(a) * Math.cos(e) * R, eye[2] + Math.sin(e) * R];
+  }
+
+  // ---- interpolation ----------------------------------------------------------------------------
+  function frameAt(t) {
+    let lo = 0, hi = F.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (F[m].t <= t) lo = m; else hi = m; }
+    const a = F[lo], b = F[hi], k = b.t > a.t ? Math.max(0, Math.min(1, (t - a.t) / (b.t - a.t))) : 0;
+    return { a, b, k, i: lo };
+  }
+  const lerp = (x, y, k) => x + (y - x) * k;
+  function unitPos(fr, i) { const p = fr.a.u[i], q = fr.b.u[i]; return [lerp(p[0], q[0], fr.k), lerp(p[1], q[1], fr.k), lerp(p[2], q[2], fr.k)]; }
+  function landPos(p) { return [p[0], p[1], p[2] + Math.max(0, ground(p[0], p[1]))]; }
+
+  // ---- drawing ------------------------------------------------------------------------------------
+  function drawSky(fr) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#02040a"); g.addColorStop(0.45, "#081120"); g.addColorStop(0.62, "#1a1e2a"); g.addColorStop(1, "#1a1e28");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    for (const s of stars) {
+      const p = project(skyDir(s.az, s.el)); if (!p) continue;
+      ctx.fillStyle = `rgba(220,230,255,${0.25 + 0.55 * s.m})`; ctx.fillRect(p[0], p[1], s.m * 1.6, s.m * 1.6);
+    }
+    // Satellites, where SatLink says they are, drawn on the sky.
+    for (const k of fr.a.k) {
+      const p = project(skyDir(k[2], k[1])); if (!p) continue;
+      const relay = k[3] === 1, link = relay && k[1] >= 25;
+      ctx.fillStyle = relay ? (link ? "#86e1d1" : "#86e1d188") : "#ee897f";
+      ctx.beginPath(); ctx.arc(p[0], p[1], link || !relay ? 3 : 2, 0, 7); ctx.fill();
+      if (link || !relay) { ctx.font = "10px ui-monospace, monospace"; ctx.fillText(k[0], p[0] + 6, p[1] - 4); }
+    }
+  }
+  // Moonlight from the south-east, 35 degrees up; distance fog fades the desert into the horizon glow.
+  const MOON = norm([0.55, -0.55, 0.62]);
+  const FOG = [26, 30, 40];
+  function shade(nrm, z, h) {
+    const lit = Math.max(0, nrm[0] * MOON[0] + nrm[1] * MOON[1] + nrm[2] * MOON[2]);
+    const v = 0.08 + 0.92 * Math.pow(lit, 2.2);
+    const base = [12 + 92 * v + h * 0.02, 15 + 84 * v + h * 0.015, 26 + 84 * v];
+    const f = 1 - Math.exp(-z / 30000);
+    return `rgb(${Math.round(base[0] + (FOG[0] - base[0]) * f)},${Math.round(base[1] + (FOG[1] - base[1]) * f)},${Math.round(base[2] + (FOG[2] - base[2]) * f)})`;
+  }
+  function drawGround() {
+    const quads = [];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const a = grid[j][i], b = grid[j][i + 1], c = grid[j + 1][i + 1], d = grid[j + 1][i];
+      const pa = project(a), pb = project(b), pc = project(c), pd = project(d);
+      if (!pa || !pb || !pc || !pd) continue;
+      const step = 2 * HALF / N;
+      const nrm = norm([((a[2] - b[2]) + (d[2] - c[2])) / 2, ((a[2] - d[2]) + (b[2] - c[2])) / 2, step]);
+      const z = (pa[2] + pc[2]) / 2;
+      quads.push([z, pa, pb, pc, pd, shade(nrm, z, a[2])]);
+    }
+    quads.sort((x, y) => y[0] - x[0]);
+    for (const q of quads) {
+      ctx.fillStyle = q[5]; ctx.strokeStyle = q[5]; ctx.lineWidth = 0.6; // stroke in the fill colour hides seams
+      ctx.beginPath(); ctx.moveTo(q[1][0], q[1][1]); ctx.lineTo(q[2][0], q[2][1]); ctx.lineTo(q[3][0], q[3][1]); ctx.lineTo(q[4][0], q[4][1]); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    // Contour lines, brighter on the high ground and fading with distance.
+    ctx.lineWidth = 1;
+    for (const [a3, b3, level] of contours) {
+      const a = project(a3), b = project(b3); if (!a || !b) continue;
+      const f = Math.exp(-a[2] / 26000), k = 0.05 + 0.13 * Math.min(1, Math.max(0, level / 260));
+      ctx.strokeStyle = `rgba(134,225,209,${(k * f).toFixed(3)})`; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+    // The road.
+    ctx.strokeStyle = "rgba(239,189,116,0.35)"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 6]); ctx.beginPath();
+    let first = true;
+    for (let y = -HALF; y <= HALF; y += 500) { const p = project([0, y, ground(0, y) + 2]); if (!p) { first = true; continue; } if (first) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]); first = false; }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  function glowDot(p, r, col, alpha = 1) {
+    const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], r * 3.2);
+    g.addColorStop(0, col); g.addColorStop(0.35, col + "aa"); g.addColorStop(1, col + "00");
+    ctx.globalAlpha = alpha; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], r * 3.2, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  function drawJet(p, heading, col, size) {
+    const c = Math.cos(heading), s = Math.sin(heading), pts = [[1.2, 0], [-0.8, 0.75], [-0.45, 0], [-0.8, -0.75]];
+    ctx.fillStyle = col; ctx.beginPath();
+    pts.forEach(([x, y], i) => { const X = p[0] + (x * c - y * s) * size, Y = p[1] - (x * s + y * c) * size; if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); });
+    ctx.closePath(); ctx.fill();
+    glowDot([p[0] - c * size * 0.9, p[1] + s * size * 0.9], size * 0.35, "#ffb35c", 0.9); // afterburner
+  }
+  const trails = new Map();
+  let lastT = -1;
+  function drawScene(t) {
+    const fr = frameAt(t);
+    setupCamera();
+    drawSky(fr);
+    drawGround();
+    ctx.globalCompositeOperation = "source-over";
+    const items = [];
+    for (let i = 0; i < U.length; i++) {
+      const row = fr.a.u[i]; if (!row[3] && !fr.b.u[i][3]) continue;
+      const kind = kindOf[i];
+      let p = unitPos(fr, i);
+      if (kind === "truck" || kind === "SAM battery" || kind === "AAA gun" || kind === "acoustic array" || kind === "GNSS jammer") p = landPos(p);
+      else p[2] += Math.max(0, ground(p[0], p[1]));
+      const s = project(p); if (!s) continue;
+      items.push([s[2], i, s, p]);
+    }
+    items.sort((x, y) => y[0] - x[0]);
+    // Drop lines and units.
+    for (const [, i, s, p] of items) {
+      const u = U[i], kind = kindOf[i];
+      if (kind === "kite") {
+        const g = project([p[0], p[1], ground(p[0], p[1])]);
+        if (g) { ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(g[0], g[1]); ctx.stroke(); }
+        glowDot(s, Math.min(4.5, Math.max(1.6, s[3] * 60)), colours[u.section] || "#fff");
+      } else if (kind === "fighter" || kind === "strike jet") {
+        const q = fr.b.u[i], h = Math.atan2(q[1] - fr.a.u[i][1], q[0] - fr.a.u[i][0]);
+        const sp = project([p[0] + Math.cos(h) * 100, p[1] + Math.sin(h) * 100, p[2]]);
+        const sh = sp ? Math.atan2(-(sp[1] - s[1]), sp[0] - s[0]) : h;
+        drawJet(s, sh, kind === "fighter" ? "#d88a5a" : "#c96b6b", Math.min(16, Math.max(5, s[3] * 260)));
+        ctx.fillStyle = "#ee897fcc"; ctx.font = "10px ui-monospace, monospace"; ctx.fillText(u.call, s[0] + 9, s[1] - 7 - (u.id % 4) * 11);
+      } else if (kind === "truck") {
+        const r = Math.min(6, Math.max(2, s[3] * 40));
+        ctx.fillStyle = "#efbd74"; ctx.fillRect(s[0] - r, s[1] - r * 0.6, r * 2, r * 1.2);
+        glowDot([s[0], s[1] - r], r * 0.6, "#fff6d0", 0.8);
+      } else if (kind === "SAM battery") {
+        ctx.strokeStyle = "#ee897f"; ctx.lineWidth = 1.5; ctx.beginPath();
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3, r = Math.max(5, s[3] * 300); ctx.lineTo(s[0] + Math.cos(a) * r, s[1] + Math.sin(a) * r * 0.5); }
+        ctx.closePath(); ctx.stroke(); ctx.fillStyle = "#ee897fcc"; ctx.font = "10px ui-monospace, monospace"; ctx.fillText("SAM", s[0] + 10, s[1] - 6);
+      } else if (kind === "AAA gun") {
+        const r = Math.max(3, s[3] * 120); ctx.fillStyle = "#ee897f"; ctx.fillRect(s[0] - r, s[1] - r * 0.5, r * 2, r);
+        ctx.fillStyle = "#ee897faa"; ctx.font = "10px ui-monospace, monospace"; ctx.fillText(u.call, s[0] + 8, s[1] + 12);
+      } else if (kind === "acoustic array") {
+        ctx.strokeStyle = "#efbd7488"; ctx.lineWidth = 1;
+        for (let k = 1; k <= 2; k++) { ctx.beginPath(); ctx.arc(s[0], s[1], k * 4, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+      } else if (kind === "GNSS jammer" && t >= 75) {
+        const pulse = (t * 1.3) % 1;
+        ctx.strokeStyle = `rgba(238,137,127,${0.35 * (1 - pulse)})`; ctx.beginPath(); ctx.arc(s[0], s[1], 8 + pulse * 60, 0, 7); ctx.stroke();
+        ctx.fillStyle = "#ee897faa"; ctx.font = "10px ui-monospace, monospace"; ctx.fillText("GNSS JAMMER", s[0] + 8, s[1] - 6);
+      }
+    }
+    ctx.globalCompositeOperation = "lighter";
+    // Thrown sound: rings expanding from each phantom.
+    for (const ph of fr.a.p) {
+      const p = [ph[0], ph[1], ph[2] + Math.max(0, ground(ph[0], ph[1]))], s = project(p); if (!s) continue;
+      for (let k = 0; k < 3; k++) {
+        const ph2 = ((t * 0.9 + k / 3) % 1), r = Math.max(4, s[3] * 380) * (0.2 + ph2);
+        ctx.strokeStyle = `rgba(239,189,116,${0.55 * (1 - ph2)})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(s[0], s[1], r, r * 0.55, 0, 0, 7); ctx.stroke();
+      }
+      ctx.fillStyle = "#efbd74"; ctx.font = "10px ui-monospace, monospace"; ctx.fillText("♪", s[0] - 3, s[1] + 3);
+    }
+    // Lasers.
+    for (const bm of fr.a.b) {
+      const from = U.findIndex(u => u.id === bm[0]); if (from < 0) continue;
+      const p0 = unitPos(fr, from); p0[2] += Math.max(0, ground(p0[0], p0[1]));
+      const p1 = [bm[1], bm[2], bm[3] + Math.max(0, ground(bm[1], bm[2]))];
+      const a = project(p0), b = project(p1); if (!a || !b) continue;
+      const col = colours[bm[4]] || "#fff";
+      const flick = 0.75 + 0.25 * Math.sin(t * 40 + bm[0]);
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.22 * flick; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      ctx.globalAlpha = 0.95 * flick; ctx.lineWidth = 1.2; ctx.stroke(); ctx.globalAlpha = 1;
+      glowDot(b, 3, col, 0.9);
+    }
+    // Shots: streaks with fading trails, and how each one ended.
+    if (Math.abs(t - lastT) > 3) trails.clear();
+    lastT = t;
+    const seen = new Set();
+    for (const sh of fr.a.s) {
+      const nxt = fr.b.s.find(x => x[0] === sh[0]);
+      const p = nxt && sh[5] < 0 ? [lerp(sh[2], nxt[2], fr.k), lerp(sh[3], nxt[3], fr.k), lerp(sh[4], nxt[4], fr.k)] : [sh[2], sh[3], sh[4]];
+      p[2] += Math.max(0, ground(p[0], p[1]));
+      seen.add(sh[0]);
+      const tr = trails.get(sh[0]) || []; tr.push(p); if (tr.length > 26) tr.shift(); trails.set(sh[0], tr);
+      const weapon = sh[1], gun = weapon === 4 || weapon === 5;
+      const col = gun ? "255,190,110" : weapon === 6 ? "255,120,120" : "255,240,220";
+      for (let k = 1; k < tr.length; k++) {
+        const a = project(tr[k - 1]), b = project(tr[k]); if (!a || !b) continue;
+        ctx.strokeStyle = `rgba(${col},${(k / tr.length) * (gun ? 0.9 : 0.6)})`; ctx.lineWidth = gun ? 1.4 : 2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      }
+      const s = project(p);
+      if (s && sh[5] < 0) glowDot(s, gun ? 1.5 : 2.5, gun ? "#ffbe6e" : "#fff0dc");
+      if (s && sh[5] >= 0) {
+        const outc = sh[5];
+        glowDot(s, outc === 1 ? 9 : 5, OUTC[outc], 0.85);
+        if (!gun || outc === 1) { ctx.fillStyle = OUTC[outc]; ctx.font = "10px ui-monospace, monospace"; ctx.fillText(OUT[outc], s[0] + 7, s[1] + 3); }
+      }
+    }
+    for (const k of trails.keys()) if (!seen.has(k)) trails.delete(k);
+    ctx.globalCompositeOperation = "source-over";
+    return fr;
+  }
+
+  // ---- HUD ---------------------------------------------------------------------------------------
+  const outOrder = [5, 4, 2, 3, 6, 7, 1];
+  $("#outcomes").innerHTML = outOrder.map(o => `<div class="bar" style="--c:${OUTC[o]}"><span>${o === 1 ? "hit" : OUT[o]}</span><i id="ob${o}" style="width:0"></i><b id="on${o}">0</b></div>`).join("");
+  const skyc = $("#sky"), sctx = skyc.getContext("2d");
+  function drawSkyDome(fr) {
+    const w = 452, c = w / 2, R = c - 18;
+    sctx.clearRect(0, 0, w, w);
+    sctx.strokeStyle = "#24323c"; sctx.lineWidth = 2;
+    for (const e of [0, 30, 60]) { sctx.beginPath(); sctx.arc(c, c, R * (90 - e) / 90, 0, 7); sctx.stroke(); }
+    sctx.strokeStyle = "#86e1d133"; sctx.setLineDash([4, 6]); sctx.beginPath(); sctx.arc(c, c, R * (90 - 25) / 90, 0, 7); sctx.stroke(); sctx.setLineDash([]);
+    sctx.fillStyle = "#63737e"; sctx.font = "20px ui-monospace, monospace";
+    [["N", 0], ["E", 90], ["S", 180], ["W", 270]].forEach(([l, a]) => { const r = R + 10, x = c + Math.sin(a * Math.PI / 180) * r, y = c - Math.cos(a * Math.PI / 180) * r; sctx.fillText(l, x - 6, y + 7); });
+    for (const k of fr.a.k) {
+      const r = R * (90 - k[1]) / 90, a = k[2] * Math.PI / 180, x = c + Math.sin(a) * r, y = c - Math.cos(a) * r;
+      const relay = k[3] === 1, link = relay && k[1] >= 25;
+      sctx.fillStyle = relay ? (link ? "#86e1d1" : "#86e1d177") : "#ee897f";
+      sctx.beginPath(); sctx.arc(x, y, link || !relay ? 8 : 5, 0, 7); sctx.fill();
+      if (link) { sctx.strokeStyle = "#86e1d199"; sctx.lineWidth = 2; sctx.beginPath(); sctx.moveTo(c, c); sctx.lineTo(x, y); sctx.stroke(); }
+      if (link || !relay) { sctx.font = "18px ui-monospace, monospace"; sctx.fillText(k[0] + (relay ? ` ${k[4] > 0 ? "+" : ""}${(k[4] / 1000).toFixed(1)} kHz` : ""), x + 12, y + 6); }
+    }
+    sctx.fillStyle = "#efbd74"; sctx.beginPath(); sctx.arc(c, c, 5, 0, 7); sctx.fill();
+  }
+  function hud(t, fr) {
+    const h = fr.a.h;
+    const sec = Math.max(0, Math.floor(t));
+    const utc = new Date((D.meta.startUnix + t) * 1000).toISOString().slice(11, 19);
+    $("#clock").innerHTML = `T+${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")} <small>${utc} UTC · ${D.meta.satlink ? "SatLink on" : "WITHOUT SatLink"}</small>`;
+    $("#shots").textContent = h.shots; $("#hits").textContent = h.hits;
+    const max = Math.max(1, ...outOrder.map(o => h.out[o]));
+    for (const o of outOrder) { $("#ob" + o).style.width = (100 * h.out[o] / max).toFixed(1) + "%"; $("#on" + o).textContent = h.out[o]; }
+    const relays = fr.a.k.filter(k => k[3] === 1 && k[1] >= 25).length;
+    $("#chips").innerHTML =
+      `<span class="chip ${h.jam ? "on" : ""}" style="--c:#ee897f">GNSS ${h.jam ? "JAMMED" : "ok"}</span>` +
+      `<span class="chip ${relays ? "on" : ""}">relay ${relays ? "link up" : "none overhead"}</span>` +
+      `<span class="chip ${h.recon ? "on" : ""}" style="--c:#ee897f">OKULAR-2 ${h.recon ? "OVERHEAD" : "below 30°"}</span>` +
+      `<span class="chip ${h.disp ? "on" : ""}" style="--c:#efbd74">${h.disp ? "flock dispersed" : "screen formed"}</span>`;
+    $("#nav").innerHTML = `navigation <b>${h.navSrc}</b><br>position error <b>${h.nav} m</b> · kites <b>${24 - h.lost}/24</b> · convoy hits <b>${h.convoyHits}</b>`;
+    drawSkyDome(fr);
+  }
+  let shownEvents = -1;
+  function narrative(t) {
+    let n = 0; while (n < E.length && E[n][0] <= t) n++;
+    if (n === shownEvents) return;
+    shownEvents = n;
+    const last = E.slice(Math.max(0, n - 7), n);
+    $("#lines").innerHTML = last.map(e => `<div class="${e[1]}"><b>T+${String(Math.round(e[0])).padStart(3, "0")}s ${e[1].padEnd(7)}</b> ${e[2].replace(/</g, "&lt;")}</div>`).join("");
+    const cap = $("#caption"), latest = last[last.length - 1];
+    if (latest && (latest[1] === "brain" || latest[1] === "outcome" || latest[1] === "sky") && t - latest[0] < 10) { cap.textContent = latest[2]; cap.style.opacity = 1; }
+    else cap.style.opacity = 0;
+  }
+
+  // ---- director: a camera that goes where the story is --------------------------------------------
+  function idx(call) { return U.findIndex(u => u.call === call); }
+  function director(t, fr) {
+    if (performance.now() < cam.userUntil) return;
+    const convoy = unitPos(fr, idx("TRUCK 3"));
+    if (cam.mode === "overview") { ease([0, convoy[1] * 0.5, 600], 30000, cam.pitch, 0.4); cam.yaw += 0.0006; return; }
+    if (cam.mode === "convoy") { ease(convoy, 6500, 0.28, 0.6); cam.yaw += 0.0012; return; }
+    if (cam.mode === "sam") { const sam = unitPos(fr, idx("SAM")); ease([lerp(sam[0], convoy[0], 0.45), lerp(sam[1], convoy[1], 0.45), 500], 9000, 0.22, 0.5); return; }
+    if (cam.mode === "kite") { const k = unitPos(fr, cam.kite); ease([k[0], k[1], k[2]], 2200, 0.18, 0.9); cam.yaw += 0.002; return; }
+    // Director: frame the busiest part of the fight, slowly orbiting.
+    let cx = convoy[0], cy = convoy[1], n = 1;
+    for (const sh of fr.a.s) if (sh[5] < 0) { cx += sh[2]; cy += sh[3]; n++; }
+    const focus = [cx / n * 0.6 + convoy[0] * 0.4, cy / n * 0.6 + convoy[1] * 0.4, 500];
+    const busy = fr.a.s.length + fr.a.b.length * 2;
+    ease(focus, busy > 8 ? 8000 : 12000, 0.24 + 0.07 * Math.sin(t / 60), 0.25);
+    cam.yaw += 0.0009;
+  }
+  function ease(target, dist, pitch, rate) {
+    const k = Math.min(1, rate * 0.05);
+    for (let i = 0; i < 3; i++) cam.target[i] += (target[i] - cam.target[i]) * k;
+    cam.dist += (dist - cam.dist) * k * 0.6; cam.pitch += (pitch - cam.pitch) * k * 0.4;
+  }
+
+  // ---- controls ----------------------------------------------------------------------------------
+  let t = T0, speed = 8, playing = true, prev = performance.now();
+  const seek = $("#seek");
+  $("#play").onclick = () => { playing = !playing; $("#play").textContent = playing ? "❚❚" : "▶"; $("#play").classList.toggle("on", playing); };
+  document.querySelectorAll("[data-speed]").forEach(b => b.onclick = () => { speed = +b.dataset.speed; document.querySelectorAll("[data-speed]").forEach(x => x.classList.toggle("on", x === b)); });
+  seek.oninput = () => { t = T0 + (T1 - T0) * seek.value / 1000; shownEvents = -1; };
+  let drag = null;
+  canvas.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, cam.yaw, cam.pitch]; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener("pointermove", e => { if (!drag) return; cam.yaw = drag[2] - (e.clientX - drag[0]) * 0.005; cam.pitch = Math.max(0.03, Math.min(1.35, drag[3] + (e.clientY - drag[1]) * 0.004)); cam.userUntil = performance.now() + 6000; });
+  canvas.addEventListener("pointerup", () => drag = null);
+  canvas.addEventListener("wheel", e => { e.preventDefault(); cam.dist = Math.max(1200, Math.min(60000, cam.dist * Math.exp(e.deltaY * 0.0012))); cam.userUntil = performance.now() + 6000; }, { passive: false });
+  const modes = { "1": "director", "2": "overview", "3": "convoy", "4": "sam", "5": "kite" };
+  addEventListener("keydown", e => {
+    if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+    if (modes[e.key]) {
+      cam.mode = modes[e.key]; cam.userUntil = 0;
+      if (cam.mode === "kite") { const alive = U.map((u, i) => i).filter(i => U[i].kind === "kite" && frameAt(t).a.u[i][3]); cam.kite = alive[(alive.indexOf(cam.kite) + 1) % alive.length] ?? cam.kite; }
+      $("#camname").textContent = cam.mode === "kite" ? "chasing " + U[cam.kite].call : cam.mode;
+    }
+  });
+
+  function loop(now) {
+    const dt = Math.min(0.1, (now - prev) / 1000); prev = now;
+    if (playing) { t += dt * speed; if (t > T1) t = T1; }
+    seek.value = Math.round(1000 * (t - T0) / (T1 - T0));
+    const fr = frameAt(t);
+    director(t, fr);
+    drawScene(t);
+    hud(t, fr);
+    narrative(t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

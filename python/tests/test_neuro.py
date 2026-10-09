@@ -1,4 +1,6 @@
 import math
+import os
+import re
 import unittest
 
 import gygax
@@ -7,7 +9,18 @@ from gygax import neuro
 
 class NetworkTests(unittest.TestCase):
     def test_version_matches_package(self):
-        self.assertEqual(neuro.version(), gygax.__version__)
+        self.assertEqual(gygax.version_pep440(neuro.version()), gygax.__version__)
+
+    def test_version_strings_follow_pep_440(self):
+        self.assertEqual(gygax.version_pep440("0.3.0"), "0.3.0")
+        self.assertEqual(gygax.version_pep440("0.3.1-alpha.1"), "0.3.1a1")
+        self.assertEqual(gygax.version_pep440("1.0.0-rc.2"), "1.0.0rc2")
+        with self.assertRaises(ValueError):
+            gygax.version_pep440("0.2.0alpha")
+        pyproject = os.path.join(os.path.dirname(__file__), "..", "pyproject.toml")
+        with open(pyproject) as f:
+            declared = re.search(r'^version = "([^"]+)"', f.read(), re.M).group(1)
+        self.assertEqual(declared, gygax.__version__)
 
     def test_lif_rate_matches_analytic_curve(self):
         params = neuro.LifParams()

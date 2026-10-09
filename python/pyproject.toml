@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gygax"
-version = "0.2.0"
-description = "Python bindings and client for the Gygax agent runtime and neuromorphic simulator"
+version = "0.3.0"
+description = "Python bindings and client for the Gygax agent runtime, neuromorphic simulator and SatLink satellite tracker"
 requires-python = ">=3.9"
 license = { text = "BSD-3-Clause-Clear" }
 dependencies = []
@@ -14,4 +14,4 @@ dependencies = []
 analysis = ["numpy"]
 
 [tool.setuptools]
-packages = ["gygax"]
+packages = ["gygax", "gygax.satlink", "satlink"]

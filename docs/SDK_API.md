@@ -17,12 +17,15 @@ ownership, explicit version checks, and no implied authority.
 
 The install provides the CMake target `gygax::sdk`, C and C++ plugin headers,
 the C simulation API header, the generated C++ version header, and plugin
-examples. The C API currently covers neuromorphic networks and vectorized
-simulation environments; it is not a hardware-control API.
+examples. The C API covers neuromorphic networks, vectorized simulation
+environments and SatLink satellite tracking. Its one device-facing call,
+`gygax_satlink_rig_set_freq`, retunes a radio through the Hamlib `rigctld`
+address the caller passes; nothing else in it reaches hardware, and SatLink is
+not exposed to the service or to agents.
 
 | Version identifier | Meaning | Compatibility behavior |
 | --- | --- | --- |
-| Project version (`0.2.0` today) | Product release; available as `GYGAX_VERSION_*`, `GYGAX_VERSION_STRING`, and `gygax_version()` | Pre-1.0 releases do not promise source or binary compatibility between releases. Rebuild consumers and read release notes when upgrading. |
+| Project version (`0.3.0` today) | Product release; available as `GYGAX_VERSION_*`, `GYGAX_VERSION_STRING` (with the pre-release label), `GYGAX_VERSION_CODENAME`, and `gygax_version()` | Pre-1.0 releases do not promise source or binary compatibility between releases. Rebuild consumers and read release notes when upgrading. |
 | `GYGAX_PLUGIN_ABI_VERSION` (`1`) | Layout and callbacks in `gygax/sdk/plugin.h` | The loader requires an exact match and rejects other values. There is no negotiation or compatibility shim. |
 | CMake package version | `find_package(Gygax <version>)` package selection | CMake's `SameMajorVersion` package check is a package-selection rule, not proof that arbitrary headers or binaries are ABI-compatible. |
 
@@ -32,7 +35,7 @@ rebuild plugins against the SDK release being deployed.
 
 ## Interface boundaries
 
-- **C simulation API:** opaque handles manage simulation state. Gygax owns its
+- **C API:** opaque handles manage simulation and satellite state. Gygax owns its
   returned strings (release with `gygax_free`) and environment result arrays
   (borrowed until the next reset, step, or destruction). Check the function's
   return contract and `gygax_last_error()` on the calling thread.

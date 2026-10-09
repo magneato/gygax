@@ -1,0 +1,7 @@
+# A human's hand on OHFLOCK: '<seconds> <order>'. Orders travel up through a SAHAB relay, so an order sent
+# while none is above 20 degrees waits for the next one, and SatLink says when that will be.
+# Try: ./build/ohflock --script examples/ohflock/orders.txt
+40 posture wide
+300 corridor east
+640 corridor centre
+700 posture screen
