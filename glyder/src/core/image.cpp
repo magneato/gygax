@@ -1,5 +1,6 @@
 #include <glyder/image.hpp>
 
+#include <array>
 #include <fstream>
 
 namespace glyder::image {
