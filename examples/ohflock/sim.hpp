@@ -18,6 +18,7 @@
 #include <deque>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -151,6 +152,21 @@ public:
     [[nodiscard]] V3 convoyCenter() const;
     [[nodiscard]] std::uint64_t digest() const;
 
+    // A pilot flying a kite by hand (from glyder): the flock's brain leaves that kite's motion
+    // alone, and everything else (shots at it, its laser, the outcome dice) carries on as usual.
+    void setManual(int id, bool manual);
+    [[nodiscard]] bool manual(int id) const { return manual_.count(id) > 0; }
+    void steer(int id, V3 pos, V3 vel);
+    // Satellites as seen from the corridor's origin: where they are (ENU metres) and how fast
+    // they move, from SatLink's SGP4.
+    struct SatState {
+        std::string name;
+        bool relay{false};
+        V3 pos, vel;
+        double elevation{0};
+    };
+    [[nodiscard]] std::vector<SatState> satellites() const;
+
     static constexpr double kOriginLat = 20.40, kOriginLon = 49.10, kGroundM = 310.0;
     static constexpr double kJamAt = 75.0;
     static constexpr double kRelayMaskDeg = 20.0;
@@ -216,6 +232,7 @@ private:
     bool lasers_{true}, acoustics_{true};
     double corridorShiftM_{0};
     std::vector<std::string> decisions_;
+    std::set<int> manual_;
 };
 
 } // namespace ohflock

@@ -1,0 +1,6 @@
+#pragma once
+
+namespace glyder {
+inline constexpr const char* kVersion = "@GLYDER_VERSION_FULL@";
+inline constexpr const char* kReleaseName = "@GLYDER_RELEASE_NAME@";
+} // namespace glyder

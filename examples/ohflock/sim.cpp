@@ -207,6 +207,53 @@ void Sim::updateSky() {
     reconOverhead_ = overhead;
 }
 
+void Sim::setManual(int id, bool manual) {
+    if (manual) {
+        manual_.insert(id);
+        for (auto& u : units_)
+            if (u.id == id) {
+                u.task = "piloted by hand";
+                u.breaking = false;
+            }
+        log("order", std::format("a pilot has taken {} by hand", [&] {
+                for (const auto& u : units_)
+                    if (u.id == id) return u.call;
+                return std::string("a kite");
+            }()));
+    } else if (manual_.erase(id)) {
+        log("order", "the pilot has handed back; the flock's brain flies it again");
+    }
+}
+
+void Sim::steer(int id, V3 pos, V3 vel) {
+    for (auto& u : units_)
+        if (u.id == id && u.alive) {
+            u.pos = pos;
+            u.vel = vel;
+            u.pos.z = std::max(40.0, u.pos.z);
+        }
+}
+
+std::vector<Sim::SatState> Sim::satellites() const {
+    std::vector<SatState> out;
+    const double now = startUnix_ + t_;
+    const auto here = geodetic({0, 0, 0});
+    auto enu = [&](const gygax::satlink::Satellite& s, double t) {
+        const auto look = s.observe(here, t);
+        const double az = look.azimuth_deg * kPi / 180.0, el = look.elevation_deg * kPi / 180.0, r = look.range_km * 1000.0;
+        return std::pair{V3{r * std::cos(el) * std::sin(az), r * std::cos(el) * std::cos(az), r * std::sin(el)}, look.elevation_deg};
+    };
+    auto add = [&](const gygax::satlink::Satellite& s, bool relay) {
+        const auto [p, el] = enu(s, now);
+        if (el < -2.0) return;
+        const auto [p1, el1] = enu(s, now + 1.0);
+        out.push_back({s.name(), relay, p, p1 - p, el});
+    };
+    for (const auto& r : relays_) add(r, true);
+    add(*recon_, false);
+    return out;
+}
+
 int Sim::relaysHeard() const {
     int n = 0;
     for (std::size_t r = 0; r < relays_.size(); ++r)
@@ -780,6 +827,7 @@ void Sim::brain() {
 void Sim::moveUnits() {
     for (auto& u : units_) {
         if (!u.alive || u.gone) continue;
+        if (manual_.count(u.id)) continue; // a pilot is flying it
         double speed = 0, agility = 0.6;
         switch (u.kind) {
         case Kind::Kite:

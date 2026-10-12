@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.28)
-project(gygax VERSION 0.3.0 LANGUAGES CXX)
+project(gygax VERSION 0.4.0 LANGUAGES CXX)
 
 # Pre-release label and release name. A pre-release is tagged v<version>-<label>
-# (v0.3.1-alpha.1); a final release leaves it empty and is tagged v<version> (v0.3.0).
+# (v0.4.1-alpha.1); a final release leaves it empty and is tagged v<version> (v0.4.0).
 set(GYGAX_VERSION_PRERELEASE "")
-set(GYGAX_RELEASE_NAME "Skynet")
+set(GYGAX_RELEASE_NAME "Matrix")
 if(GYGAX_VERSION_PRERELEASE AND NOT GYGAX_VERSION_PRERELEASE MATCHES "^(alpha|beta|rc)\\.[0-9]+$")
     # Only these map one to one onto PEP 440 (alpha.1 -> a1) and Debian (~alpha.1) versions.
     message(FATAL_ERROR "GYGAX_VERSION_PRERELEASE must be alpha.N, beta.N or rc.N, not '${GYGAX_VERSION_PRERELEASE}'")
@@ -33,6 +33,7 @@ option(GYGAX_BUILD_TESTS "Build unit and integration tests" ON)
 option(GYGAX_BUILD_EXAMPLES "Build examples" ON)
 option(GYGAX_BUILD_TOYS "Build the 6502/6809 assembler and CoCo emulator tools" ON)
 option(GYGAX_WERROR "Treat warnings as errors" ON)
+option(GYGAX_BUILD_GLYDER "Build glyder's portable core (VR protocol, kit, experience) and its tests" ON)
 set(GYGAX_SANITIZE "" CACHE STRING "Sanitizers to enable, e.g. address,undefined or thread")
 
 if(GYGAX_SANITIZE AND NOT MSVC)
@@ -206,9 +207,9 @@ if(Python3_FOUND)
         COMMENT "Staging the Python package in ${GYGAX_PYTHON_STAGE}")
 endif()
 
-add_executable(gygax_cli tools/gygax_cli.cpp)
+add_executable(gygax_cli tools/gygax_cli.cpp tools/glyder_devices.cpp)
 set_target_properties(gygax_cli PROPERTIES OUTPUT_NAME gygax)
-target_link_libraries(gygax_cli PRIVATE gygax)
+target_link_libraries(gygax_cli PRIVATE gygax glyder_core)
 gygax_warnings(gygax_cli)
 
 add_executable(gyde tools/gyde.cpp)
@@ -220,12 +221,12 @@ if(GYGAX_BUILD_EXAMPLES)
     target_link_libraries(research_swarm PRIVATE gygax)
     gygax_warnings(research_swarm)
 
-    add_executable(wargames examples/wargames/main.cpp examples/wargames/battlefield.cpp)
-    target_link_libraries(wargames PRIVATE gygax)
+    add_executable(wargames examples/wargames/main.cpp examples/wargames/battlefield.cpp examples/wargames/vr.cpp)
+    target_link_libraries(wargames PRIVATE gygax glyder_core)
     target_compile_definitions(wargames PRIVATE GYGAX_WARGAMES_VIEWER="${CMAKE_CURRENT_SOURCE_DIR}/examples/wargames/viewer.html")
     gygax_warnings(wargames)
-    add_executable(ohflock examples/ohflock/main.cpp examples/ohflock/sim.cpp)
-    target_link_libraries(ohflock PRIVATE gygax)
+    add_executable(ohflock examples/ohflock/main.cpp examples/ohflock/sim.cpp examples/ohflock/vr.cpp)
+    target_link_libraries(ohflock PRIVATE gygax glyder_core)
     target_compile_definitions(ohflock PRIVATE GYGAX_OHFLOCK_VIEWER="${CMAKE_CURRENT_SOURCE_DIR}/examples/ohflock/viewer.html")
     gygax_warnings(ohflock)
 
@@ -336,6 +337,16 @@ if(GYGAX_BUILD_TESTS)
         ENVIRONMENT "GYGAX_SDK_CXX=${CMAKE_CXX_COMPILER};GYGAX_SDK_LINKER_FLAGS=${CMAKE_MODULE_LINKER_FLAGS}")
 endif()
 
+# glyder: Gygax in VR. Its portable core (protocol, kit, experience) is built and tested here; the
+# Vulkan viewer and the Quest app are separate, opt-in builds (glyder/CMakePresets.json).
+if(GYGAX_BUILD_GLYDER)
+    set(GLYDER_BUILD_TESTS ${GYGAX_BUILD_TESTS} CACHE BOOL "" FORCE)
+    set(GLYDER_WERROR ${GYGAX_WERROR} CACHE BOOL "" FORCE)
+    add_subdirectory(glyder)
+else()
+    message(FATAL_ERROR "gygax serve --glyder and the examples use glyder's core: keep GYGAX_BUILD_GLYDER on")
+endif()
+
 install(TARGETS gygax_cli gygax_c gyde
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -369,7 +380,7 @@ set(CPACK_PACKAGE_NAME "gygax")
 set(CPACK_PACKAGE_VERSION ${GYGAX_VERSION_FULL})
 set(CPACK_PACKAGE_VENDOR "Neural Splines")
 set(CPACK_PACKAGE_CONTACT "robert.sitton@neuralsplines.com")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Autonomous agent runtime, inference router, neuromorphic simulator and satellite tracker")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Autonomous agent runtime, inference router, neuromorphic simulator, satellite tracker and VR host")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_DEBIAN_PACKAGE_VERSION ${GYGAX_DEBIAN_VERSION})

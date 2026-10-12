@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
+#include <memory>
 #include <optional>
 #include <chrono>
 #include <cmath>
@@ -25,6 +27,9 @@
 import gygax.tools;
 
 #include "sim.hpp"
+#include "vr.hpp"
+
+#include <glyder/net.hpp>
 
 using gygax::json::Value;
 using namespace ohflock;
@@ -35,8 +40,11 @@ std::atomic<bool> gStop{false};
 
 struct Options {
     Config config;
-    double speed{0};  // 0: as fast as possible; 1: real time; 8: eight times
-    int servePort{0}; // >0: run an embedded Gygax service for gyde
+    double speed{0};    // 0: as fast as possible; 1: real time; 8: eight times
+    int servePort{0};   // >0: run an embedded Gygax service for gyde
+    int glyderPort{-1}; // >=0: publish to glyder VR headsets on this UDP port (0: the default)
+    std::string glyderCode;
+    bool glyderOpen{false};
     std::string script, html, json;
     bool selfcheck{false}, quiet{false};
 };
@@ -47,7 +55,10 @@ void usage() {
                  "AAA and strike jets, with low-power lasers on sensors, thrown sound and SatLink. Fictional.\n\n"
                  "  --html FILE        write a self-contained 3D replay (open it in a browser)\n"
                  "  --serve PORT       run live, with flock.* tools on 127.0.0.1:PORT for gyde (gyde --url http://127.0.0.1:PORT)\n"
-                 "  --speed X          with --serve: X times real time (default 4)\n"
+                 "  --speed X          live: X times real time (default 4; real time while a pilot flies a kite)\n"
+                 "  --glyder [PORT]    live, in VR: glyder headsets on the network can watch and drop into kites\n"
+                 "  --glyder-code CODE the pairing code (default: a new six-digit code each run)\n"
+                 "  --glyder-open      no pairing code (a private, trusted network only)\n"
                  "  --script FILE      timed orders: '<seconds> <order>' per line\n"
                  "  --no-satlink       the same battle without satellite tracking aboard (the counterfactual)\n"
                  "  --seed N           engagement dice (default 1984)\n"
@@ -316,52 +327,108 @@ int serve(const Options& o) {
             return fn(input);
         };
     };
-    tools.registerTool("flock.status", locked([&](const std::string&) { return sim.status(); }), "OHFLOCK: the battle at a glance");
-    tools.registerTool("flock.order", locked([&](const std::string& in) { return sim.order(in); }),
-                       "OHFLOCK: posture screen|tight|wide, lasers on|off, acoustics on|off, corridor east|west|centre");
-    tools.registerTool("flock.explain", locked([&](const std::string&) { return sim.explain(10); }),
-                       "OHFLOCK: the flock's recent decisions and why");
-    tools.registerTool("flock.sky", locked([&](const std::string&) { return sim.sky(); }),
-                       "OHFLOCK: satellites over the corridor (SatLink)");
-
-    gygax::service::ServiceConfig sc;
-    sc.port = static_cast<std::uint16_t>(o.servePort);
-    sc.engines = {"echo"};
-    gygax::service::Service svc(sc);
-    std::string error;
-    if (!svc.start(&error)) {
-        std::cerr << "ohflock: cannot start the service: " << error << "\n";
-        return 1;
+    std::unique_ptr<gygax::service::Service> svc;
+    if (o.servePort > 0) {
+        tools.registerTool("flock.status", locked([&](const std::string&) { return sim.status(); }), "OHFLOCK: the battle at a glance");
+        tools.registerTool("flock.order", locked([&](const std::string& in) { return sim.order(in); }),
+                           "OHFLOCK: posture screen|tight|wide, lasers on|off, acoustics on|off, corridor east|west|centre");
+        tools.registerTool("flock.explain", locked([&](const std::string&) { return sim.explain(10); }),
+                           "OHFLOCK: the flock's recent decisions and why");
+        tools.registerTool("flock.sky", locked([&](const std::string&) { return sim.sky(); }),
+                           "OHFLOCK: satellites over the corridor (SatLink)");
+        gygax::service::ServiceConfig sc;
+        sc.port = static_cast<std::uint16_t>(o.servePort);
+        sc.engines = {"echo"};
+        svc = std::make_unique<gygax::service::Service>(sc);
+        std::string error;
+        if (!svc->start(&error)) {
+            std::cerr << "ohflock: cannot start the service: " << error << "\n";
+            return 1;
+        }
+        std::cout << std::format("OHFLOCK live on 127.0.0.1:{}. In another terminal:\n  gyde --url http://127.0.0.1:{}\n"
+                                 "  > tool flock.status        > tool flock.sky        > tool flock.explain\n"
+                                 "  > tool flock.order posture wide\n\n",
+                                 svc->port(), svc->port());
     }
-    std::cout << std::format("OHFLOCK live on 127.0.0.1:{}. In another terminal:\n  gyde --url http://127.0.0.1:{}\n"
-                             "  > tool flock.status        > tool flock.sky        > tool flock.explain\n"
-                             "  > tool flock.order posture wide\n\n",
-                             svc.port(), svc.port());
+
+    // glyder: the battle in VR, with a pilot able to drop into any kite.
+    std::unique_ptr<glyder::Host> host;
+    FlockPilot pilot(sim);
+    if (o.glyderPort >= 0) {
+        host = std::make_unique<glyder::Host>(hostOptions(
+            o.glyderCode, o.glyderOpen, o.glyderPort > 0 ? static_cast<std::uint16_t>(o.glyderPort) : glyder::wire::kDefaultPort));
+        std::string error;
+        if (!host->start(&error)) {
+            std::cerr << "ohflock: cannot start glyder: " << error << "\n";
+            return 1;
+        }
+        host->setTerrain(terrain());
+        std::string addrs;
+        for (const auto& a : glyder::net::localAddresses()) addrs += "  " + a.str().substr(0, a.str().rfind(':'));
+        std::cout << std::format("OHFLOCK in VR: open glyder on the headset and choose OHFLOCK{}.\n  this computer:{}  (UDP {})\n\n",
+                                 host->pairingCode().empty() ? "" : std::format(" (pairing code {})", host->pairingCode()),
+                                 addrs.empty() ? "  no network" : addrs, host->port());
+    }
+
     std::signal(SIGINT, [](int) { gStop = true; });
     const double speed = o.speed > 0 ? o.speed : 4.0;
-    std::size_t printed = 0;
-    auto next = std::chrono::steady_clock::now();
+    std::size_t printed = 0, published = 0;
+    bool bulletTime = false;
+    using clock = std::chrono::steady_clock;
+    // Sixty ticks a second: a piloted kite moves every tick, the battle steps when its clock is due.
+    const auto tick = std::chrono::microseconds(16667);
+    auto next = clock::now(), last = next;
+    double debt = 0;
     for (;;) {
         {
             std::lock_guard lock(mutex);
             if (sim.done() || gStop) break;
-            sim.step();
-            for (; printed < sim.events().size(); ++printed) {
-                const auto& e = sim.events()[printed];
-                std::cout << std::format("T+{:03.0f}s  [{:<6}] {}\n", e.t, e.kind, e.text);
+            const auto now = clock::now();
+            const double real = std::chrono::duration<double>(now - last).count();
+            last = now;
+            // Bullet time: while someone flies a kite the battle runs at real time.
+            const bool flying = pilot.piloting();
+            if (host && flying != bulletTime) {
+                bulletTime = flying;
+                host->event(glyder::wire::EventKind::Pilot,
+                            flying ? "Bullet time: the battle slows to real time while you fly"
+                                   : std::format("Back to {:g} times real time", speed),
+                            sim.time());
+            }
+            const double rate = flying ? 1.0 : speed;
+            if (host) host->service(pilot, std::min(real, 0.1) * rate);
+            debt += std::min(real, 0.25) * rate;
+            while (debt >= o.config.dt) {
+                debt -= o.config.dt;
+                sim.step();
+                for (; printed < sim.events().size(); ++printed) {
+                    const auto& e = sim.events()[printed];
+                    std::cout << std::format("T+{:03.0f}s  [{:<6}] {}\n", e.t, e.kind, e.text);
+                }
+            }
+            if (host) {
+                for (const auto& order : host->takeOrders()) {
+                    const std::string reply = sim.order(order);
+                    host->event(glyder::wire::EventKind::Order, reply, sim.time());
+                }
+                published = publish(*host, sim, published);
             }
         }
-        next += std::chrono::microseconds(static_cast<long long>(o.config.dt / speed * 1e6));
+        next += tick;
         std::this_thread::sleep_until(next);
     }
     {
         std::lock_guard lock(mutex);
         report(sim);
+        if (host) publish(*host, sim, published);
     }
-    std::cout << "(service stays up for a minute for last questions; Ctrl-C to leave)\n";
+    std::cout << "(staying up for a minute for last questions; Ctrl-C to leave)\n";
     for (int i = 0; i < 600 && !gStop; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    svc.stop();
-    for (const char* t : {"flock.status", "flock.order", "flock.explain", "flock.sky"}) tools.unregisterTool(t);
+    if (host) host->stop();
+    if (svc) {
+        svc->stop();
+        for (const char* t : {"flock.status", "flock.order", "flock.explain", "flock.sky"}) tools.unregisterTool(t);
+    }
     return 0;
 }
 
@@ -387,6 +454,13 @@ int main(int argc, char** argv) {
                 o.servePort = std::stoi(next());
             else if (a == "--speed")
                 o.speed = std::stod(next());
+            else if (a == "--glyder") {
+                o.glyderPort = 0;
+                if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0]))) o.glyderPort = std::stoi(argv[++i]);
+            } else if (a == "--glyder-code")
+                o.glyderCode = next();
+            else if (a == "--glyder-open")
+                o.glyderOpen = true;
             else if (a == "--seed")
                 o.config.seed = std::stoull(next());
             else if (a == "--no-satlink")
@@ -404,7 +478,7 @@ int main(int argc, char** argv) {
             }
         }
         if (o.selfcheck) return selfcheck();
-        if (o.servePort > 0) return serve(o);
+        if (o.servePort > 0 || o.glyderPort >= 0) return serve(o);
 
         Recorder* recPtr = nullptr;
         std::optional<Recorder> rec;

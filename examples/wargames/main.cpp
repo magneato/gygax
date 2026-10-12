@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
@@ -32,6 +33,7 @@ import gygax.tools;
 import gygax.orchestration;
 
 #include "battlefield.hpp"
+#include "vr.hpp"
 
 using namespace std::chrono_literals;
 using gygax::json::Value;
@@ -618,6 +620,9 @@ struct RunConfig {
     std::string htmlPath;
     std::string engine;
     std::string model = "doctrine";
+    int glyderPort = -1; // >= 0: publish to glyder VR headsets (0: the default port)
+    std::string glyderCode;
+    bool glyderOpen = false;
 };
 
 struct RunResult {
@@ -665,9 +670,20 @@ public:
         orchestrator_->start();
     }
 
-    ~Game() { orchestrator_->stop(); }
+    ~Game() {
+        if (vr_) vr_->stop();
+        orchestrator_->stop();
+    }
 
     RunResult run() {
+        if (config_.glyderPort >= 0) {
+            vr_ = std::make_unique<wargames::WarVr>(field_, config_.glyderCode, config_.glyderOpen,
+                                                    static_cast<std::uint16_t>(config_.glyderPort));
+            std::string error;
+            if (!vr_->start(&error)) throw std::runtime_error("glyder: " + error);
+            std::cout << vr_->banner() << "\n";
+            if (config_.pace == 0.0) config_.pace = 0.5; // watchable in a headset
+        }
         captureFrame();
         std::unique_ptr<Console> console;
         if (config_.interactive) {
@@ -698,7 +714,35 @@ public:
             tick();
             captureFrame();
             if (config_.interactive && field_.tick() % 5 == 0) emit(field_.status());
-            if (config_.pace > 0.0) std::this_thread::sleep_for(std::chrono::duration<double>(config_.pace));
+            if (vr_) {
+                // Serve the headsets while the battle waits for its next tick.
+                using clock = std::chrono::steady_clock;
+                const auto end = clock::now() + std::chrono::duration_cast<clock::duration>(std::chrono::duration<double>(config_.pace));
+                auto last = clock::now();
+                while (clock::now() < end) {
+                    const auto now = clock::now();
+                    vr_->tick(std::chrono::duration<double>(now - last).count());
+                    last = now;
+                    for (const auto& order : vr_->takeOrders()) emit(std::format("[glyder] {} -> {}", order, field_.directive(order)));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(16));
+                }
+            } else if (config_.pace > 0.0) {
+                std::this_thread::sleep_for(std::chrono::duration<double>(config_.pace));
+            }
+        }
+        if (vr_) {
+            // Headsets keep the final picture for a minute rather than dropping back to their lobby.
+            emit(field_.outcome().victory ? "Humanity holds. (glyder stays up for a minute.)"
+                                          : "The bunker has fallen. (glyder stays up for a minute.)");
+            using clock = std::chrono::steady_clock;
+            const auto end = clock::now() + std::chrono::seconds(60);
+            auto last = clock::now();
+            while (clock::now() < end && !quit) {
+                const auto now = clock::now();
+                vr_->tick(std::chrono::duration<double>(now - last).count());
+                last = now;
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            }
         }
         return finish();
     }
@@ -843,6 +887,7 @@ private:
     void emit(const std::string& line) {
         log_.push_back(line);
         if (!config_.quiet) std::cout << line << "\n";
+        if (vr_) vr_->event(line);
     }
 
     void handleConsole(const std::string& line, bool& paused, int& steps, bool& quit) {
@@ -928,6 +973,7 @@ private:
                 commander = e;
                 continue;
             }
+            if (vr_ && vr_->manual(id)) continue; // a pilot in a headset has this one
             runAgent(*e);
         }
         if (commander != nullptr) runAgent(*commander);
@@ -974,6 +1020,7 @@ private:
     std::uint64_t failedRuns_ = 0;
     int lastWave_ = 0;
     std::size_t frameEventAt_ = 0;
+    std::unique_ptr<wargames::WarVr> vr_;
 };
 
 Value toJson(const RunResult& r) {
@@ -1065,6 +1112,13 @@ Args parseArgs(int argc, char** argv) {
             a.config.model = next();
         else if (arg == "--mcp-serve")
             a.mcpServe = true;
+        else if (arg == "--glyder") {
+            a.config.glyderPort = 0;
+            if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0]))) a.config.glyderPort = std::atoi(argv[++i]);
+        } else if (arg == "--glyder-code")
+            a.config.glyderCode = next();
+        else if (arg == "--glyder-open")
+            a.config.glyderOpen = true;
         else if (arg == "--help" || arg == "-h")
             a.help = true;
         else
@@ -1093,6 +1147,8 @@ void printUsage() {
                  "                    (optionally NAME@host:port) or http://host:port/v1; see docs/SERVICE.md\n"
                  "  --model M         model name sent to the engine (default doctrine)\n"
                  "  --mcp-serve       serve the war.* tools as an MCP server on stdin/stdout instead of running a battle\n"
+                 "  --glyder [PORT]   the battle in VR: glyder headsets watch, and can take any tank or drone (paces to 0.5 s/tick)\n"
+                 "  --glyder-code C   the pairing code (default: a new six-digit code)  --glyder-open: no code (private networks)\n"
                  "  --selfcheck       run the built-in verification and exit\n\n"
               << helpText();
 }

@@ -10,12 +10,15 @@ MODE="${1:-all}"
 cd "$ROOT"
 
 sources() {
-    git ls-files -co --exclude-standard -- 'include/*' 'src/*' 'tools/*' 'examples/*' 'tests/*' |
+    git ls-files -co --exclude-standard -- 'include/*' 'src/*' 'tools/*' 'examples/*' 'tests/*' 'glyder/include/*' 'glyder/src/*' \
+        'glyder/tests/*' 'glyder/tools/*' 'glyder/platform/*' |
         grep -E '\.(cpp|cppm|hpp|h)$'
 }
 
 plain_units() {
-    sources | grep -E '\.cpp$' | grep -vE '^(examples/|tests/)' | grep -vE '^(src/gygax/service/service\.cpp|src/gygax/core/base\.cpp|tools/gygax_coco\.cpp)$'
+    # glyder's renderer, tools and platform layers are not in the default build's compile database.
+    sources | grep -E '\.cpp$' | grep -vE '^(examples/|tests/|glyder/tests/|glyder/tools/|glyder/platform/|glyder/src/render/)' |
+        grep -vE '^(src/gygax/service/service\.cpp|src/gygax/core/base\.cpp|tools/gygax_coco\.cpp)$'
 }
 
 run_format() {
@@ -37,7 +40,7 @@ run_cppcheck() {
     if command -v cppcheck >/dev/null 2>&1; then
         cppcheck --quiet --error-exitcode=1 --enable=warning,performance,portability \
             --suppress=missingIncludeSystem --suppress=unmatchedSuppression --inline-suppr \
-            -I include -I "$BUILD/generated" $(plain_units)
+            -I include -I glyder/include -I "$BUILD/generated" -I "$BUILD/glyder/generated" $(plain_units)
     else
         echo "cppcheck not installed; skipping"
     fi

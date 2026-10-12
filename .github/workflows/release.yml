@@ -26,7 +26,7 @@ jobs:
           prerelease="$(sed -nE 's/^set\(GYGAX_VERSION_PRERELEASE "([^"]*)"\).*/\1/p' CMakeLists.txt | head -n 1)"
           tag_version="${GITHUB_REF_NAME#v}"
           test -n "$version"
-          # v0.3.0 releases 0.3.0; v0.3.1-alpha.1 is the pre-release CMake labels "alpha.1".
+          # v0.4.0 releases 0.4.0; v0.4.1-alpha.1 is the pre-release CMake labels "alpha.1".
           if [ "$tag_version" != "$version${prerelease:+-$prerelease}" ]; then
             echo "Release tag $GITHUB_REF_NAME does not match project version $version${prerelease:+-$prerelease}" >&2
             exit 1

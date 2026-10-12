@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0 "Matrix" (2026-10-12)
+
+Release notes in [docs/releases/v0.4.0.md](docs/releases/v0.4.0.md).
+
+### Added
+- **glyder**, Gygax in VR (`glyder/`): a Gygax world on a map table in a headset, with drop-in to any node at 1:1. The node hands over control at a good stopping point, and B jacks you out to autonomy again.
+  - Portable core with no dependencies beyond the standard library and POSIX sockets: the experience (the Construct lobby, overview, ride, HUD, menus), a UDP protocol (34-byte entity snapshots with velocity, an acknowledged in-order channel, packets under 1200 bytes, HMAC-SHA-256 on every packet under a key derived from a six-digit pairing code), shared handling so the client predicts the pilot's input, a code-generated low-poly model kit with glTF export, and a built-in demo world.
+  - Vision correction from a spectacle prescription: pupillary distance and prism exactly, sphere and cylinder by directional pre-sharpening for mild prescriptions. The prescription can be entered from a phone on a PIN-gated page the headset serves, and never leaves the headset.
+  - Vulkan renderer (multiview, 4x MSAA, reversed-Z), a Meta Quest app (OpenXR, NativeActivity, APK built without Gradle) and a desktop viewer, all opt-in builds (`glyder/CMakePresets.json`).
+  - `GYGAX_BUILD_GLYDER` (on) builds the core and its 44 tests with Gygax.
+- `gygax serve --glyder [PORT]` (`--glyder-code`, `--glyder-open`, `--glyder-origin LAT,LON`) shows the node's machines in VR. Pilot commands go through the same `--device-commands` gate as the REST API.
+- `gygax serve --device ID=KIND:URI` registers machines at start.
+- `ohflock --glyder` and `wargames --glyder`: watch the battle in a headset and take any kite, tank or drone. OHFLOCK's satellites, from SatLink, appear overhead.
+
+### Changed
+- Version 0.4.0.
+- `scripts/lint.sh` checks glyder's sources.
+
 ## 0.3.0 "Skynet" (2026-10-09)
 
 Release notes in [docs/releases/v0.3.0.md](docs/releases/v0.3.0.md). Includes everything in 0.2.0-alpha.1 "Genesys" and the 0.2.0 work below it.

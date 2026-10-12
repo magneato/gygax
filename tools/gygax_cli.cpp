@@ -33,6 +33,8 @@
 #include <gygax/satlink/sdr.hpp>
 #include <gygax/service/expression.hpp>
 #include <gygax/service/service.hpp>
+
+#include "glyder_devices.hpp"
 #include <gygax/version.hpp>
 
 namespace {
@@ -127,6 +129,12 @@ void printUsage() {
         << "  --agent-timeout-ms N             give up on an agent chat request after N ms (default 120000)\n"
         << "  --allow-insecure-remote          allow non-loopback bind without a token\n"
         << "  --device-commands [GYGAX_DEVICE_COMMANDS=1]  let API clients and agents send commands to robots, vehicles and buses\n"
+        << "  --device ID=KIND:URI                          register a machine at start (repeatable), e.g. "
+           "uav=mavlink:udp://0.0.0.0:14550\n"
+        << "  --glyder [PORT]                               show this node's machines in VR headsets running glyder (UDP, default 1999)\n"
+        << "  --glyder-code CODE                            the pairing code (default: a new six-digit code)\n"
+        << "  --glyder-open                                 no pairing code (a private, trusted network only)\n"
+        << "  --glyder-origin LAT,LON                       the map origin (default: the first machine's position)\n"
         << "  --ledger PATH [GYGAX_LEDGER_PATH]  append-only journal that makes the logistics ledger survive restarts\n"
         << "  --plugin PATH [GYGAX_PLUGINS]    repeatable: load a native plugin (shared library built with the plugin SDK)\n"
         << "  --extension URL [GYGAX_EXTENSIONS]  repeatable: register tools served by an extension process (see docs/EXTENSIONS.md)\n"
@@ -171,6 +179,40 @@ int cmdServe(const Args& a) {
     if (!svc.start(&error)) {
         std::cerr << "gygax: cannot start: " << error << "\n";
         return 1;
+    }
+    // --device ID=KIND:URI registers machines at start (e.g. uav=mavlink:udp://0.0.0.0:14550).
+    for (const auto& spec : a.all("device")) {
+        const auto eq = spec.find('='), colon = spec.find(':');
+        if (eq == std::string::npos || colon == std::string::npos || colon < eq) {
+            std::cerr << "gygax: --device wants ID=KIND:URI, not '" << spec << "'\n";
+            return 2;
+        }
+        gygax::json::Value req = gygax::json::Value::object();
+        req["jsonrpc"] = "2.0";
+        req["id"] = 1;
+        req["method"] = "devices.add";
+        req["params"]["id"] = spec.substr(0, eq);
+        req["params"]["kind"] = spec.substr(eq + 1, colon - eq - 1);
+        req["params"]["uri"] = spec.substr(colon + 1);
+        const gygax::json::Value res = svc.rpc(req);
+        if (const auto* err = res.find("error")) {
+            std::cerr << "gygax: --device " << spec << ": " << err->getString("message") << "\n";
+            return 1;
+        }
+    }
+    if (a.has("glyder")) {
+        gygax::cli::GlyderDevicesOptions g;
+        const std::string port = a.get("glyder");
+        if (port != "1") g.port = static_cast<std::uint16_t>(std::strtoul(port.c_str(), nullptr, 10));
+        if (a.has("glyder-code")) g.code = a.get("glyder-code");
+        g.open = a.has("glyder-open");
+        if (a.has("glyder-origin")) {
+            const std::string o = a.get("glyder-origin");
+            g.haveOrigin = std::sscanf(o.c_str(), "%lf,%lf", &g.originLat, &g.originLon) == 2;
+        }
+        const int rc = gygax::cli::runGlyderDevices(svc, g, gStop);
+        svc.stop();
+        return rc;
     }
     while (!gStop.load()) std::this_thread::sleep_for(kServicePollInterval);
     gygax::log::info("main", "shutting down");
