@@ -80,6 +80,20 @@ $ gyde --url http://127.0.0.1:1987
 speaks the service API can drive it, gyde included. `--script FILE` takes `<seconds> <order>` lines instead;
 `examples/ohflock/orders.txt` sends one order inside a relay window and one outside it.
 
+## In VR
+
+```
+$ ./build/ohflock --glyder
+OHFLOCK in VR: open glyder on the headset and choose OHFLOCK (pairing code 482913).
+  this computer:  192.168.1.20  (UDP 1999)
+```
+
+The battle runs live and is published to glyder headsets on the network ([docs/GLYDER.md](GLYDER.md)). The corridor
+lies on a map table with the dunes, the convoy, the guns and the SatLink relay shell overhead; point at any kite and
+pull the trigger to fly it. The flock's brain leaves a hand-flown kite's motion to you; everything else carries on as
+usual, including the shots at it and the outcome dice. Press B and the kite rejoins its section. `--glyder-code` sets
+the code and `--glyder-open` drops it (a private network only).
+
 ## The replay
 
 `--html FILE` writes a self-contained page with no external files: a moonlit dune field drawn with its contour

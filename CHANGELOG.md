@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- [docs/GLYDER.md](docs/GLYDER.md): hosts, network and firewall, building and installing the Quest app, controls, vision correction, the desktop viewer and headless capture, the protocol, and limits. The README, TLDR, OHFLOCK and wargames guides cover `--glyder`.
+- The project page features glyder: a showcase with frames rendered headless from a live OHFLOCK host, a capability entry, and a safety note on headset authority.
+
+### Fixed
+- glyder builds with libc++ (macOS): `image.cpp` includes `<array>`.
+- `gygax serve --glyder-origin` is parsed with the checked number parser (clang-tidy `cert-err34-c`), and a malformed or out-of-range origin is rejected instead of silently ignored.
+
 ## 0.4.0 "Matrix" (2026-10-12)
 
 Release notes in [docs/releases/v0.4.0.md](docs/releases/v0.4.0.md).

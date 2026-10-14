@@ -187,12 +187,13 @@
   <div class="hero" id="top">
     <canvas id="field" aria-hidden="true"></canvas>
     <div class="hero-inner">
-      <div class="eyebrow">A field guide to autonomous systems · v0.3.0 “Skynet”</div>
+      <div class="eyebrow">A field guide to autonomous systems · v0.4.0 “Matrix”</div>
       <h1>God doesn't<br>play <em>dice.</em></h1>
-      <p class="hero-sub">Neither should the systems we trust with the physical world. Gygax is an open-source runtime for agents, simulation, robotics, neuromorphic computing, and satellite tracking, designed to make behavior testable and authority explicit.</p>
+      <p class="hero-sub">Neither should the systems we trust with the physical world. Gygax is an open-source runtime for agents, simulation, robotics, neuromorphic computing, satellite tracking and VR, designed to make behavior testable and authority explicit.</p>
       <div class="hero-actions">
         <a class="button primary" href="#start">Run Gygax <span aria-hidden="true">↓</span></a>
         <a class="button" href="#capabilities">Explore the system</a>
+        <a class="button" href="#glyder">Fly it in VR</a>
         <a class="button" href="#skynet">Track a satellite</a>
         <a class="button" href="examples/ohflock/ohflock.html">Watch OHFLOCK ↗</a>
         <a class="button" href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md">See the wargames demo ↗</a>
@@ -294,6 +295,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="capability"><div class="cap-icon">09</div><div><h3>SDKs, transports, and developer tools</h3><p>C and C++ plugin SDKs, Python bindings and extension SDK, serial, GPIO, modem, printer and G-code transports, plus Gyde, the optional terminal console for inspecting and querying a running node.</p><div class="tag-list"><span class="tag">C/C++ SDK</span><span class="tag">Python</span><span class="tag">Gyde CLI</span><span class="tag">6502 / 6809 tools</span></div></div></article>
         <article class="capability"><div class="cap-icon">10</div><div><h3>Acoustic study (simulation only)</h3><p>Compare phase-aware tone estimates at explicit 2D observation points and sample synthetic amplitude-modulated alerts. This model has no speaker, audio-output, or flight-control integration; modeled cancellation at one point says nothing conclusive about other locations.</p><div class="tag-list"><span class="tag">Coherent tones</span><span class="tag">Point-specific estimate</span><span class="tag">No hardware output</span></div></div></article>
         <article class="capability"><div class="cap-icon">11</div><div><h3>SatLink satellite tracking</h3><p>Checksum-verified two-line elements, SGP4 and SDP4 that reproduce the reference implementation&rsquo;s verification output to 0.12&nbsp;mm, look angles, Doppler from the exact range rate, rise/culminate/set pass prediction, radio retuning through Hamlib <code>rigctld</code>, and SDR reception over <code>rtl_tcp</code> with an FFT spectrum and a Doppler-removing mixer. From C++, the C ABI, Python (with a Skyfield-shaped subset), or <code>gygax track</code>. It never downloads elements; you bring them.</p><div class="tag-list"><span class="tag">SGP4 / SDP4</span><span class="tag">Doppler</span><span class="tag">Pass prediction</span><span class="tag">Hamlib rigctld</span><span class="tag">RTL-SDR</span><span class="tag">gygax track</span></div><p style="margin-top:10px"><a href="https://github.com/magneato/gygax/blob/main/docs/SATLINK.md">Read the SatLink guide ↗</a></p></div></article>
+        <article class="capability"><div class="cap-icon">12</div><div><h3>glyder: Gygax in VR</h3><p>A Gygax world on a map table in a headset: grab, turn and zoom it, then point at a node and ride it at full scale. Natively on Meta Quest (OpenXR on Vulkan, no engine) and in a desktop window. A paired, HMAC-authenticated UDP protocol, head motion rendered locally so it never waits on the network, a code-generated low-poly model kit, and vision correction from a spectacle prescription.</p><div class="tag-list"><span class="tag">Meta Quest</span><span class="tag">OpenXR</span><span class="tag">Vulkan</span><span class="tag">Drop-in control</span><span class="tag">Prescription optics</span></div><p style="margin-top:10px"><a href="https://github.com/magneato/gygax/blob/main/docs/GLYDER.md">Read the glyder guide ↗</a></p></div></article>
       </div>
     </section>
 
@@ -306,6 +308,24 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         </div>
       </div>
       <div class="showcase">
+        <article class="showcase-item flock" id="glyder">
+          <div>
+            <a class="flock-shot" href="glyder/glyder-ride.jpg" aria-label="Open the full-size frame of a pilot riding kite R3"><img src="glyder/glyder-ride.jpg" alt="Inside OHFLOCK kite R3 in glyder at night: visor brackets, R3 marked CONTROL, heading 000, 65 km/h, 751 m above ground, the note 'dazzling gun 1 sight', and the battle's status panel showing 0 fired by us" loading="lazy"></a>
+            <a class="flock-shot" style="margin-top:12px" href="glyder/glyder-overview.jpg" aria-label="Open the full-size map-table frame"><img src="glyder/glyder-overview.jpg" alt="The OHFLOCK battle as a map table in glyder: the flock in formation over the dunes, the convoy road, guns and launchers, and a status panel" loading="lazy"></a>
+          </div>
+          <div>
+            <div class="eyebrow">NEW IN 0.4.0 “MATRIX” / GLYDER</div>
+            <h3>Put on the visor. Take the stick.</h3>
+            <p>glyder puts a running Gygax world in a VR headset. The battle, or the real machines connected to a node, lies on a map table in front of you. Point at any kite, tank or drone and pull the trigger: the view switches at once, the node finishes what it is doing, then hands you the sticks. Press B to jack out and its autonomy takes over again. Everything else carries on around you.</p>
+            <p>It runs natively on Meta Quest (OpenXR on Vulkan, at the headset’s highest refresh rate) and in a desktop window. A six-digit pairing code keys every packet, so nobody else on the network can drive a node. Enter your spectacle prescription and glyder sets the cameras to your pupillary distance and prism.</p>
+            <pre>./build/ohflock --glyder            # the flock, live in the headset
+./build/wargames --glyder           # take a tank or a drone
+./build/gygax serve --glyder \
+  --device uav=mavlink:udp://0.0.0.0:14550</pre>
+            <p class="small" style="margin-top:12px">These frames are real: the OHFLOCK host and the desktop viewer, rendered headless. Both images open full size.</p>
+            <p style="margin-top:15px"><a href="https://github.com/magneato/gygax/blob/main/docs/GLYDER.md">Set up a headset ↗</a> · <a href="https://github.com/magneato/gygax/blob/main/docs/releases/v0.4.0.md">Release notes</a></p>
+          </div>
+        </article>
         <article class="showcase-item"><div class="eyebrow">SHOWCASE 01 / WARGAMES</div><h3>A human-directed agent team</h3><p>Agents command a bunker, turrets, tanks, and drones. The example composes the orchestrator, tools, collective consensus, a ledger, route planning, and a small LIF-driven hostile hive. The built-in doctrine makes seeded battles reproducible; humans can direct the running simulation.</p><pre>./build/wargames --map
 ./build/wargames --interactive
 ./build/wargames --script examples/wargames/orders.txt</pre><p style="margin-top:15px"><a href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md">Read the wargames guide ↗</a></p></article>
@@ -388,6 +408,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="safety-item"><h3>Commands start disabled</h3><p>Device command tools are only registered when the service is launched with <code>--device-commands</code> (or the corresponding environment setting). Treat enabling commands as a deliberate authority change.</p></article>
         <article class="safety-item"><h3>Network exposure needs authentication</h3><p>The service defaults to loopback and refuses a non-loopback bind without a token. For external traffic, use a TLS terminator and the token; the service itself speaks plain HTTP.</p></article>
         <article class="safety-item"><h3>Simulation is not proof</h3><p>A simulated success demonstrates behavior in a model of the world. It cannot certify a controller, validate a physical deployment, or guarantee that a real machine will respond identically.</p></article>
+        <article class="safety-item"><h3>A headset takes authority only when you let it</h3><p>Under <code>gygax serve --glyder</code>, a pilot's sticks reach a real machine through the same <code>--device-commands</code> gate as the API; without it, a headset can watch but not drive. Sessions need the pairing code unless you choose <code>--glyder-open</code>, which is for a private, trusted network only.</p></article>
         <article class="safety-item truth"><h3>Gygax is not a safety controller</h3><p>It adds no safety layer to a vehicle. Keep the autopilot's failsafes, geofence, and a physical emergency stop. Complete the domain's safety case before operating equipment.</p></article>
       </div>
       <p class="small" style="margin-top:18px">Enabling device commands does not add per-command human approval. Gygax has no built-in approval gate or universal hardware/simulation interlock. For detailed boundaries, see <a href="https://github.com/magneato/gygax/blob/main/docs/SDK_API.md">Public API and trust boundaries</a>, <a href="https://github.com/magneato/gygax/blob/main/docs/OPERATIONS.md">Operations</a>, <a href="https://github.com/magneato/gygax/blob/main/docs/ROBOTICS.md">Robotics safety model</a>, and <a href="https://github.com/magneato/gygax/blob/main/SECURITY.md">Security reporting</a>.</p>
@@ -437,6 +458,7 @@ ctest --test-dir build --output-on-failure
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/QUANTUM_INTEGRATION.md"><strong>Quantum integration</strong><span>Sensor and QKD adapter interfaces, limitations, and security boundary</span></a>
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/OHFLOCK.md"><strong>OHFLOCK</strong><span>An unarmed flock, light, sound and SatLink</span></a>
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/SATLINK.md"><strong>SatLink</strong><span>SGP4/SDP4, Doppler, passes, rigctld, RTL-SDR</span></a>
+        <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/GLYDER.md"><strong>glyder</strong><span>VR: headset setup, pairing, drop-in, prescription optics</span></a>
         <a class="doc-link" href="https://github.com/magneato/gygax/blob/main/docs/GYDE.md"><strong>Gyde</strong><span>Optional terminal runtime console</span></a>
       </div>
     </section>

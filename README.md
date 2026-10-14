@@ -1,15 +1,16 @@
 # Gygax
 
-Gygax is a C++26 runtime for autonomous systems. It ships as four things that share one core:
+Gygax is a C++26 runtime for autonomous systems. It ships as five things that share one core:
 
 - **A service** (`gygax serve`): an inference router that speaks the standard chat-completions API and the Ollama API, with model-aware routing, failover and peer nodes, plus a tool-using agent runtime, Prometheus metrics and JSON-RPC. One static-ish binary, no Python, Go or Node runtime.
 - **A neuromorphic simulator**: deterministic LIF and Izhikevich spiking networks with delayed sparse projections and pair-based STDP, usable from C++, JSON, HTTP, a C ABI and Python.
 - **An embodiment toolkit**: hardware node trees with capability aggregation, hierarchical state machines, a message hub, a 2D physics world with LiDAR, a sim-to-real link, USD export, and real serial, GPIO, modem, printer and G-code transports.
 - **SatLink**: satellite tracking for ground stations. SGP4/SDP4 that reproduces the reference implementation to a tenth of a millimetre, look angles, exact range-rate Doppler, pass prediction, radio retuning through Hamlib `rigctld`, and reception with an RTL-SDR over `rtl_tcp`.
+- **glyder**: Gygax in VR. A running simulation, or the real machines on a node, on a map table in a Meta Quest or a desktop window; point at any node to ride it at full scale and take its controls, then jack out and its autonomy resumes.
 
-Everything documented here is exercised by the test suite (404 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
+Everything documented here is exercised by the test suite (426 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
 
-**New in 0.3.0 "Skynet":** SatLink, with SDR reception. See the [release notes](docs/releases/v0.3.0.md) and the [changelog](CHANGELOG.md).
+**New in 0.4.0 "Matrix":** glyder, Gygax in VR. See the [release notes](docs/releases/v0.4.0.md) and the [changelog](CHANGELOG.md).
 
 ## Quick start: run it as a service
 
@@ -101,6 +102,14 @@ with satlink.Rig("127.0.0.1", 4532) as rig:                 # Hamlib rigctld
 
 `gygax track --live --rig 127.0.0.1` follows a pass and retunes the radio every second; `--sdr 127.0.0.1:1234` does the same for an RTL-SDR and reports where the carrier actually is. Scripts written for Skyfield's satellite API (`EarthSatellite`, `wgs84.latlon`, `(sat - station).at(t).altaz()`, `find_events`) run against SatLink unchanged. Propagation is checked against all 33 satellites of Vallado's SGP4 verification set (worst difference 0.12 mm) and against Skyfield (0.0003° in elevation). Frames, Doppler, pass search, accuracy and limits: [docs/SATLINK.md](docs/SATLINK.md).
 
+## Quick start: VR
+
+```bash
+./build/ohflock --glyder        # prints its pairing code; UDP 1999 must be open to the LAN
+```
+
+Open glyder on the headset (or `glyder --demo` on a desktop), choose OHFLOCK in the lobby and type the code. The battle lies on a map table: grip to drag and turn it, both grips to scale it, point at a kite and pull the trigger to drop in. The kite hands you the sticks at its next stopping point; B jacks you out. `wargames --glyder` works the same way, and `gygax serve --glyder` shows a node's real machines (driving them needs `--device-commands`). Building the Quest app, pairing, the desktop viewer and vision correction from a spectacle prescription: [docs/GLYDER.md](docs/GLYDER.md).
+
 ## What is in the box
 
 | Area | What you get | Where |
@@ -119,8 +128,9 @@ with satlink.Rig("127.0.0.1", 4532) as rig:                 # Hamlib rigctld
 | Transports | POSIX serial, sysfs GPIO, Hayes modem, raw/PJL printing, Marlin G-code with line numbers, checksums and resend | `include/gygax/transport`, [docs/TRANSPORTS.md](docs/TRANSPORTS.md) |
 | Robotics | MAVLink drones and vehicles, SocketCAN/CAN FD, ISO-TP, OBD-II, J1939, DBC, CANopen, Modbus, NMEA, ADS-B, ARINC 429, ROS bridge, virtual autopilot; commands off by default | `src/gygax/robotics`, `src/gygax/bus`, [docs/ROBOTICS.md](docs/ROBOTICS.md) |
 | Supply chain | GUID-tracked units, append-only ledger (`-3 ba99x drone=quadcopter power=solar`), flow reports, range-aware routing with refuel stops | `src/gygax/logistics`, [docs/LOGISTICS.md](docs/LOGISTICS.md) |
-| Showcase | `ohflock`: twenty-four unarmed kites hold a relief corridor open against fighters, a SAM battery, AAA and strike jets with light on sensors, thrown sound and SatLink (Doppler navigation under GNSS jamming, relay windows, a reconnaissance pass waited out), and fire nothing; a 3D replay, gyde control, and a `--no-satlink` counterfactual | `examples/ohflock`, [docs/OHFLOCK.md](docs/OHFLOCK.md) |
-| Showcase | `wargames`: Gygax agents defend a last bunker against an alien invasion with drones, tanks, turrets and supply drones, using the agent runtime, collective consensus, the ledger, route planner and a spiking hive; a human can direct them live | `examples/wargames`, [docs/WARGAMES.md](docs/WARGAMES.md) |
+| VR | glyder: lobby, map table and drop-in ride; HMAC-authenticated UDP protocol with velocity snapshots and a reliable channel; shared handling for instant response; code-generated low-poly model kit with glTF export; vision correction (PD, prism, sphere/cylinder pre-sharpening); Vulkan multiview renderer; Meta Quest app (OpenXR, built without Gradle) and desktop viewer; `--glyder` on `gygax serve`, `ohflock` and `wargames` | `glyder/`, `tools/glyder_devices.cpp`, [docs/GLYDER.md](docs/GLYDER.md) |
+| Showcase | `ohflock`: twenty-four unarmed kites hold a relief corridor open against fighters, a SAM battery, AAA and strike jets with light on sensors, thrown sound and SatLink (Doppler navigation under GNSS jamming, relay windows, a reconnaissance pass waited out), and fire nothing; a 3D replay, gyde control, VR (`--glyder`), and a `--no-satlink` counterfactual | `examples/ohflock`, [docs/OHFLOCK.md](docs/OHFLOCK.md) |
+| Showcase | `wargames`: Gygax agents defend a last bunker against an alien invasion with drones, tanks, turrets and supply drones, using the agent runtime, collective consensus, the ledger, route planner and a spiking hive; a human can direct them live, or take a tank or drone in VR (`--glyder`) | `examples/wargames`, [docs/WARGAMES.md](docs/WARGAMES.md) |
 | SDKs | Native plugin SDK (C ABI, C++ helper, CMake package), Python extension SDK, Python bindings and client, all built by `cmake --build` | `include/gygax/sdk`, `python/`, [docs/EXTENSIONS.md](docs/EXTENSIONS.md), [public API and trust boundaries](docs/SDK_API.md) |
 | Retro toolchain | 6502/6809 assembler and a CoCo-style emulator (`./assemble.sh`) | `tools/`, `examples/coco` |
 | Gyde | Terminal preview of a planned Gygax IDE: an always-current status line plus typed commands (`status`, `engines`, `ask`, `tool`) against a running node | `tools/gyde.cpp`, [docs/GYDE.md](docs/GYDE.md) |
@@ -145,11 +155,12 @@ for the tag, validation, and artifact details.
 ```
 src/gygax/        core, brain, hardware, signals modules (*.cppm) and plain C++ (net, inference, neuro, satlink, service, sim, transport, capi)
 include/gygax/    public headers
+glyder/           VR: portable core, Vulkan renderer, Meta Quest app, desktop viewer (docs/GLYDER.md)
 tools/            gygax CLI, gyde (terminal IDE preview, docs/GYDE.md), 6502/6809 assembler and emulator
 examples/         arrival (multi-agent + sim-to-real), wargames (autonomous defence, human-directable), ohflock (unarmed flock, 3D replay), satlink (pass planner, sample elements), hardware_demo, research_swarm, python, coco
 python/           ctypes bindings and HTTP client (Python 3.9+, numpy optional)
 deploy/           systemd unit, env file, compose file, Debian maintainer scripts
-docs/             service, operations, neuromorphic, satlink, ohflock, architecture, transports, robotics, quantum integration, logistics, extensions, research, windows, gyde, atari, releases
+docs/             service, operations, neuromorphic, satlink, glyder, ohflock, architecture, transports, robotics, quantum integration, logistics, extensions, research, windows, gyde, atari, releases
 ```
 
 ## Platform support

@@ -1,7 +1,7 @@
 # TL;DR
 
 **What:** one C++26 binary for autonomous systems. It is a model router and agent runtime, a spiking-neuron
-simulator, a satellite tracker (SatLink), and a robotics and hardware toolkit (MAVLink drones, CAN, Modbus, NMEA,
+simulator, a satellite tracker (SatLink), a VR front end (glyder), and a robotics and hardware toolkit (MAVLink drones, CAN, Modbus, NMEA,
 ADS-B, serial, GPIO).
 
 **Whose cloud:** yours.
@@ -19,6 +19,10 @@ listens with an RTL-SDR over `rtl_tcp`.
 Its SGP4/SDP4 matches the reference implementation's verification output to 0.12 mm. It never fetches elements
 itself; you bring them.
 
+**VR:** `ohflock --glyder` puts the battle on a map table in a Meta Quest; point at a kite and take its sticks, press
+B to give them back. `gygax serve --glyder` does the same for real machines (driving needs `--device-commands`).
+Paired and authenticated; nothing leaves your LAN. [docs/GLYDER.md](docs/GLYDER.md)
+
 **Drones and vehicles:** MAVLink with a virtual autopilot for testing. **Commands are off by default**; you turn on
 authority explicitly.
 
@@ -29,7 +33,7 @@ authority explicitly.
 ./build/gygax track --tle examples/satlink/sample.tle --at 51.48,0,46 --start 2024-01-01T12:00
 ```
 
-**Trust it:** `ctest --test-dir build` runs 404 tests. `./scripts/dogfood.sh` adds sanitizer builds and a live
+**Trust it:** `ctest --test-dir build` runs 426 tests. `./scripts/dogfood.sh` adds sanitizer builds and a live
 service smoke test.
 
 **Licence:** Clear BSD (BSD-3-Clause-Clear), no patent rights granted. Personal, hobby, educational and

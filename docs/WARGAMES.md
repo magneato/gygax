@@ -51,6 +51,15 @@ Console commands in interactive mode: `status`, `map`, `pause`, `resume`, `step 
 
 The simulation is paused until you type `resume` in interactive mode; while paused you can issue directives and `step` one second at a time. Alien ids appear in the narrative (`bruiser A54 down`) and in the agents' observations.
 
+## In VR
+
+`./build/wargames --glyder` publishes the battle to glyder headsets on the network ([docs/GLYDER.md](GLYDER.md)) and
+paces it to half a second a tick so it is watchable. Point at any tank or drone and pull the trigger to take it: its
+agent stands down while you drive. The headset menu also carries the battlefield directives (rally a side, weapons
+free or tight, send the drones hunting or recall them, produce a tank or an interceptor), applied just like those
+typed at the console. Press B and the agent takes over again. After the last wave the headsets keep the final picture for a
+minute. `--glyder-code` sets the pairing code and `--glyder-open` drops it (a private network only).
+
 ## Outputs
 
 `--json FILE` writes the outcome, statistics, the survivors and the full ledger summary. The final report prints the ledger flow: units in the field per SKU with active, lost and retired counts, for both sides.
