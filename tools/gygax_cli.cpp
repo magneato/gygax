@@ -171,6 +171,24 @@ service::ServiceConfig configFrom(const Args& a) {
     return c;
 }
 
+// A whole string as a number, or nothing.
+std::optional<double> number(std::string_view text) {
+    double v = 0.0;
+    const auto [end, ec] = gygax::fromChars(text.data(), text.data() + text.size(), v);
+    if (text.empty() || ec != std::errc() || end != text.data() + text.size() || !std::isfinite(v)) return std::nullopt;
+    return v;
+}
+
+std::vector<std::string_view> split(std::string_view text, char sep) {
+    std::vector<std::string_view> out;
+    for (std::size_t from = 0;;) {
+        const auto at = text.find(sep, from);
+        out.push_back(text.substr(from, at == std::string_view::npos ? std::string_view::npos : at - from));
+        if (at == std::string_view::npos) return out;
+        from = at + 1;
+    }
+}
+
 int cmdServe(const Args& a) {
     applyLogging(a);
     installSignals();
@@ -207,8 +225,18 @@ int cmdServe(const Args& a) {
         if (a.has("glyder-code")) g.code = a.get("glyder-code");
         g.open = a.has("glyder-open");
         if (a.has("glyder-origin")) {
-            const std::string o = a.get("glyder-origin");
-            g.haveOrigin = std::sscanf(o.c_str(), "%lf,%lf", &g.originLat, &g.originLon) == 2;
+            const auto origin = a.get("glyder-origin");
+            const auto fields = split(origin, ',');
+            const auto lat = fields.size() == 2 ? number(fields[0]) : std::nullopt;
+            const auto lon = fields.size() == 2 ? number(fields[1]) : std::nullopt;
+            if (!lat || !lon || std::abs(*lat) > 90.0 || std::abs(*lon) > 180.0) {
+                std::cerr << "gygax: --glyder-origin wants LAT,LON in degrees, e.g. 51.4779,-0.0015\n";
+                svc.stop();
+                return 2;
+            }
+            g.originLat = *lat;
+            g.originLon = *lon;
+            g.haveOrigin = true;
         }
         const int rc = gygax::cli::runGlyderDevices(svc, g, gStop);
         svc.stop();
@@ -354,24 +382,6 @@ void printTrackUsage() {
 
 double nowUnix() {
     return std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
-}
-
-// A whole string as a number, or nothing.
-std::optional<double> number(std::string_view text) {
-    double v = 0.0;
-    const auto [end, ec] = gygax::fromChars(text.data(), text.data() + text.size(), v);
-    if (text.empty() || ec != std::errc() || end != text.data() + text.size() || !std::isfinite(v)) return std::nullopt;
-    return v;
-}
-
-std::vector<std::string_view> split(std::string_view text, char sep) {
-    std::vector<std::string_view> out;
-    for (std::size_t from = 0;;) {
-        const auto at = text.find(sep, from);
-        out.push_back(text.substr(from, at == std::string_view::npos ? std::string_view::npos : at - from));
-        if (at == std::string_view::npos) return out;
-        from = at + 1;
-    }
 }
 
 // 'now', Unix seconds, or UTC as YYYY-MM-DD[THH:MM[:SS[.fff]]].
