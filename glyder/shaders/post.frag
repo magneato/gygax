@@ -1,10 +1,15 @@
 #version 450
 #extension GL_EXT_multiview : require
 
+// The final pass: vision pre-compensation, then colour vision.
+//
 // Vision pre-compensation. The eye adds a predictable elliptical blur at the headset's focal
 // distance (glyder/rx.hpp); this boosts exactly the detail that blur removes, along its two axes,
 // so what lands on the retina is closer to the scene. Only the central field gets it: that is
 // where you look and where your acuity is.
+//
+// Colour vision: a 3 x 3 matrix in linear RGB (glyder/colour.hpp) that corrects for a missing cone
+// type, or previews what such a viewer sees. It applies to every pixel.
 
 struct PostEye {
     vec4 axes;    // major axis direction (x, y in pixels), sigma major, sigma minor (pixels)
@@ -12,7 +17,7 @@ struct PostEye {
     vec4 frustum; // tan left, tan width, tan up, tan height
     vec4 texel;   // 1/width, 1/height
 };
-layout(std140, set = 0, binding = 0) uniform Post { PostEye eye[2]; } post;
+layout(std140, set = 0, binding = 0) uniform Post { PostEye eye[2]; vec4 colour[3]; } post;
 layout(set = 0, binding = 1) uniform sampler2DArray scene;
 
 layout(location = 0) in vec2 vUv;
@@ -35,20 +40,18 @@ vec3 blurAlong(vec2 uv, vec2 stepUv, float sigma) {
     return acc / wsum;
 }
 
-void main() {
+vec3 colourVision(vec3 c) {
+    if (post.colour[0].w < 0.5) return c;
+    return clamp(vec3(dot(post.colour[0].xyz, c), dot(post.colour[1].xyz, c), dot(post.colour[2].xyz, c)), 0.0, 1.0);
+}
+
+vec3 precompensate(vec3 c) {
     PostEye e = post.eye[gl_ViewIndex];
-    vec3 c = tap(vUv);
-    if (e.gains.w < 0.5) {
-        outColour = vec4(c, 1.0);
-        return;
-    }
+    if (e.gains.w < 0.5) return c;
     // Where this pixel looks, as a tangent from the eye's optical axis.
     vec2 t = vec2(e.frustum.x + vUv.x * e.frustum.y, e.frustum.z - vUv.y * e.frustum.w);
     float weight = 1.0 - smoothstep(e.gains.z * 0.75, e.gains.z, length(t));
-    if (weight <= 0.0) {
-        outColour = vec4(c, 1.0);
-        return;
-    }
+    if (weight <= 0.0) return c;
     vec2 major = e.axes.xy * e.texel.xy;
     vec2 minor = vec2(-e.axes.y, e.axes.x) * e.texel.xy;
     vec3 bMajor = blurAlong(vUv, major, e.axes.z);
@@ -56,5 +59,9 @@ void main() {
     vec3 sharp = c + e.gains.x * (c - bMajor) + e.gains.y * (c - bMinor);
     // Keep the tonal range: compress overshoot softly instead of clipping it.
     sharp = mix(sharp, clamp(sharp, 0.0, 1.0), 0.85);
-    outColour = vec4(mix(c, clamp(sharp, 0.0, 1.0), weight), 1.0);
+    return mix(c, clamp(sharp, 0.0, 1.0), weight);
+}
+
+void main() {
+    outColour = vec4(colourVision(precompensate(tap(vUv))), 1.0);
 }

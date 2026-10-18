@@ -240,3 +240,49 @@ TEST(GlyderRx, PhonePageTakesAPrescriptionOnlyWithThePin) {
     EXPECT_EQ(htmlEscape("<b>&\"'"), "&lt;b&gt;&amp;&quot;&#39;");
     server.stop();
 }
+
+TEST(GlyderExperience, BlindModeMakesTheWorldAudibleAndColourVisionReachesTheFinalPass) {
+    AppOptions o;
+    o.demo = true;
+    App app(o);
+    EyeView eyes[2];
+    eyes[0].pose = {{-0.032f, 1.6f, 0}, Quat{}};
+    eyes[1].pose = {{0.032f, 1.6f, 0}, Quat{}};
+    // Off by default: silence, and no final pass for an unprescribed, typical viewer.
+    std::vector<float> block(800 * 2);
+    auto energy = [&] {
+        double e = 0;
+        for (float x : block) e += static_cast<double>(x) * x;
+        return e;
+    };
+    const double end = net::now() + 5.0;
+    while (net::now() < end && app.mode() != "overview") {
+        app.frame(headsetInput(net::now(), 0.011f), eyes, 1832, 1920);
+        std::this_thread::sleep_for(std::chrono::milliseconds(8));
+    }
+    ASSERT_EQ(app.mode(), "overview");
+    auto f = app.frame(headsetInput(net::now(), 0.011f), eyes, 1832, 1920);
+    EXPECT_EQ(f.post, nullptr);
+    app.audio(block);
+    EXPECT_EQ(energy(), 0.0);
+
+    // Blind mode: within a couple of seconds the Construct's nodes are heard.
+    app.setBlindMode(true);
+    double heard = 0;
+    for (int i = 0; i < 120 && heard < 1e-3; ++i) {
+        app.frame(headsetInput(net::now(), 0.011f), eyes, 1832, 1920);
+        app.audio(block);
+        heard += energy();
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+    }
+    EXPECT_GT(heard, 1e-3);
+    for (float x : block) ASSERT_TRUE(std::isfinite(x) && std::abs(x) <= 1.0f);
+
+    // Colour vision: the final pass runs with the tritan correction.
+    app.setColourVision(colour::Vision::Tritan);
+    f = app.frame(headsetInput(net::now(), 0.011f), eyes, 1832, 1920);
+    ASSERT_NE(f.post, nullptr);
+    EXPECT_FLOAT_EQ(f.post->colour[0].w, 1.0f);
+    const auto c = colour::correct(colour::Vision::Tritan);
+    EXPECT_FLOAT_EQ(f.post->colour[1].z, c.m[5]);
+}

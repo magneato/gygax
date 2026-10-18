@@ -94,6 +94,15 @@ enum class Shape : std::uint16_t {
     Node,     // a Gygax compute node: a monolith with lit seams
     Operator, // a glyder user's presence: head and visor
     Wand,     // a hand controller as glyder draws it
+    // Later additions (appended, so earlier shapes keep their wire numbers)
+    Microdrone, // insect-like recon drone, 0.13 m
+    Quadruped,  // legged robot, 1.1 m, with a microdrone dock on its back
+    Megadrone,  // elephant-sized legged robot with a lifting fork and work lights, 6.6 m
+    Hypersonic, // lifting-body carrier that delivers the flock, 30 m
+    Person,     // a standing figure, 1.8 m
+    Cup,        // a drink of water, 0.12 m
+    Pod,        // a braked drop pod, 2.4 m
+    Slab,       // a 4 x 3 m section of concrete floor, 0.35 m thick, with rebar ends
     Count
 };
 

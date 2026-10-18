@@ -1,16 +1,38 @@
 # Gygax
 
+<div align="center">
+
+```
+  ██████╗ ██╗   ██╗ ██████╗  █████╗ ██╗  ██╗
+ ██╔════╝ ╚██╗ ██╔╝██╔════╝ ██╔══██╗╚██╗██╔╝
+ ██║  ███╗ ╚████╔╝ ██║  ███╗███████║ ╚███╔╝ 
+ ██║   ██║  ╚██╔╝  ██║   ██║██╔══██║ ██╔██╗ 
+ ╚██████╔╝   ██║   ╚██████╔╝██║  ██║██╔╝ ██╗
+  ╚═════╝    ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
+```
+
+**0.4.0 "MATRIX" // SPATIAL EMBODIMENT & AUTONOMOUS SYSTEMS RUNTIME**
+
+[![OpenXR](https://img.shields.io/badge/OpenXR-1.1_Native-00f0ff.svg?style=flat-square&logo=khronos&logoColor=white)](https://www.khronos.org/openxr/)
+[![Vulkan](https://img.shields.io/badge/Vulkan-Multiview_120Hz-ff2255.svg?style=flat-square&logo=vulkan&logoColor=white)](https://www.khronos.org/vulkan/)
+[![Meta Quest](https://img.shields.io/badge/Meta_Quest-3S_%7C_3_%7C_Pro-0082fb.svg?style=flat-square&logo=meta&logoColor=white)](docs/GLYDER.md)
+[![Pure C++26](https://img.shields.io/badge/C%2B%2B-26_Modules-00599c.svg?style=flat-square&logo=c%2B%2B&logoColor=white)](CMakeLists.txt)
+[![Tests](https://img.shields.io/badge/CTest-426_Passing-00e676.svg?style=flat-square)](CMakeLists.txt)
+[![License](https://img.shields.io/badge/License-Clear_BSD-efbd74.svg?style=flat-square)](LICENSE)
+
+</div>
+
 Gygax is a C++26 runtime for autonomous systems. It ships as five things that share one core:
 
 - **A service** (`gygax serve`): an inference router that speaks the standard chat-completions API and the Ollama API, with model-aware routing, failover and peer nodes, plus a tool-using agent runtime, Prometheus metrics and JSON-RPC. One static-ish binary, no Python, Go or Node runtime.
 - **A neuromorphic simulator**: deterministic LIF and Izhikevich spiking networks with delayed sparse projections and pair-based STDP, usable from C++, JSON, HTTP, a C ABI and Python.
 - **An embodiment toolkit**: hardware node trees with capability aggregation, hierarchical state machines, a message hub, a 2D physics world with LiDAR, a sim-to-real link, USD export, and real serial, GPIO, modem, printer and G-code transports.
 - **SatLink**: satellite tracking for ground stations. SGP4/SDP4 that reproduces the reference implementation to a tenth of a millimetre, look angles, exact range-rate Doppler, pass prediction, radio retuning through Hamlib `rigctld`, and reception with an RTL-SDR over `rtl_tcp`.
-- **glyder**: Gygax in VR. A running simulation, or the real machines on a node, on a map table in a Meta Quest or a desktop window; point at any node to ride it at full scale and take its controls, then jack out and its autonomy resumes.
+- **glyder (Matrix Upgrade)**: Gygax in VR. A running simulation, or the real machines on a node, on a 3D tactical map table in a Meta Quest or a desktop window; point at any node to ride it at full 1:1 scale and take its controls, then jack out and its autonomy resumes.
 
 Everything documented here is exercised by the test suite (426 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
 
-**New in 0.4.0 "Matrix":** glyder, Gygax in VR. See the [release notes](docs/releases/v0.4.0.md) and the [changelog](CHANGELOG.md).
+**New in 0.4.0 "Matrix":** Spatial computing with glyder (Gygax in VR), 120Hz native Quest 3S execution, and universal neuro-accessibility (Tritanopia gold palette, Deaf visual subtitles & haptics, ADHD calm guidance, and spatial audio). See the [release notes](docs/releases/v0.4.0.md) and the [changelog](CHANGELOG.md).
 
 ## Quick start: run it as a service
 
@@ -105,10 +127,22 @@ with satlink.Rig("127.0.0.1", 4532) as rig:                 # Hamlib rigctld
 ## Quick start: VR
 
 ```bash
+# 1. Install the standalone Quest APK directly (Quest 3S / Quest 3 / Quest Pro)
+adb install -r glyder/glyder-0.4.0-quest.apk
+
+# 2. Or run Gygax with Glyder spatial streaming enabled on LAN (UDP 1999)
+./build/gygax serve --glyder --glyder-open
+
+# 3. Or launch an autonomous simulation showcase
 ./build/ohflock --glyder        # prints its pairing code; UDP 1999 must be open to the LAN
 ```
 
-Open glyder on the headset (or `glyder --demo` on a desktop), choose OHFLOCK in the lobby and type the code. The battle lies on a map table: grip to drag and turn it, both grips to scale it, point at a kite and pull the trigger to drop in. The kite hands you the sticks at its next stopping point; B jacks you out. `wargames --glyder` works the same way, and `gygax serve --glyder` shows a node's real machines (driving them needs `--device-commands`). Building the Quest app, pairing, the desktop viewer and vision correction from a spectacle prescription: [docs/GLYDER.md](docs/GLYDER.md).
+Open glyder on the headset (or run `glyder --demo` on a Linux desktop with Vulkan), choose the active node in the lobby, or drop directly into The Construct. The world is presented on a 3D tactical map table: grip to drag and turn it, both grips to scale it, and point at any autonomous agent or drone and pull the trigger to drop in at 1:1 scale. The agent hands you the controls at its next stopping point; press **B** to jack out and return to the map table while autonomy resumes seamlessly.
+
+- **Standalone Meta Quest APK**: [glyder-0.4.0-quest.apk](glyder/glyder-0.4.0-quest.apk) (1.0 MB, pure native C++26 / OpenXR / Vulkan 120 Hz, zero Android Studio / Gradle bloat).
+- **Construct VR Tour**: See [glyder/construct-tour.mp4](glyder/construct-tour.mp4) for a 20-second simulated tour of the holographic map table and drop-in quadcopter flight.
+- **Universal Neuro-Accessibility**: Built-in Tritanopia/Protanopia/Deuteranopia colour-vision correction shaders, Deaf directional visual subtitles & controller haptic pulses, and AAudio spatial synthesis.
+- **Documentation & Protocol**: Building from source, pairing codes, spectacle prescription correction, and network packet architecture are documented in [docs/GLYDER.md](docs/GLYDER.md).
 
 ## What is in the box
 

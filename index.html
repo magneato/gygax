@@ -162,9 +162,84 @@
       .grid.two, .showcase, .safety { grid-template-columns: 1fr; }
       .docs-grid { grid-template-columns: 1fr 1fr; }
       .doc-link { min-height: 95px; padding: 12px; }
-      .foot-inner { flex-direction: column; }
-      .sky-readout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .sky h3 { font-size: 24px; }
+    .badge-matrix {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      background: linear-gradient(90deg, rgba(0, 240, 255, 0.14), rgba(134, 225, 209, 0.06));
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      color: #00f0ff;
+      font: 10.5px/1 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.18);
+      border-radius: 2px;
+    }
+    .hero-matrix-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 16px;
+      margin-bottom: 22px;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      background: rgba(9, 13, 18, 0.88);
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.18);
+      border-radius: 24px;
+      font: 11px var(--mono);
+      color: #c4d1d5;
+      backdrop-filter: blur(10px);
+    }
+    .hero-matrix-badge b { color: #00f0ff; font-weight: 600; letter-spacing: .04em; }
+    .hero-matrix-badge a { color: var(--gold); text-decoration: none; margin-left: 6px; font-weight: 500; }
+    .hero-matrix-badge a:hover { text-decoration: underline; color: #fff; }
+    .rec-pulse {
+      width: 7px; height: 7px; border-radius: 50%; background: #ee897f;
+      display: inline-block;
+      box-shadow: 0 0 8px #ee897f;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }
+    .futuristic-video-wrapper {
+      position: relative;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      background: #04070a;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.12);
+    }
+    .hud-topbar, .hud-bottombar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 12px; background: rgba(11, 17, 23, 0.94);
+      font: 9.5px var(--mono); color: var(--dim); letter-spacing: .09em;
+    }
+    .hud-topbar { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+    .hud-bottombar { border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 9px; }
+    .hud-rec { display: flex; align-items: center; gap: 7px; color: #ee897f; font-weight: 600; }
+    .hud-telemetry { color: #00f0ff; }
+    .futuristic-video {
+      display: block; width: 100%; aspect-ratio: 16/9; background: #000;
+    }
+    .thumb-label {
+      display: block; padding: 4px 6px; background: #0b1117; color: var(--dim);
+      font: 9px var(--mono); letter-spacing: .06em; text-align: center; border-top: 1px solid var(--line);
+    }
+    .access-card {
+      padding: 10px 12px; border: 1px solid var(--line); background: rgba(17, 24, 32, 0.65);
+    }
+    .access-title {
+      display: block; font: 9.5px var(--mono); color: var(--gold); letter-spacing: .09em; margin-bottom: 3px;
+    }
+    .access-desc {
+      margin: 0; font-size: 11px; color: var(--muted); line-height: 1.45;
+    }
+    .nav-matrix {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #00f0ff !important; font-weight: 600;
+    }
+    .matrix-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #00f0ff;
+      box-shadow: 0 0 8px #00f0ff;
     }
   </style>
 </head>
@@ -176,6 +251,7 @@
       <nav aria-label="Main navigation">
         <a href="#principles">Principles</a>
         <a href="#capabilities">Capabilities</a>
+        <a href="#glyder" class="nav-matrix"><span class="matrix-dot"></span> Matrix VR</a>
         <a href="#showcases">Showcases</a>
         <a href="#safety">Boundaries</a>
         <a href="#documentation">Documentation</a>
@@ -187,13 +263,14 @@
   <div class="hero" id="top">
     <canvas id="field" aria-hidden="true"></canvas>
     <div class="hero-inner">
+      <div class="hero-matrix-badge"><span class="rec-pulse"></span> <b>0.4.0 “MATRIX” UPGRADE</b> &mdash; Spatial Computing in VR with 120Hz OpenXR on Meta Quest 3S &amp; PC <a href="#glyder">Tour The Construct &rarr;</a></div>
       <div class="eyebrow">A field guide to autonomous systems · v0.4.0 “Matrix”</div>
       <h1>God doesn't<br>play <em>dice.</em></h1>
       <p class="hero-sub">Neither should the systems we trust with the physical world. Gygax is an open-source runtime for agents, simulation, robotics, neuromorphic computing, satellite tracking and VR, designed to make behavior testable and authority explicit.</p>
       <div class="hero-actions">
-        <a class="button primary" href="#start">Run Gygax <span aria-hidden="true">↓</span></a>
+        <a class="button primary" href="#glyder" style="background:#00f0ff; color:#04070a; border-color:#00f0ff; box-shadow:0 0 16px rgba(0,240,255,0.25);">⚡ Fly in VR (120 Hz)</a>
+        <a class="button" href="#start">Run Gygax <span aria-hidden="true">↓</span></a>
         <a class="button" href="#capabilities">Explore the system</a>
-        <a class="button" href="#glyder">Fly it in VR</a>
         <a class="button" href="#skynet">Track a satellite</a>
         <a class="button" href="examples/ohflock/ohflock.html">Watch OHFLOCK ↗</a>
         <a class="button" href="https://github.com/magneato/gygax/blob/main/docs/WARGAMES.md">See the wargames demo ↗</a>
@@ -308,22 +385,61 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         </div>
       </div>
       <div class="showcase">
-        <article class="showcase-item flock" id="glyder">
+        <article class="showcase-item flock" id="glyder" style="border-color:rgba(0,240,255,0.3); box-shadow:0 0 35px rgba(0,240,255,0.08);">
           <div>
-            <a class="flock-shot" href="glyder/glyder-ride.jpg" aria-label="Open the full-size frame of a pilot riding kite R3"><img src="glyder/glyder-ride.jpg" alt="Inside OHFLOCK kite R3 in glyder at night: visor brackets, R3 marked CONTROL, heading 000, 65 km/h, 751 m above ground, the note 'dazzling gun 1 sight', and the battle's status panel showing 0 fired by us" loading="lazy"></a>
-            <a class="flock-shot" style="margin-top:12px" href="glyder/glyder-overview.jpg" aria-label="Open the full-size map-table frame"><img src="glyder/glyder-overview.jpg" alt="The OHFLOCK battle as a map table in glyder: the flock in formation over the dunes, the convoy road, guns and launchers, and a status panel" loading="lazy"></a>
+            <div class="futuristic-video-wrapper">
+              <div class="hud-topbar">
+                <div class="hud-rec"><span class="rec-pulse"></span> REC // CONSTRUCT TOUR</div>
+                <div class="hud-telemetry">120 FPS · VULKAN · OPENXR</div>
+              </div>
+              <video class="futuristic-video" controls autoplay loop muted playsinline poster="glyder/glyder-overview.jpg">
+                <source src="glyder/construct-tour.mp4" type="video/mp4">
+                Your browser does not support HTML5 video.
+              </video>
+              <div class="hud-bottombar">
+                <span>ADRENO 740 // SNAPDRAGON XR2 GEN 2</span>
+                <span>AAUDIO SPATIAL ACOUSTICS</span>
+              </div>
+            </div>
+            <div class="gallery-row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;">
+              <a class="flock-shot" href="glyder/glyder-ride.jpg" aria-label="Open the full-size frame of a pilot riding kite R3"><img src="glyder/glyder-ride.jpg" alt="Inside OHFLOCK kite R3 in glyder at night: visor brackets, R3 marked CONTROL, heading 000, 65 km/h, 751 m above ground" loading="lazy"><span class="thumb-label">COCKPIT 1:1 RIDE</span></a>
+              <a class="flock-shot" href="glyder/glyder-overview.jpg" aria-label="Open the full-size map-table frame"><img src="glyder/glyder-overview.jpg" alt="The OHFLOCK battle map table in glyder" loading="lazy"><span class="thumb-label">HOLO MAP TABLE</span></a>
+            </div>
           </div>
           <div>
-            <div class="eyebrow">NEW IN 0.4.0 “MATRIX” / GLYDER</div>
-            <h3>Put on the visor. Take the stick.</h3>
-            <p>glyder puts a running Gygax world in a VR headset. The battle, or the real machines connected to a node, lies on a map table in front of you. Point at any kite, tank or drone and pull the trigger: the view switches at once, the node finishes what it is doing, then hands you the sticks. Press B to jack out and its autonomy takes over again. Everything else carries on around you.</p>
-            <p>It runs natively on Meta Quest (OpenXR on Vulkan, at the headset’s highest refresh rate) and in a desktop window. A six-digit pairing code keys every packet, so nobody else on the network can drive a node. Enter your spectacle prescription and glyder sets the cameras to your pupillary distance and prism.</p>
-            <pre>./build/ohflock --glyder            # the flock, live in the headset
-./build/wargames --glyder           # take a tank or a drone
-./build/gygax serve --glyder \
-  --device uav=mavlink:udp://0.0.0.0:14550</pre>
-            <p class="small" style="margin-top:12px">These frames are real: the OHFLOCK host and the desktop viewer, rendered headless. Both images open full size.</p>
-            <p style="margin-top:15px"><a href="https://github.com/magneato/gygax/blob/main/docs/GLYDER.md">Set up a headset ↗</a> · <a href="https://github.com/magneato/gygax/blob/main/docs/releases/v0.4.0.md">Release notes</a></p>
+            <div class="badge-matrix">0.4.0 “MATRIX” // SPATIAL COMPUTING &amp; VR</div>
+            <h3 style="font-size:32px; letter-spacing:-0.03em; margin:14px 0 12px;">Put on the visor. Take the stick.</h3>
+            <p><strong>glyder</strong> drops a running Gygax world straight into your VR headset. Any simulation—or real robotics connected to an embodiment node—materializes on a 3D holographic map table in front of you. Point at any drone, kite, rover, or tank and pull the trigger: you drop in at full 1:1 scale into the cockpit with instant manual controls. Press <strong>B</strong> to jack out, and the machine's autonomous doctrine seamlessly resumes.</p>
+            <p>Engineered for maximum presence with zero engine bloat: native OpenXR and Vulkan multiview rendering at <strong>120 Hz</strong> on Meta Quest 3S/3/Pro with sub-frame motion prediction and HMAC-authenticated LAN telemetry.</p>
+
+            <div class="access-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:18px 0;">
+              <div class="access-card">
+                <span class="access-title">NEURO-ACOUSTIC RADAR</span>
+                <p class="access-desc">Low-latency AAudio spatial cues panned by bearing and elevation; earcons for node events.</p>
+              </div>
+              <div class="access-card">
+                <span class="access-title">TRITANOPIA GOLD PALETTE</span>
+                <p class="access-desc">Calibrated warm amber, gold, and jade shaders; zero reliance on blue-only critical cues.</p>
+              </div>
+              <div class="access-card">
+                <span class="access-title">DEAF CUES &amp; HAPTICS</span>
+                <p class="access-desc">Visual directional subtitle overlays and dual-controller haptic warning pulses.</p>
+              </div>
+              <div class="access-card">
+                <span class="access-title">PRESCRIPTION OPTICS</span>
+                <p class="access-desc">Hardware IPD matching, prism offset, and directional pre-sharpening along cylinder axes.</p>
+              </div>
+            </div>
+
+            <pre>./build/ohflock --glyder            # live flock defense in VR
+./build/wargames --glyder           # battlefield command &amp; drone ride
+./build/gygax serve --glyder        # live robotics node on holo-table</pre>
+
+            <div class="vr-buttons" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:20px;">
+              <a href="glyder/glyder-0.4.0-quest.apk" class="button primary" style="background:#00f0ff; color:#04070a; border-color:#00f0ff; box-shadow:0 0 16px rgba(0,240,255,0.25);" download>⬇ Download Quest APK (1 MB)</a>
+              <a href="https://github.com/magneato/gygax/blob/main/docs/GLYDER.md" class="button">Read glyder Guide ↗</a>
+              <a href="https://github.com/magneato/gygax/blob/main/docs/releases/v0.4.0.md" class="button">Release Notes</a>
+            </div>
           </div>
         </article>
         <article class="showcase-item"><div class="eyebrow">SHOWCASE 01 / WARGAMES</div><h3>A human-directed agent team</h3><p>Agents command a bunker, turrets, tanks, and drones. The example composes the orchestrator, tools, collective consensus, a ledger, route planning, and a small LIF-driven hostile hive. The built-in doctrine makes seeded battles reproducible; humans can direct the running simulation.</p><pre>./build/wargames --map
@@ -501,19 +617,31 @@ ctest --test-dir build --output-on-failure
       function draw() {
         ctx.clearRect(0, 0, width, height);
         const t = frame * 0.003;
-        const coords = points.map(p => [p.x * width + Math.sin(t + p.phase) * 5, p.y * height + Math.cos(t * .7 + p.phase) * 4]);
+        // Subtle cybernetic perspective grid in background
+        const gridSpacing = 64;
+        const gridYOffset = (frame * 0.4) % gridSpacing;
+        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.035)";
+        for (let x = 0; x < width; x += gridSpacing) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+        }
+        for (let y = gridYOffset; y < height; y += gridSpacing) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+        }
+
+        const coords = points.map(p => [p.x * width + Math.sin(t + p.phase) * 7, p.y * height + Math.cos(t * .7 + p.phase) * 6]);
         for (let i = 0; i < coords.length; i++) {
           let connected = 0;
           for (let j = i + 1; j < coords.length && connected < 3; j++) {
             const dx = coords[i][0] - coords[j][0], dy = coords[i][1] - coords[j][1], d = Math.hypot(dx, dy);
-            if (d < 125) {
-              ctx.strokeStyle = `rgba(134,225,209,${(1 - d / 125) * .18})`;
-              ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(...coords[i]); ctx.lineTo(...coords[j]); ctx.stroke();
+            if (d < 135) {
+              ctx.strokeStyle = `rgba(0,240,255,${(1 - d / 135) * .22})`;
+              ctx.lineWidth = .65; ctx.beginPath(); ctx.moveTo(...coords[i]); ctx.lineTo(...coords[j]); ctx.stroke();
               connected++;
             }
           }
-          ctx.fillStyle = i % 7 === 0 ? "rgba(239,189,116,.58)" : "rgba(134,225,209,.38)";
-          ctx.beginPath(); ctx.arc(coords[i][0], coords[i][1], points[i].size, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = i % 7 === 0 ? "rgba(239,189,116,.75)" : (i % 3 === 0 ? "rgba(0,240,255,.65)" : "rgba(134,225,209,.45)");
+          ctx.beginPath(); ctx.arc(coords[i][0], coords[i][1], points[i].size * 1.2, 0, Math.PI * 2); ctx.fill();
         }
         frame++;
         if (!reducedMotion) requestAnimationFrame(draw);

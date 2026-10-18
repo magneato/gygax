@@ -25,6 +25,8 @@
 #include <glyder/draw.hpp>
 #include <glyder/handling.hpp>
 #include <glyder/kit.hpp>
+#include <glyder/audio.hpp>
+#include <glyder/colour.hpp>
 #include <glyder/rx.hpp>
 
 namespace glyder {
@@ -82,6 +84,7 @@ struct AppOptions {
     bool demo{false};               // start in the Construct demo
     render::MeshId terrainMesh{0};  // a mesh slot the platform reserved for terrain
     float nearZ{0.05f};
+    bool rememberAccess{true}; // load and save the accessibility settings (captures do not)
 };
 
 class App {
@@ -102,6 +105,23 @@ public:
     [[nodiscard]] const rx::Correction& vision() const { return correction_; }
     [[nodiscard]] bool visionFilter() const { return rxEnabled_ && correction_.filter; }
     [[nodiscard]] bool quitRequested() const { return quit_; }
+
+    // Accessibility (also in the menu, and remembered).
+    // Colour vision: correct for a missing cone type; `preview` shows a viewer with typical colour
+    // vision what this viewer sees (with or without the correction).
+    void setColourVision(colour::Vision v, bool corrected = true, bool preview = false);
+    [[nodiscard]] colour::Vision colourVision() const { return colour_; }
+    // Audio cues for what is around you (glyder/audio.hpp).
+    void setAudioCues(bool on);
+    // Blind mode: audio cues for everything, earcons for what happens, the node you point at
+    // sounds, and controllers pulse for anything incoming.
+    void setBlindMode(bool on);
+    [[nodiscard]] bool audioCues() const { return cues_ || blind_; }
+    [[nodiscard]] bool blindMode() const { return blind_; }
+    // The sound for the time since the last call: interleaved stereo, frames = out.size() / 2,
+    // at audioRate(). Call once per frame after frame(); silence when cues are off.
+    void audio(std::span<float> out);
+    [[nodiscard]] int audioRate() const { return mixer_.sampleRate(); }
     // Desktop: a one-line description of what the app is doing, for the window title.
     [[nodiscard]] std::string caption() const;
     // Scripted control for captures and tests.
@@ -167,6 +187,8 @@ private:
     [[nodiscard]] bool pressed(const Input& in, int hand) const; // trigger went down this frame
     void loadState();
     void saveState() const;
+    void listen(const Input& in);
+    void earcon(float hz, float hz2, float gain = 0.5f);
     void applyRx();
 
     AppOptions options_;
@@ -246,6 +268,16 @@ private:
     bool chart_{false};
     rx::Correction correction_;
     std::string rxMessage_;
+
+    // Accessibility.
+    colour::Vision colour_{colour::Vision::Typical};
+    bool colourCorrect_{true}, colourPreview_{false};
+    bool cues_{false}, blind_{false};
+    audio::Mixer mixer_{48000};
+    Mat4 heard_;          // render-from-world of the scene drawn this frame, for placing sounds
+    float heardScale_{1}; // render metres per world metre
+    bool haveHeard_{false};
+    std::uint32_t heardFocus_{0};
 
     Pose menuAt_, visionAt_;
     float hudYaw_{0};

@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- glyder colour vision: corrections for no blue (tritan), no red (protan) and no green (deutan) cones, applied in the final render pass over everything, and a preview of what such a viewer sees (`glyder/colour.hpp`).
+- glyder audio cues and blind mode: a synthesizer in the portable core whose voices have a waveform per envelope stage, a cue per kind of object (incoming, aircraft, ground, own side, structure, the ground below), panned by bearing and pitched by elevation; earcons, pointing that sounds the node, and controller pulses for anything incoming. AAudio output on Quest (`glyder/audio.hpp`).
+- The desktop viewer captures in real time to a pipe (`--capture FILE.rgba`) with sound (`--audio FILE.wav`); script cues are timed by frame and can switch colour vision, cues and blind mode.
+- `glyder/glyder-ride.mp4`: 75 seconds of OHFLOCK in glyder, with blind mode and each colour-vision mode, recorded live.
 - [docs/GLYDER.md](docs/GLYDER.md): hosts, network and firewall, building and installing the Quest app, controls, vision correction, the desktop viewer and headless capture, the protocol, and limits. The README, TLDR, OHFLOCK and wargames guides cover `--glyder`.
 - The project page features glyder: a showcase with frames rendered headless from a live OHFLOCK host, a capability entry, and a safety note on headset authority.
 

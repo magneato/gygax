@@ -8,6 +8,7 @@
 
 #define XR_USE_PLATFORM_ANDROID
 #define XR_USE_GRAPHICS_API_VULKAN
+#include <aaudio/AAudio.h>
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <jni.h>
@@ -17,6 +18,8 @@
 #include <openxr/openxr_platform.h>
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -34,6 +37,61 @@ using namespace glyder;
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "glyder", __VA_ARGS__)
 
 namespace {
+
+// The speaker: AAudio pulls from a single-producer, single-consumer ring that the frame loop keeps
+// about 40 ms ahead, so the sound follows the device's own clock and never waits on a frame.
+class Speaker {
+public:
+    bool open(int rate) {
+        AAudioStreamBuilder* b = nullptr;
+        if (AAudio_createStreamBuilder(&b) != AAUDIO_OK) return false;
+        AAudioStreamBuilder_setFormat(b, AAUDIO_FORMAT_PCM_FLOAT);
+        AAudioStreamBuilder_setChannelCount(b, 2);
+        AAudioStreamBuilder_setSampleRate(b, rate);
+        AAudioStreamBuilder_setPerformanceMode(b, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+        AAudioStreamBuilder_setUsage(b, AAUDIO_USAGE_GAME);
+        AAudioStreamBuilder_setDataCallback(b, &Speaker::pull, this);
+        const bool ok = AAudioStreamBuilder_openStream(b, &stream_) == AAUDIO_OK;
+        AAudioStreamBuilder_delete(b);
+        if (!ok) return false;
+        rate_ = AAudioStream_getSampleRate(stream_);
+        return AAudioStream_requestStart(stream_) == AAUDIO_OK;
+    }
+    void close() {
+        if (stream_) {
+            AAudioStream_requestStop(stream_);
+            AAudioStream_close(stream_);
+            stream_ = nullptr;
+        }
+    }
+    // Frames to add now to stay about 40 ms ahead of the device.
+    [[nodiscard]] std::size_t wanted() const {
+        const std::size_t target = static_cast<std::size_t>(rate_) / 25;
+        const std::size_t have = (head_.load() - tail_.load()) / 2;
+        return have < target ? target - have : 0;
+    }
+    void push(const float* stereo, std::size_t frames) {
+        std::size_t h = head_.load(std::memory_order_relaxed);
+        for (std::size_t i = 0; i < frames * 2; ++i, ++h) ring_[h % ring_.size()] = stereo[i];
+        head_.store(h, std::memory_order_release);
+    }
+    [[nodiscard]] int rate() const { return rate_; }
+
+private:
+    static aaudio_data_callback_result_t pull(AAudioStream*, void* user, void* data, std::int32_t frames) {
+        auto* s = static_cast<Speaker*>(user);
+        auto* out = static_cast<float*>(data);
+        std::size_t t = s->tail_.load(std::memory_order_relaxed);
+        const std::size_t h = s->head_.load(std::memory_order_acquire);
+        for (std::int32_t i = 0; i < frames * 2; ++i) out[i] = t < h ? s->ring_[t++ % s->ring_.size()] : 0.0f;
+        s->tail_.store(t, std::memory_order_release);
+        return AAUDIO_CALLBACK_RESULT_CONTINUE;
+    }
+    AAudioStream* stream_{nullptr};
+    int rate_{48000};
+    std::array<float, 48000> ring_{}; // half a second of stereo
+    std::atomic<std::size_t> head_{0}, tail_{0};
+};
 
 bool ok(XrResult r, const char* what) {
     if (XR_SUCCEEDED(r)) return true;
@@ -77,6 +135,8 @@ struct Quest {
     std::unique_ptr<render::Gpu> gpu;
     std::unique_ptr<render::Renderer> renderer;
     std::unique_ptr<App> app;
+    Speaker speaker;
+    std::vector<float> audioBlock;
     render::MeshId terrainMesh{0};
     double lastFrame{0};
 
@@ -371,6 +431,7 @@ bool Quest::initSwapchain() {
     ao.storageDir = android->activity->internalDataPath ? android->activity->internalDataPath : "";
     ao.terrainMesh = terrainMesh;
     app = std::make_unique<App>(ao);
+    if (!speaker.open(app->audioRate())) LOGE("no audio output; audio cues will be silent");
     return true;
 }
 
@@ -504,6 +565,11 @@ void Quest::frame() {
             }
             const render::FrameData fd = app->frame(in, eyes, width, height);
             if (auto mesh = app->takeTerrainMesh()) renderer->replaceMesh(terrainMesh, *mesh);
+            if (const std::size_t n = speaker.wanted(); n > 0) {
+                audioBlock.resize(n * 2);
+                app->audio(audioBlock);
+                speaker.push(audioBlock.data(), n);
+            }
 
             std::uint32_t index = 0;
             XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
@@ -552,6 +618,7 @@ void Quest::frame() {
 }
 
 void Quest::shutdown() {
+    speaker.close();
     if (renderer) renderer->waitIdle();
     app.reset();
     renderer.reset();

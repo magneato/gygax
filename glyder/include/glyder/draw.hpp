@@ -79,10 +79,13 @@ struct PostEye {
     Vec4 frustum; // tan left, tan width, tan up, tan height
     Vec4 texel;   // 1 / width, 1 / height
 };
+// Vision pre-compensation per eye, then a colour matrix for colour vision (glyder/colour.hpp):
+// rows of a 3 x 3 in xyz; colour[0].w is 1 when it applies.
 struct PostParams {
     PostEye eye[2];
+    Vec4 colour[3]{{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}};
 };
-static_assert(sizeof(PostParams) == 128);
+static_assert(sizeof(PostParams) == 176);
 
 struct FrameData {
     SceneUniforms scene;
@@ -96,7 +99,7 @@ struct FrameData {
     std::span<const Line> uiGlow;
     bool drawSky{true};
     Vec4 clear{0, 0, 0, 1};
-    const PostParams* post{nullptr}; // non-null: run the vision pre-compensation pass
+    const PostParams* post{nullptr}; // non-null: run the final pass (vision pre-compensation, colour vision)
 };
 
 // Lighting moods. Night is OHFLOCK's moonlit desert; Construct is the white void glyder's lobby

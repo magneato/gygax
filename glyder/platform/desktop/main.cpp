@@ -43,7 +43,18 @@ struct Options {
     int fps{60};
     std::string script; // "t action [args]; ..." for headless captures
     float fovDeg{68};
+    // Accessibility: applied at start (and remembered, as the menu does).
+    std::string colour; // typical, tritan, protan, deutan
+    bool preview{false}, uncorrected{false}, cues{false}, blind{false};
+    std::string audio; // headless: write the audio cues to this WAV, in step with the frames
 };
+
+void applyAccess(App& app, const Options& o) {
+    if (!o.colour.empty() || o.preview || o.uncorrected)
+        app.setColourVision(colour::fromToken(o.colour, app.colourVision()), !o.uncorrected, o.preview);
+    if (o.cues) app.setAudioCues(true);
+    if (o.blind) app.setBlindMode(true);
+}
 
 struct Cue {
     double t;
@@ -76,10 +87,18 @@ void usage() {
         "  --size WxH             window size (default 1600x900)\n"
         "  --stereo               both eyes side by side\n"
         "  --capture FILE.png     headless: render offscreen and save (use %%05d for a sequence)\n"
+        "  --capture FILE.rgba    headless: every frame as raw RGBA to a file or pipe, for an encoder\n"
         "  --seconds S            headless run time (default 8)\n"
         "  --fps N                headless frame rate (default 60)\n"
         "  --script \"T ACTION..;\" headless cues: drop ID|SHAPE | out | head X Y Z YAW PITCH | point X Y | click | menu | stick H X Y\n"
-        "  --rx \"OD ..\"           a prescription to apply (as written on it)\n",
+        "                         colour MODE [preview] [raw] | cues on|off | blind on|off\n"
+        "  --rx \"OD ..\"           a prescription to apply (as written on it)\n"
+        "  --colour MODE          colour vision: typical, tritan (no blue cones), protan (no red), deutan (no green)\n"
+        "  --preview              show what that viewer sees (for viewers with typical colour vision)\n"
+        "  --raw                  with --preview: without the correction\n"
+        "  --cues                 audio cues for what is around you\n"
+        "  --blind                blind mode: cues for everything, earcons, pointing sounds the node\n"
+        "  --audio FILE.wav       headless: write the sound, in step with the frames\n",
         kVersion, kReleaseName, wire::kDefaultPort);
 }
 
@@ -155,8 +174,18 @@ int headless(const Options& o) {
     render::OffscreenTarget target(*gpu, VK_FORMAT_R8G8B8A8_SRGB, {w, h}, views);
     AppOptions ao = o.app;
     ao.terrainMesh = renderer.addMesh({});
+    ao.rememberAccess = false; // a capture says what it wants; it never changes what a user chose
     App app(ao);
+    applyAccess(app, o);
     auto cues = parseScript(o.script);
+    // Raw frames to a file or pipe (an encoder reading a FIFO): fast enough to keep real time.
+    const bool rawFrames = o.capture.size() > 5 && o.capture.ends_with(".rgba");
+    std::FILE* rawOut = rawFrames ? std::fopen(o.capture.c_str(), "wb") : nullptr;
+    if (rawFrames && !rawOut) {
+        std::fprintf(stderr, "glyder: cannot write %s\n", o.capture.c_str());
+        return 1;
+    }
+    std::vector<float> track;
     Viewer viewer;
     Input in;
     in.desktop = true;
@@ -172,7 +201,8 @@ int headless(const Options& o) {
         const double now0 = net::now();
         if (due > now0) std::this_thread::sleep_for(std::chrono::duration<double>(due - now0));
         const double t = net::now();
-        const double rel = t - start;
+        // Cues are timed by frame, so each lands at its second of the video however fast frames render.
+        const double rel = static_cast<double>(f) / o.fps;
         in = {};
         in.desktop = true;
         in.time = t;
@@ -207,6 +237,14 @@ int headless(const Options& o) {
             } else if (it->action == "stick") {
                 const int hand = std::clamp(static_cast<int>(num(0)), 0, 1);
                 sticks[hand] = {num(1), num(2)};
+            } else if (it->action == "colour" && !a.empty()) {
+                const bool preview = std::find(a.begin(), a.end(), "preview") != a.end();
+                const bool raw = std::find(a.begin(), a.end(), "raw") != a.end();
+                app.setColourVision(colour::fromToken(a[0]), !raw, preview);
+            } else if (it->action == "cues" && !a.empty()) {
+                app.setAudioCues(a[0] == "on");
+            } else if (it->action == "blind" && !a.empty()) {
+                app.setBlindMode(a[0] == "on");
             }
             it = cues.erase(it);
         }
@@ -221,9 +259,22 @@ int headless(const Options& o) {
         }
         const auto eyes = eyesFor(in.head, o.fovDeg, aspect, o.stereo);
         const render::FrameData fd = app.frame(in, eyes, w, h);
+        if (!o.audio.empty()) {
+            // Exactly as many samples as this frame lasts, so the track stays in step with the video.
+            const auto samplesDue = static_cast<std::size_t>(std::llround(static_cast<double>(f + 1) * app.audioRate() / o.fps));
+            std::vector<float> block((samplesDue - track.size() / 2) * 2);
+            app.audio(block);
+            track.insert(track.end(), block.begin(), block.end());
+        }
         if (auto mesh = app.takeTerrainMesh()) renderer.replaceMesh(ao.terrainMesh, *mesh);
         renderer.render(fd, target.target());
-        if (sequence || f == frames - 1) {
+        if (rawOut) {
+            const std::vector<std::uint8_t> frame = target.read(0);
+            if (std::fwrite(frame.data(), 1, frame.size(), rawOut) != frame.size()) {
+                std::fprintf(stderr, "glyder: the frame reader went away\n");
+                break;
+            }
+        } else if (sequence || f == frames - 1) {
             std::vector<std::uint8_t> px0 = target.read(0);
             std::vector<std::uint8_t> out;
             int ow = static_cast<int>(w);
@@ -242,6 +293,14 @@ int headless(const Options& o) {
             std::snprintf(name, sizeof name, o.capture.c_str(), f);
             image::writePng(sequence ? name : o.capture, ow, static_cast<int>(h), out);
         }
+    }
+    if (rawOut) std::fclose(rawOut);
+    if (!o.audio.empty()) {
+        const auto bytes = audio::wav(track, app.audioRate());
+        std::FILE* af = std::fopen(o.audio.c_str(), "wb");
+        if (!af || std::fwrite(bytes.data(), 1, bytes.size(), af) != bytes.size())
+            std::fprintf(stderr, "glyder: cannot write %s\n", o.audio.c_str());
+        if (af) std::fclose(af);
     }
     std::printf("glyder: %d frames, %s, last frame %u draws %llu triangles on %s\n", frames, app.mode().c_str(),
                 renderer.drawCallsLastFrame(), static_cast<unsigned long long>(renderer.trianglesLastFrame()), gpu->name().c_str());
@@ -344,6 +403,7 @@ int windowed(const Options& o) {
     AppOptions ao = o.app;
     ao.terrainMesh = renderer.addMesh({});
     App app(ao);
+    applyAccess(app, o);
 
     VkSemaphore acquired, blitted;
     VkSemaphoreCreateInfo sem{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -566,6 +626,18 @@ int main(int argc, char** argv) {
             o.script = next();
         else if (a == "--rx")
             rxText = next();
+        else if (a == "--colour" || a == "--color")
+            o.colour = next();
+        else if (a == "--preview")
+            o.preview = true;
+        else if (a == "--raw")
+            o.uncorrected = true;
+        else if (a == "--cues")
+            o.cues = true;
+        else if (a == "--blind")
+            o.blind = true;
+        else if (a == "--audio")
+            o.audio = next();
         else if (a == "--fov")
             o.fovDeg = std::strtof(next().c_str(), nullptr);
         else if (a == "--size") {

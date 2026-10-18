@@ -89,7 +89,8 @@ until then the HUD says HANDOVER AT THE NEXT STOPPING POINT. Then YOU HAVE CONTR
 to turn and climb. Host and headset run the same handling code, so your input shows at once and the host agrees with
 it to within network jitter. Press **B** to jack out, instantly; autonomy resumes.
 
-**Menu** (Y on the left controller, Tab on a desktop): horizon lock, comfort vignette, vision, and leave the host.
+**Menu** (Y on the left controller, Tab on a desktop): host orders, horizon lock, comfort vignette, colour vision, audio
+cues, blind mode, vision, and leave the host. glyder remembers your choices.
 
 ## Vision correction
 
@@ -111,6 +112,37 @@ controller is slow, so while the vision panel is open the headset serves a small
 it shows on your phone and enter the PIN it shows. The page answers only to that PIN and only while the panel is
 open, and the prescription never leaves the headset.
 
+## Colour vision
+
+COLOUR VISION in the menu cycles through NO BLUE (TRITAN), NO RED (PROTAN), NO GREEN (DEUTAN) and TYPICAL. For each,
+glyder applies a correction in its final render pass, over the world and the interface alike: it works out what that
+viewer would lose (Machado, Oliveira and Fernandes 2009, full severity) and moves those colour differences into ones
+they can see (daltonization). The desktop viewer's `--colour MODE --preview` shows a viewer with typical colour vision
+what a colour-blind viewer sees, with the correction, or with `--raw` without it.
+
+## Audio cues and blind mode
+
+AUDIO CUES gives the world a sound. Each kind of object has its own envelope, and each stage of the envelope its own
+waveform, so it is recognisable from its first few milliseconds:
+
+| Cue | Attack | Decay | Sustain | Release | Repeats |
+| --- | --- | --- | --- | --- | --- |
+| Incoming (missiles, bombs, anything fast and inbound) | square | saw | square | sine | faster as it closes, down to a rattle in the last second |
+| Aircraft | triangle | sine | sine | sine | faster as it nears |
+| Ground vehicle | saw | square | triangle | sine | faster as it nears |
+| Your own side | sine | triangle | sine | sine | slowly |
+| Structure, close by | noise | triangle | (none) | sine | as you approach |
+| The ground below an aircraft you ride | sine | sine | triangle | sine | higher as it gets closer, under 300 m |
+
+Every cue is panned by its bearing from your head, an octave higher straight above you and lower below, and a
+semitone lower behind you, so front and back differ. Riding, you hear about 4 km around you; on the map table, the
+whole table. A dozen sources at most are heard at once, most urgent first.
+
+BLIND MODE adds what you need without looking: the node you point at sounds (and the controller ticks as you move
+onto it), earcons mark a handover (rising), jacking out (falling), a refusal and each kind of narrative event, and
+both controllers pulse for anything arriving within two seconds. On Quest the sound plays through AAudio; the desktop
+viewer writes it to a WAV with `--audio` when capturing.
+
 ## Desktop viewer
 
 The same experience in a window, with the mouse and keyboard standing in for the controllers. It needs Vulkan and
@@ -131,8 +163,18 @@ Headless, it renders offscreen and saves PNGs, which is how the frames on the pr
 glyder --connect 127.0.0.1 --capture ride.png --seconds 14 --script "4 drop 3"
 ```
 
-`--script` takes timed cues: `drop ID|SHAPE`, `out`, `head X Y Z YAW PITCH`, `point X Y`, `click`, `menu`,
-`stick H X Y`.
+`--script` takes cues timed by frame: `drop ID|SHAPE`, `out`, `head X Y Z YAW PITCH`, `point X Y`, `click`, `menu`,
+`stick H X Y`, `colour MODE [preview] [raw]`, `cues on|off`, `blind on|off`. `--capture FILE.rgba` streams raw
+frames to a file or a pipe for an encoder, and `--audio FILE.wav` records the sound in step:
+
+```bash
+mkfifo frames.rgba
+ffmpeg -f rawvideo -pix_fmt rgba -s 1280x720 -r 30 -i frames.rgba -c:v libx264 -pix_fmt yuv420p video.mp4 &
+glyder --connect 127.0.0.1 --capture frames.rgba --audio sound.wav --size 1280x720 --fps 30 --seconds 75 \
+    --script "9 blind on; 11 drop 3; 31 colour tritan preview raw; 38 colour tritan preview"
+```
+
+That is how `glyder/glyder-ride.mp4` was made.
 
 ## Protocol
 

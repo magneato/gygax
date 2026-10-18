@@ -61,6 +61,8 @@ add_library(glyder_core STATIC
     src/core/rxserver.cpp
     src/core/demo.cpp
     src/core/app.cpp
+    src/core/colour.cpp
+    src/core/audio.cpp
 )
 target_include_directories(glyder_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
 glyder_warnings(glyder_core)
@@ -74,7 +76,7 @@ if(GLYDER_BUILD_TESTS AND NOT ANDROID)
         set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(googletest)
     endif()
-    add_executable(glyder_tests tests/test_core.cpp tests/test_session.cpp tests/test_experience.cpp)
+    add_executable(glyder_tests tests/test_core.cpp tests/test_session.cpp tests/test_experience.cpp tests/test_access.cpp)
     target_link_libraries(glyder_tests PRIVATE glyder_core gtest gtest_main)
     get_target_property(_glyder_gtest_inc gtest INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(glyder_tests SYSTEM PRIVATE ${_glyder_gtest_inc})
@@ -137,7 +139,7 @@ if(ANDROID)
     target_include_directories(glyder_native_app_glue PUBLIC ${ANDROID_NDK}/sources/android/native_app_glue)
 
     add_library(glyder SHARED platform/quest/main.cpp)
-    target_link_libraries(glyder PRIVATE glyder_render glyder_native_app_glue glyder_openxr android log vulkan)
+    target_link_libraries(glyder PRIVATE glyder_render glyder_native_app_glue glyder_openxr android log vulkan aaudio)
     glyder_warnings(glyder)
     target_compile_options(glyder PRIVATE -Wno-missing-field-initializers)
     # Keep the NativeActivity entry point; 16 KB pages for current Android.

@@ -1134,6 +1134,183 @@ void wand(Builder& b) {
     b.cylinder({0.061f, 0, 0}, {0.064f, 0, 0}, 0.005f, 8);
 }
 
+// --- Later additions ------------------------------------------------------------------------
+
+void microdrone(Builder& b) {
+    // A fly's plan at hand size: head with two big eyes, thorax, a long abdomen, two wing pairs.
+    b.color(graphite);
+    b.icosphere({0.036f, 0, 0.002f}, 0.012f, 1);
+    b.color(seam, Material::Emissive);
+    b.mirrored([&] { b.icosphere({0.043f, 0.009f, 0.005f}, 0.0065f, 1); });
+    b.color(gunmetal);
+    b.wedgeBox({0.012f, 0, 0}, {0.034f, 0.022f, 0.02f}, 0.004f, 0.005f);
+    b.color(graphite);
+    b.cylinder({-0.005f, 0, 0.001f}, {-0.07f, 0, 0.006f}, 0.0075f, 6);
+    b.cone({-0.07f, 0, 0.006f}, {-0.085f, 0, 0.008f}, 0.0075f, 6);
+    b.team();
+    b.cylinder({-0.03f, 0, 0.002f}, {-0.04f, 0, 0.003f}, 0.0085f, 6);
+    b.color(hex(0x8FA3B3));
+    b.mirrored([&] {
+        b.panel({0.022f, 0.008f, 0.011f}, {0.012f, 0.062f, 0.016f}, {-0.012f, 0.058f, 0.015f}, {0.002f, 0.008f, 0.011f});
+        b.panel({0.0f, 0.008f, 0.010f}, {-0.016f, 0.045f, 0.013f}, {-0.034f, 0.04f, 0.012f}, {-0.016f, 0.007f, 0.010f});
+    });
+    b.color(graphite);
+    b.mirrored([&] {
+        for (float x : {0.022f, 0.012f, 0.002f}) b.cylinder({x, 0.008f, -0.006f}, {x + 0.004f, 0.022f, -0.02f}, 0.0015f, 3);
+    });
+    b.color(navRed, Material::Emissive);
+    b.box({-0.086f, 0, 0.008f}, {0.004f, 0.004f, 0.004f});
+}
+
+void quadruped(Builder& b) {
+    b.color(bone);
+    b.wedgeBox({0, 0, 0.58f}, {0.92f, 0.34f, 0.2f}, 0.05f, 0.05f);
+    b.team();
+    b.box({0, 0, 0.465f}, {0.94f, 0.36f, 0.04f});
+    b.color(graphite);
+    b.wedgeBox({0.52f, 0, 0.6f}, {0.16f, 0.26f, 0.14f}, 0.03f, 0.03f);
+    b.color(bone, Material::TeamEmissive);
+    b.mirrored([&] { b.box({0.6f, 0.07f, 0.62f}, {0.02f, 0.05f, 0.03f}); });
+    b.color(seam, Material::Emissive);
+    b.box({0.6f, 0, 0.56f}, {0.02f, 0.16f, 0.02f});
+    // The microdrone dock: a gold charging pad on the back.
+    b.color(gold);
+    b.box({-0.15f, 0, 0.695f}, {0.22f, 0.16f, 0.03f});
+    b.color(steel);
+    b.cylinder({-0.38f, 0.1f, 0.68f}, {-0.38f, 0.1f, 1.0f}, 0.008f, 4);
+    for (float x : {0.33f, -0.33f}) {
+        b.mirrored([&] {
+            b.color(gunmetal);
+            b.cylinder({x, 0.2f, 0.55f}, {x, 0.21f, 0.55f}, 0.07f, 8);
+            b.color(graphite);
+            b.cylinder({x, 0.2f, 0.55f}, {x + 0.1f, 0.21f, 0.3f}, 0.04f, 6);
+            b.cylinder({x + 0.1f, 0.21f, 0.3f}, {x - 0.02f, 0.21f, 0.04f}, 0.03f, 6);
+            b.color(rubber);
+            b.icosphere({x - 0.02f, 0.21f, 0.035f}, 0.035f, 1);
+        });
+    }
+}
+
+void megadrone(Builder& b) {
+    // Elephant-sized: a deep body on four pillar legs, a padded lifting fork where the head would be,
+    // a loudhailer for instructions on each flank and work lights along the back.
+    Rings f;
+    f.push_back(ring(2.7f, 0.9f, 0.9f, 3.0f));
+    f.push_back(ring(1.8f, 1.4f, 1.15f, 3.1f));
+    f.push_back(ring(-1.6f, 1.45f, 1.2f, 3.1f));
+    f.push_back(ring(-2.6f, 1.0f, 0.95f, 3.0f));
+    b.color(gunmetal);
+    b.loft(f);
+    b.team();
+    b.box({0.1f, 0, 2.05f}, {4.6f, 2.95f, 0.18f});
+    b.color(graphite);
+    b.wedgeBox({3.25f, 0, 2.6f}, {1.1f, 2.3f, 1.6f}, 0.2f, 0.35f, 0.25f);
+    b.color(steel);
+    b.wedgeBox({3.9f, 0, 2.0f}, {0.35f, 2.8f, 1.2f}, 0.1f, 0.1f);
+    b.color(lamp, Material::Emissive);
+    b.mirrored([&] { b.icosphere({3.82f, 0.85f, 2.9f}, 0.16f, 1); });
+    b.color(seam, Material::Emissive);
+    b.box({3.82f, 0, 3.1f}, {0.06f, 1.2f, 0.08f});
+    for (float x : {1.8f, -1.6f}) {
+        b.mirrored([&] {
+            b.color(graphite);
+            b.cylinder({x, 1.05f, 2.4f}, {x, 1.1f, 0.35f}, 0.42f, 8);
+            b.color(rubber);
+            b.cylinder({x, 1.1f, 0.35f}, {x, 1.1f, 0.0f}, 0.55f, 8);
+        });
+    }
+    b.mirrored([&] {
+        b.color(hex(0x22262C));
+        b.cone({0.2f, 1.42f, 3.0f}, {0.2f, 1.85f, 3.0f}, 0.55f, 10);
+        b.color(lamp, Material::TeamEmissive);
+        for (int i = 0; i < 5; ++i) b.box({1.6f - F(i) * 0.75f, 0.9f, 4.08f}, {0.42f, 0.12f, 0.1f});
+    });
+    b.color(steel);
+    b.cylinder({-1.0f, 0, 4.0f}, {-1.0f, 0, 4.9f}, 0.06f, 5);
+    b.color(laserB, Material::Emissive);
+    b.icosphere({-1.0f, 0, 5.0f}, 0.14f, 1);
+}
+
+void hypersonic(Builder& b) {
+    Rings f;
+    f.push_back(ring(15.0f, 0.15f, 0.08f, 0.0f));
+    f.push_back(ring(11.0f, 1.3f, 0.55f, 0.1f, 8, 0.6f));
+    f.push_back(ring(4.0f, 3.0f, 1.0f, 0.25f, 8, 0.7f));
+    f.push_back(ring(-8.0f, 4.2f, 1.2f, 0.3f, 8, 0.75f));
+    f.push_back(ring(-14.5f, 4.0f, 0.9f, 0.3f, 8, 0.75f));
+    b.color(hex(0x2A2D33));
+    b.loft(f);
+    b.team();
+    b.box({-3.0f, 0, 1.33f}, {14.0f, 0.5f, 0.06f});
+    b.color(graphite);
+    b.box({-5.0f, 0, -0.95f}, {16.0f, 2.2f, 0.7f});
+    b.color(engine, Material::Emissive);
+    b.box({-13.05f, 0, -0.95f}, {0.1f, 2.0f, 0.55f});
+    b.color(hex(0x2A2D33));
+    b.mirrored([&] { b.wing({-9.0f, 3.6f, 0.6f}, 5.0f, {-12.5f, 4.6f, 3.4f}, 2.2f, 0.12f); });
+    b.color(navRed, Material::Emissive);
+    b.mirrored([&] { b.box({-11.0f, 4.35f, -0.1f}, {0.3f, 0.1f, 0.1f}); });
+    b.color(glass, Material::Emissive);
+    b.box({9.5f, 0, 0.5f}, {2.0f, 0.9f, 0.12f});
+}
+
+void person(Builder& b) {
+    b.color(khaki);
+    b.mirrored([&] {
+        b.box({0, 0.11f, 0.45f}, {0.16f, 0.13f, 0.9f});
+        b.color(rubber);
+        b.box({0.04f, 0.11f, 0.05f}, {0.26f, 0.12f, 0.1f});
+        b.color(khaki);
+        b.box({0, 0.27f, 1.18f}, {0.11f, 0.1f, 0.6f});
+    });
+    b.wedgeBox({0, 0, 1.2f}, {0.26f, 0.44f, 0.62f}, 0.03f, 0.06f);
+    b.team();
+    b.mirrored([&] { b.box({0, 0.275f, 1.32f}, {0.12f, 0.11f, 0.1f}); });
+    b.color(hex(0xB08A6A));
+    b.icosphere({0.01f, 0, 1.64f}, 0.11f, 1);
+    b.color(olive);
+    b.icosphere({0.0f, 0, 1.69f}, 0.125f, 1);
+}
+
+void cup(Builder& b) {
+    b.color(white);
+    b.cylinder({0, 0, 0}, {0, 0, 0.12f}, 0.04f, 10);
+    b.color(hex(0x4A2C16));
+    b.cylinder({0, 0, 0.12f}, {0, 0, 0.122f}, 0.034f, 10);
+    b.team();
+    b.cylinder({0, 0, 0.05f}, {0, 0, 0.07f}, 0.041f, 10);
+}
+
+void pod(Builder& b) {
+    b.color(graphite);
+    b.cone({0, 0, 1.6f}, {0, 0, 2.4f}, 0.55f, 8);
+    b.cylinder({0, 0, 0.3f}, {0, 0, 1.6f}, 0.55f, 8);
+    b.team();
+    b.cylinder({0, 0, 1.2f}, {0, 0, 1.4f}, 0.57f, 8);
+    b.color(steel);
+    for (int i = 0; i < 4; ++i) {
+        const float a = F(i) * kPi / 2;
+        b.at({0, 0, 0}, axisAngle({0, 0, 1}, a), [&] { b.box({0.65f, 0, 0.55f}, {0.3f, 0.05f, 0.6f}); });
+    }
+    b.color(engine, Material::Emissive);
+    b.cylinder({0, 0, 0.0f}, {0, 0, 0.3f}, 0.32f, 8);
+}
+
+void slab(Builder& b) {
+    b.color(hex(0x9C978C));
+    b.box({0, 0, 0.175f}, {4.0f, 3.0f, 0.35f});
+    b.color(hex(0x8A857A));
+    b.box({0, 0, 0.36f}, {3.9f, 2.9f, 0.02f});
+    b.color(copper);
+    for (int i = 0; i < 5; ++i) {
+        const float y = -1.2f + F(i) * 0.6f;
+        b.cylinder({2.0f, y, 0.17f}, {2.3f, y, 0.2f}, 0.012f, 4);
+        b.cylinder({-2.0f, y, 0.17f}, {-2.25f, y, 0.15f}, 0.012f, 4);
+    }
+    b.team();
+    b.box({0, 0, 0.375f}, {0.5f, 0.5f, 0.01f});
+}
+
 } // namespace
 
 Mesh build(Shape s) {
@@ -1178,18 +1355,67 @@ Mesh build(Shape s) {
     case Shape::Node: node(b); break;
     case Shape::Operator: operatorBust(b); break;
     case Shape::Wand: wand(b); break;
+    case Shape::Microdrone: microdrone(b); break;
+    case Shape::Quadruped: quadruped(b); break;
+    case Shape::Megadrone: megadrone(b); break;
+    case Shape::Hypersonic: hypersonic(b); break;
+    case Shape::Person: person(b); break;
+    case Shape::Cup: cup(b); break;
+    case Shape::Pod: pod(b); break;
+    case Shape::Slab: slab(b); break;
     case Shape::Count: break;
     }
     return b.finish();
 }
 
 namespace {
-constexpr std::array<std::string_view, static_cast<std::size_t>(Shape::Count)> kNames{
-    "kite",    "quadcopter",     "fixed_wing",  "fighter", "striker",        "helicopter", "interceptor",  "missile",
-    "bomb",    "relay_sat",      "imaging_sat", "truck",   "tank",           "apc",        "sam_launcher", "aaa_gun",
-    "radar",   "acoustic_array", "jammer",      "rover",   "robot_arm",      "bunker",     "turret",       "swarmer",
-    "bruiser", "spitter",        "boat",        "buoy",    "ground_station", "tower",      "building",     "tree",
-    "palm",    "rock",           "crate",       "marker",  "node",           "operator",   "wand"};
+constexpr std::array<std::string_view, static_cast<std::size_t>(Shape::Count)> kNames{"kite",
+                                                                                      "quadcopter",
+                                                                                      "fixed_wing",
+                                                                                      "fighter",
+                                                                                      "striker",
+                                                                                      "helicopter",
+                                                                                      "interceptor",
+                                                                                      "missile",
+                                                                                      "bomb",
+                                                                                      "relay_sat",
+                                                                                      "imaging_sat",
+                                                                                      "truck",
+                                                                                      "tank",
+                                                                                      "apc",
+                                                                                      "sam_launcher",
+                                                                                      "aaa_gun",
+                                                                                      "radar",
+                                                                                      "acoustic_array",
+                                                                                      "jammer",
+                                                                                      "rover",
+                                                                                      "robot_arm",
+                                                                                      "bunker",
+                                                                                      "turret",
+                                                                                      "swarmer",
+                                                                                      "bruiser",
+                                                                                      "spitter",
+                                                                                      "boat",
+                                                                                      "buoy",
+                                                                                      "ground_station",
+                                                                                      "tower",
+                                                                                      "building",
+                                                                                      "tree",
+                                                                                      "palm",
+                                                                                      "rock",
+                                                                                      "crate",
+                                                                                      "marker",
+                                                                                      "node",
+                                                                                      "operator",
+                                                                                      "wand",
+                                                                                      "microdrone",
+                                                                                      "quadruped",
+                                                                                      "megadrone",
+                                                                                      "hypersonic",
+                                                                                      "person",
+                                                                                      "cup",
+                                                                                      "pod",
+                                                                                      "slab"};
 
 constexpr std::array<Shape, static_cast<std::size_t>(Shape::Count)> makeAll() {
     std::array<Shape, static_cast<std::size_t>(Shape::Count)> a{};
@@ -1224,7 +1450,10 @@ Domain domain(Shape s) {
     case Shape::Helicopter:
     case Shape::Interceptor:
     case Shape::Missile:
-    case Shape::Bomb: return Domain::Air;
+    case Shape::Bomb:
+    case Shape::Microdrone:
+    case Shape::Hypersonic:
+    case Shape::Pod: return Domain::Air;
     case Shape::RelaySat:
     case Shape::ImagingSat: return Domain::Space;
     case Shape::Boat:
@@ -1235,7 +1464,9 @@ Domain domain(Shape s) {
     case Shape::Tree:
     case Shape::Palm:
     case Shape::Rock:
-    case Shape::Crate: return Domain::Structure;
+    case Shape::Crate:
+    case Shape::Cup:
+    case Shape::Slab: return Domain::Structure;
     case Shape::Marker:
     case Shape::Node:
     case Shape::Operator:
@@ -1285,6 +1516,14 @@ Vec3 eyepoint(Shape s) {
     case Shape::Node: return {0.3f, 0, 3.8f};
     case Shape::Operator: return {0.1f, 0, 0.02f};
     case Shape::Wand: return {0.06f, 0, 0.02f};
+    case Shape::Microdrone: return {0.05f, 0, 0.012f};
+    case Shape::Quadruped: return {0.6f, 0, 0.78f};
+    case Shape::Megadrone: return {3.4f, 0, 3.7f};
+    case Shape::Hypersonic: return {10.5f, 0, 0.9f};
+    case Shape::Person: return {0.12f, 0, 1.66f};
+    case Shape::Cup: return {0, 0, 0.3f};
+    case Shape::Pod: return {0, 0, 2.6f};
+    case Shape::Slab: return {0, 0, 0.9f};
     case Shape::Count: break;
     }
     return {};

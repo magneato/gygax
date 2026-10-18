@@ -190,6 +190,15 @@ void App::loadState() {
     std::ifstream hosts(options_.storageDir + "/hosts.txt");
     std::string addr, code;
     while (hosts >> addr >> code) paired_[addr] = code;
+    // Accessibility: "colour tritan", "cues on", "blind off".
+    if (!options_.rememberAccess) return;
+    std::ifstream access(options_.storageDir + "/access.txt");
+    std::string key, value;
+    while (access >> key >> value) {
+        if (key == "colour") colour_ = colour::fromToken(value);
+        if (key == "cues") cues_ = value == "on";
+        if (key == "blind") blind_ = value == "on";
+    }
 }
 
 void App::saveState() const {
@@ -198,6 +207,9 @@ void App::saveState() const {
     rx << rx::format(rx_) << "#glyder strength " << rxStrength_ << (rxEnabled_ ? " on" : " off") << "\n";
     std::ofstream hosts(options_.storageDir + "/hosts.txt");
     for (const auto& [a, c] : paired_) hosts << a << " " << c << "\n";
+    if (!options_.rememberAccess) return;
+    std::ofstream access(options_.storageDir + "/access.txt");
+    access << "colour " << colour::token(colour_) << "\ncues " << (cues_ ? "on" : "off") << "\nblind " << (blind_ ? "on" : "off") << "\n";
 }
 
 void App::applyRx() {
@@ -292,6 +304,7 @@ bool App::button(const Input& in, const std::string& id, Vec3 c, Vec3 right, Vec
 
 render::FrameData App::frame(const Input& in, std::span<const EyeView> eyes, std::uint32_t width, std::uint32_t height) {
     if (startTime_ < 0) startTime_ = in.time;
+    haveHeard_ = false;
     items_.clear();
     panels_.clear();
     solid_.clear();
@@ -327,6 +340,7 @@ render::FrameData App::frame(const Input& in, std::span<const EyeView> eyes, std
     hud(in);
     controllers(in);
     rain(in);
+    listen(in);
 
     for (int h = 0; h < 2; ++h) {
         triggerWas_[h] = in.hands[h].trigger > 0.6f;
@@ -377,7 +391,17 @@ render::FrameData App::frame(const Input& in, std::span<const EyeView> eyes, std
             pe.texel = {1.0f / static_cast<float>(width), 1.0f / static_cast<float>(height), 0, 0};
         }
         f.post = &post_;
+    } else {
+        for (auto& pe : post_.eye) pe.gains.w = 0;
     }
+    // Colour vision: a matrix in the final pass, over everything.
+    const colour::Mat3 cm = colour::display(colour_, colourCorrect_, colourPreview_);
+    const bool colourOn = colour_ != colour::Vision::Typical && (colourCorrect_ || colourPreview_);
+    for (std::size_t row = 0; row < 3; ++row) {
+        const std::size_t k = row * 3;
+        post_.colour[row] = {cm.m[k], cm.m[k + 1], cm.m[k + 2], row == 0 && colourOn ? 1.0f : 0.0f};
+    }
+    if (colourOn) f.post = &post_;
     f.scene = scene_;
     f.items = items_;
     f.panels = panels_;
@@ -459,6 +483,16 @@ void App::poll(const Input& in) {
         haveTerrain_ = true;
     }
     for (auto& e : client_->takeEvents()) {
+        if (blind_) {
+            // Each kind of event has its own interval, so it is recognisable without reading it.
+            switch (e.kind) {
+            case wire::EventKind::Opfor: earcon(392, 349.23f, 0.35f); break;
+            case wire::EventKind::Outcome: earcon(659.25f, 783.99f, 0.35f); break;
+            case wire::EventKind::Order:
+            case wire::EventKind::Pilot: earcon(523.25f, 659.25f, 0.35f); break;
+            default: earcon(587.33f, 587.33f, 0.2f); break;
+            }
+        }
         events_.push_back(std::move(e));
         eventAt_ = in.time;
         while (events_.size() > 6) events_.pop_front();
@@ -472,6 +506,7 @@ void App::poll(const Input& in) {
             ride_.eta = d.eta;
             break;
         case wire::Drop::Control:
+            if (audioCues()) earcon(523.25f, 1046.5f, 0.6f); // rising: yours
             ride_.control = true;
             ride_.controlAt = in.time;
             ride_.status = "YOU HAVE CONTROL";
@@ -479,9 +514,18 @@ void App::poll(const Input& in) {
             ride_.havePrediction = false;
             haptics_[0] = haptics_[1] = {0.8f, 0.08f};
             break;
-        case wire::Drop::Denied: leaveRide(upper(d.reason)); break;
-        case wire::Drop::Released: leaveRide(upper(d.reason)); break;
-        case wire::Drop::Lost: leaveRide("NODE LOST: " + upper(d.reason)); break;
+        case wire::Drop::Denied:
+            if (audioCues()) earcon(392, 261.63f);
+            leaveRide(upper(d.reason));
+            break;
+        case wire::Drop::Released:
+            if (audioCues()) earcon(1046.5f, 523.25f); // falling: autonomy has it again
+            leaveRide(upper(d.reason));
+            break;
+        case wire::Drop::Lost:
+            if (audioCues()) earcon(392, 196);
+            leaveRide("NODE LOST: " + upper(d.reason));
+            break;
         }
     }
     client_->sample(in.time, entities_);
@@ -683,7 +727,9 @@ void App::tableGestures(const Input& in) {
 }
 
 void App::drawWorld(const Input& in, const Mat4& w, float worldScale, bool table) {
-    (void)in;
+    heard_ = w;
+    heardScale_ = worldScale;
+    haveHeard_ = true;
     const Vec3 head = in.head.pos;
     if (haveTerrain_) {
         render::DrawItem t;
@@ -1246,7 +1292,7 @@ void App::menu(const Input& in) {
     }
     // Orders in two columns, then the settings.
     const int orderRows = (static_cast<int>(orders.size()) + 1) / 2;
-    const float rowsH = 0.05f * F(4 + orderRows) + (orders.empty() ? 0.0f : 0.03f);
+    const float rowsH = 0.05f * F(7 + orderRows) + (orders.empty() ? 0.0f : 0.03f);
     card(c, r, u, {0.24f, rowsH * 0.5f + 0.04f}, kInk, 235, kCyan, 0.004f);
     Vec3 o = c + u * (rowsH * 0.5f) + nrm;
     label("MENU", o - r * 0.21f, r, u, 0.022f, kCyan);
@@ -1265,6 +1311,16 @@ void App::menu(const Input& in) {
     o -= u * 0.05f;
     if (button(in, "vignette", o, r, u, {0.2f, 0.021f}, vignette_ ? "COMFORT VIGNETTE  ON" : "COMFORT VIGNETTE  OFF", vignette_))
         vignette_ = !vignette_;
+    o -= u * 0.05f;
+    if (button(in, "colourbtn", o, r, u, {0.2f, 0.021f}, "COLOUR VISION  " + std::string(colour::name(colour_)),
+               colour_ != colour::Vision::Typical)) {
+        setColourVision(colour::next(colour_), true, colourPreview_);
+        toast("COLOUR VISION: " + std::string(colour::name(colour_)), 3);
+    }
+    o -= u * 0.05f;
+    if (button(in, "cuesbtn", o, r, u, {0.2f, 0.021f}, cues_ ? "AUDIO CUES  ON" : "AUDIO CUES  OFF", cues_)) setAudioCues(!cues_);
+    o -= u * 0.05f;
+    if (button(in, "blindbtn", o, r, u, {0.2f, 0.021f}, blind_ ? "BLIND MODE  ON" : "BLIND MODE  OFF", blind_)) setBlindMode(!blind_);
     o -= u * 0.05f;
     if (button(in, "visionbtn", o, r, u, {0.2f, 0.021f}, "VISION")) {
         overlay_ = Overlay::Vision;
@@ -1455,6 +1511,145 @@ void App::rain(const Input& in) {
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Accessibility
+
+void App::setColourVision(colour::Vision v, bool corrected, bool preview) {
+    colour_ = v;
+    colourCorrect_ = corrected;
+    colourPreview_ = preview;
+    if (v == colour::Vision::Typical)
+        toast("COLOUR VISION: TYPICAL", 3);
+    else
+        toast("COLOUR VISION: " + std::string(colour::name(v)) + (corrected ? "  CORRECTED" : "  UNCORRECTED") +
+                  (preview ? "  (PREVIEW: AS THIS VIEWER SEES IT)" : ""),
+              4);
+    saveState();
+}
+
+void App::setAudioCues(bool on) {
+    cues_ = on;
+    if (on) earcon(659.25f, 987.77f);
+    saveState();
+}
+
+void App::setBlindMode(bool on) {
+    blind_ = on;
+    if (on) earcon(523.25f, 1046.5f, 0.6f);
+    toast(on ? "BLIND MODE: LISTEN. POINT TO HEAR A NODE; TRIGGER TO DROP IN" : "BLIND MODE OFF", 4);
+    saveState();
+}
+
+void App::earcon(float hz, float hz2, float gain) {
+    mixer_.note(audio::Cue::Event, hz, gain, 0, hz2);
+}
+
+void App::audio(std::span<float> out) {
+    mixer_.render(out);
+}
+
+void App::listen(const Input& in) {
+    if (!audioCues() || !haveHeard_ || !world_) {
+        mixer_.update({});
+        return;
+    }
+    const Pose& head = in.head;
+    const Vec3 right = head.right(), up = head.up(), back = -head.forward();
+    // Riding, you hear about 4 km around you; on the map table, the whole table (nearer is louder).
+    const float audible = mode_ == Mode::Overview ? 1.6f : 4000.0f * heardScale_;
+    const wire::EntityState* me = nullptr;
+    if (mode_ == Mode::Ride)
+        for (const auto& e : entities_)
+            if (e.id == ride_.entity) me = &e;
+    const Vec3 listenerW = me ? me->pos : focus_;
+    const Vec3 listenerV = me ? me->vel : Vec3{};
+
+    std::vector<audio::Source> sources;
+    auto place = [&](audio::Source& s, Vec3 worldPos) {
+        const Vec3 rel = heard_.transformPoint(worldPos) - head.pos;
+        const float d = std::max(length(rel), 1e-6f);
+        s.direction = {dot(rel, right) / d, dot(rel, up) / d, dot(rel, back) / d};
+        s.distance = d;
+        s.audible = audible;
+        return d;
+    };
+    for (const auto& e : entities_) {
+        if (me && e.id == me->id) continue;
+        const auto shape = static_cast<kit::Shape>(std::min<std::uint16_t>(e.shape, static_cast<std::uint16_t>(kit::Shape::Count) - 1));
+        const kit::Domain dom = kit::domain(shape);
+        if (dom == kit::Domain::Glyph || dom == kit::Domain::Space) continue;
+        audio::Source s;
+        s.id = e.id;
+        if (place(s, e.pos) > audible) continue;
+        const Vec3 toW = e.pos - listenerW;
+        const float worldDist = length(toW);
+        const Vec3 dirW = worldDist > 1e-3f ? toW / worldDist : Vec3{0, 0, 1};
+        s.closing = -dot(e.vel - listenerV, dirW);
+        s.timeToGo = s.closing > 1 ? worldDist / s.closing : -1;
+        const bool kinetic = shape == kit::Shape::Missile || shape == kit::Shape::Bomb;
+        const bool ours = e.flags & wire::kDrivable;
+        if (kinetic || (!ours && s.closing > 150))
+            s.cue = audio::Cue::Threat;
+        else if (ours)
+            s.cue = audio::Cue::Friend;
+        else if (dom == kit::Domain::Air)
+            s.cue = audio::Cue::Air;
+        else if (dom == kit::Domain::Structure) {
+            if (worldDist > 60) continue;
+            s.cue = audio::Cue::Structure;
+        } else
+            s.cue = audio::Cue::Ground;
+        sources.push_back(s);
+    }
+    // Most salient first: what is coming soonest, then what is nearest. A dozen at most, so it
+    // stays a scene and not a din; your own side is limited to the nearest few.
+    std::sort(sources.begin(), sources.end(), [](const audio::Source& a, const audio::Source& b) {
+        const bool at = a.cue == audio::Cue::Threat, bt = b.cue == audio::Cue::Threat;
+        if (at != bt) return at;
+        if (at) return (a.timeToGo < 0 ? 1e9f : a.timeToGo) < (b.timeToGo < 0 ? 1e9f : b.timeToGo);
+        return a.distance < b.distance;
+    });
+    std::vector<audio::Source> kept;
+    int friends = 0;
+    for (const auto& s : sources) {
+        if (kept.size() >= 12) break;
+        if (s.cue == audio::Cue::Friend && ++friends > 3) continue;
+        kept.push_back(s);
+    }
+    // The ground below an aircraft you ride: higher and more insistent as it gets closer.
+    if (me && terrain_ && kit::domain(ride_.shape) == kit::Domain::Air) {
+        const float agl = me->pos.z - terrain_->sample(me->pos.x, me->pos.y);
+        if (agl < 300) {
+            audio::Source t;
+            t.id = 0xFFFFFFF0u;
+            t.cue = audio::Cue::Terrain;
+            t.direction = {0, -1, 0};
+            t.distance = std::max(agl, 0.0f);
+            t.audible = 400;
+            t.pitch = 1.0f + 2.0f * (1.0f - std::max(agl, 0.0f) / 300.0f);
+            kept.push_back(t);
+        }
+    }
+    // Blind mode: the node you point at sounds, so you can scan by pointing.
+    if (blind_ && hovered_) {
+        for (const auto& e : entities_)
+            if (e.id == hovered_) {
+                audio::Source f;
+                f.id = 0xFFFFFFF1u;
+                f.cue = audio::Cue::Focus;
+                place(f, e.pos);
+                f.distance = 0;
+                kept.push_back(f);
+            }
+        if (hovered_ != heardFocus_) haptics_[1] = {0.25f, 0.015f};
+    }
+    heardFocus_ = blind_ ? hovered_ : 0;
+    // Anything arriving within two seconds: both controllers pulse.
+    for (const auto& s : kept)
+        if (s.cue == audio::Cue::Threat && s.timeToGo >= 0 && s.timeToGo < 2.0f) haptics_[0] = haptics_[1] = {0.6f, 0.05f};
+    mixer_.update(kept);
 }
 
 } // namespace glyder

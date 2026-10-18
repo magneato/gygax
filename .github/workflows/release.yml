@@ -112,7 +112,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.ref }}
-          sparse-checkout: docs/releases
+          sparse-checkout: |
+            docs/releases
+            glyder
 
       - uses: actions/download-artifact@v5
         with:
@@ -124,9 +126,15 @@ jobs:
           name: gygax-linux-sdk
           path: release-assets
 
+      - name: Stage Quest APK if available
+        run: |
+          if compgen -G "glyder/glyder-*.apk" > /dev/null; then
+            cp glyder/glyder-*.apk release-assets/
+          fi
+
       - name: Create release checksums
         working-directory: release-assets
-        run: sha256sum gygax-* gygax_* > SHA256SUMS
+        run: sha256sum * > SHA256SUMS
 
       - name: Create or update GitHub Release
         env:
