@@ -89,6 +89,11 @@ public:
     void status(std::vector<wire::StatusItem> items);
     void event(wire::EventKind kind, std::string text, double time);
     void service(Pilot& pilot, double dt);
+    // Switch to another world without dropping anyone: takes the presentation fields of `world`
+    // (title, subtitle, help, environment, origin, groundZ, radius) and its terrain (none: flat),
+    // hands every driven node back to `previous` (the old world's pilot, if any), forgets the old
+    // world's entities and info, and sends the new world to every connected headset.
+    void reconfigure(const HostOptions& world, const wire::Heightfield* terrain, Pilot* previous);
     [[nodiscard]] std::vector<std::string> takeOrders();
     [[nodiscard]] bool driven(std::uint32_t id) const;
 

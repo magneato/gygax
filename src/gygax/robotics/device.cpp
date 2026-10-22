@@ -757,6 +757,437 @@ private:
     std::string endpoint_;
 };
 
+class UnitreeGo2Device final : public Device {
+public:
+    UnitreeGo2Device(std::shared_ptr<net::ByteLink> link, std::string endpoint, double initialBattery = 88.0, double bodyHeight = 0.35)
+        : link_(std::move(link)), endpoint_(std::move(endpoint)), battery_(initialBattery), bodyHeight_(bodyHeight), posZ_(bodyHeight) {
+        lastSeen_ = std::chrono::steady_clock::now();
+        thread_ = std::jthread([this](const std::stop_token& st) { loop(st); });
+    }
+
+    ~UnitreeGo2Device() override {
+        thread_.request_stop();
+        if (thread_.joinable()) thread_.join(); // before any member the loop touches is destroyed
+    }
+
+    std::string kind() const override { return "unitree_go2"; }
+    std::string endpoint() const override { return endpoint_; }
+    bool connected() const override {
+        std::lock_guard lock(mutex_);
+        return connected_;
+    }
+
+    json::Value state() override {
+        std::lock_guard lock(mutex_);
+        json::Value out = json::Value::object();
+        out["connected"] = connected_;
+        out["armed"] = armed_;
+        out["vehicle_type"] = 99; // Quadruped
+        out["custom_mode"] = static_cast<int>(modeId_);
+        out["mode"] = modeStr_;
+        out["gait"] = gait_;
+
+        json::Value bat = json::Value::object();
+        bat["remaining_percent"] = battery_;
+        bat["voltage"] = 28.0 + (battery_ / 100.0) * 5.6;
+        bat["current"] = armed_ ? (moving_ ? 4.5 : 1.2) : 0.2;
+        out["battery"] = std::move(bat);
+
+        json::Value pos = json::Value::object();
+        pos["x"] = posX_;
+        pos["y"] = posY_;
+        pos["z"] = posZ_;
+        out["position"] = std::move(pos);
+
+        json::Value vel = json::Value::object();
+        vel["x"] = velX_;
+        vel["y"] = velY_;
+        vel["z"] = velZ_;
+        out["velocity"] = std::move(vel);
+
+        json::Value att = json::Value::object();
+        att["roll"] = roll_;
+        att["pitch"] = pitch_;
+        att["yaw"] = yaw_;
+        out["attitude"] = std::move(att);
+
+        out["heading_deg"] = std::fmod((yaw_ * 180.0 / 3.14159265358979323846) + 360.0, 360.0);
+        out["latitude"] = lat_;
+        out["longitude"] = lon_;
+        out["altitude_msl"] = posZ_;
+        out["altitude_relative"] = posZ_;
+
+        json::Value ff = json::Value::array();
+        for (double f : footForces_) ff.push(f);
+        out["foot_force"] = std::move(ff);
+
+        out["body_height"] = bodyHeight_;
+        out["status_text"] = statusText_;
+        return out;
+    }
+
+    std::vector<std::string> commands() const override {
+        return {"stand", "sit", "damp", "stop", "move", "recovery_stand", "switch_gait", "body_height", "hello", "stretch", "dance", "twist"};
+    }
+
+    CommandResult command(const json::Value& r) override {
+        const auto name = r.getString("command");
+        if (name == "stand" || name == "balance_stand" || name == "stand_up") {
+            setStandMode();
+            sendUnitreeApi(1002, "{}");
+            return CommandResult::ok();
+        }
+        if (name == "sit") {
+            setSitMode();
+            sendUnitreeApi(1009, "{}");
+            return CommandResult::ok();
+        }
+        if (name == "damp") {
+            setDampMode();
+            sendUnitreeApi(1001, "{}");
+            return CommandResult::ok();
+        }
+        if (name == "stop" || name == "stop_move") {
+            setStopMove();
+            sendUnitreeApi(1003, "{}");
+            return CommandResult::ok();
+        }
+        if (name == "recovery_stand") {
+            setStandMode();
+            sendUnitreeApi(1006, "{}");
+            return CommandResult::ok();
+        }
+        if (name == "move") {
+            double vx = r.getDouble("vx", r.getDouble("x", 0.0));
+            double vy = r.getDouble("vy", r.getDouble("y", 0.0));
+            double vyaw = r.getDouble("vyaw", r.getDouble("z", r.getDouble("angular", 0.0)));
+            vx = std::clamp(vx, -3.5, 3.5);
+            vy = std::clamp(vy, -2.5, 2.5);
+            vyaw = std::clamp(vyaw, -4.0, 4.0);
+            setMove(vx, vy, vyaw);
+            std::string param = std::format(R"({{"x":{:.2f},"y":{:.2f},"z":{:.2f}}})", vx, vy, vyaw);
+            sendUnitreeApi(1008, param);
+            return CommandResult::ok();
+        }
+        if (name == "twist") {
+            double linear = std::clamp(r.getDouble("linear", 0.0), -3.5, 3.5);
+            double angular = std::clamp(r.getDouble("angular", 0.0), -4.0, 4.0);
+            setMove(linear, 0.0, angular);
+            std::string param = std::format(R"({{"x":{:.2f},"y":0.0,"z":{:.2f}}})", linear, angular);
+            sendUnitreeApi(1008, param);
+            return CommandResult::ok();
+        }
+        if (name == "switch_gait") {
+            int gait = static_cast<int>(r.getInt("gait", 1));
+            {
+                std::lock_guard lock(mutex_);
+                gait_ = gait;
+            }
+            std::string param = std::format(R"({{"gait":{}}})", gait);
+            sendUnitreeApi(1011, param);
+            return CommandResult::ok();
+        }
+        if (name == "body_height") {
+            double h = std::clamp(r.getDouble("height", 0.35), 0.15, 0.45);
+            {
+                std::lock_guard lock(mutex_);
+                bodyHeight_ = h;
+                posZ_ = h;
+            }
+            std::string param = std::format(R"({{"height":{:.2f}}})", h);
+            sendUnitreeApi(1013, param);
+            return CommandResult::ok();
+        }
+        if (name == "hello") {
+            setStatus("Performing Hello Gesture");
+            sendUnitreeApi(1016, "{}");
+            return CommandResult::ok();
+        }
+        if (name == "stretch") {
+            setStatus("Performing Stretch Gesture");
+            sendUnitreeApi(1017, "{}");
+            return CommandResult::ok();
+        }
+        if (name == "dance") {
+            setStatus("Performing Dance Routine");
+            sendUnitreeApi(1024, "{}");
+            return CommandResult::ok();
+        }
+        return failure(400, "unknown_command", "unknown unitree_go2 command '" + name + "'");
+    }
+
+private:
+    void sendUnitreeApi(int apiId, const std::string& parameterJson) {
+        if (!link_) return;
+        static std::atomic<std::uint64_t> seq{1000};
+        const auto id = seq.fetch_add(1);
+
+        json::Value req = json::Value::object();
+        req["type"] = "msg";
+        req["topic"] = "rt/api/sport/request";
+        json::Value data = json::Value::object();
+        json::Value header = json::Value::object();
+        json::Value identity = json::Value::object();
+        identity["id"] = static_cast<std::int64_t>(id);
+        identity["api_id"] = apiId;
+        header["identity"] = std::move(identity);
+        data["header"] = std::move(header);
+        data["parameter"] = parameterJson;
+        req["data"] = std::move(data);
+        const std::string packet = req.dump() + "\n";
+        (void)link_->write(std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(packet.data()), packet.size()));
+    }
+
+    void setStandMode() {
+        std::lock_guard lock(mutex_);
+        armed_ = true;
+        modeStr_ = "stand";
+        modeId_ = 1;
+        bodyHeight_ = 0.35;
+        posZ_ = 0.35;
+        cmdVx_ = 0; cmdVy_ = 0; cmdVyaw_ = 0;
+        statusText_ = "Unitree Go2 Standing (Normal)";
+    }
+
+    void setSitMode() {
+        std::lock_guard lock(mutex_);
+        armed_ = false;
+        modeStr_ = "sit";
+        modeId_ = 3;
+        posZ_ = 0.18;
+        cmdVx_ = 0; cmdVy_ = 0; cmdVyaw_ = 0;
+        statusText_ = "Unitree Go2 Sitting";
+    }
+
+    void setDampMode() {
+        std::lock_guard lock(mutex_);
+        armed_ = false;
+        modeStr_ = "damp";
+        modeId_ = 0;
+        posZ_ = 0.10;
+        cmdVx_ = 0; cmdVy_ = 0; cmdVyaw_ = 0;
+        statusText_ = "Unitree Go2 Damped (Motors Off)";
+    }
+
+    void setStopMove() {
+        std::lock_guard lock(mutex_);
+        cmdVx_ = 0; cmdVy_ = 0; cmdVyaw_ = 0;
+        if (armed_) {
+            modeStr_ = "stand";
+            modeId_ = 1;
+        }
+    }
+
+    void setMove(double vx, double vy, double vyaw) {
+        std::lock_guard lock(mutex_);
+        armed_ = true;
+        cmdVx_ = vx;
+        cmdVy_ = vy;
+        cmdVyaw_ = vyaw;
+    }
+
+    void setStatus(std::string text) {
+        std::lock_guard lock(mutex_);
+        statusText_ = std::move(text);
+    }
+
+    void parseTelemetry(const json::Value& root) {
+        const json::Value* data = &root;
+        if (const auto* d = root.find("data"); d && d->isObject()) {
+            data = d;
+        }
+        std::lock_guard lock(mutex_);
+        connected_ = true;
+        lastSeen_ = std::chrono::steady_clock::now();
+
+        if (const auto* m = data->find("mode")) {
+            if (m->isNumber()) {
+                modeId_ = static_cast<int>(m->asInt());
+                armed_ = (modeId_ == 1 || modeId_ == 2 || modeId_ == 5);
+                if (modeId_ == 1) modeStr_ = "stand";
+                else if (modeId_ == 2) modeStr_ = "walk";
+                else if (modeId_ == 3) modeStr_ = "sit";
+                else if (modeId_ == 4) modeStr_ = "damp";
+            } else if (m->isString()) {
+                modeStr_ = m->asString();
+                armed_ = (modeStr_ != "damp" && modeStr_ != "sit");
+            }
+        }
+        if (const auto* gt = data->find("gait_type")) gait_ = static_cast<int>(gt->asInt());
+        else if (const auto* g2 = data->find("gait")) gait_ = static_cast<int>(g2->asInt());
+
+        if (const auto* p = data->find("position")) {
+            if (p->isArray() && p->asArray().size() >= 3) {
+                posX_ = p->asArray()[0].asDouble();
+                posY_ = p->asArray()[1].asDouble();
+                posZ_ = p->asArray()[2].asDouble();
+            } else if (p->isObject()) {
+                posX_ = p->getDouble("x", posX_);
+                posY_ = p->getDouble("y", posY_);
+                posZ_ = p->getDouble("z", posZ_);
+            }
+        }
+        if (const auto* v = data->find("velocity")) {
+            if (v->isArray() && v->asArray().size() >= 3) {
+                velX_ = v->asArray()[0].asDouble();
+                velY_ = v->asArray()[1].asDouble();
+                velZ_ = v->asArray()[2].asDouble();
+            } else if (v->isObject()) {
+                velX_ = v->getDouble("x", velX_);
+                velY_ = v->getDouble("y", velY_);
+                velZ_ = v->getDouble("z", velZ_);
+            }
+        }
+        if (const auto* imu = data->find("imu_state")) {
+            if (const auto* rpy = imu->find("rpy"); rpy && rpy->isArray() && rpy->asArray().size() >= 3) {
+                roll_ = rpy->asArray()[0].asDouble();
+                pitch_ = rpy->asArray()[1].asDouble();
+                yaw_ = rpy->asArray()[2].asDouble();
+            }
+        } else if (const auto* att = data->find("attitude"); att && att->isObject()) {
+            roll_ = att->getDouble("roll", roll_);
+            pitch_ = att->getDouble("pitch", pitch_);
+            yaw_ = att->getDouble("yaw", yaw_);
+        }
+        if (const auto* ff = data->find("foot_force"); ff && ff->isArray() && ff->asArray().size() >= 4) {
+            for (std::size_t i = 0; i < 4; ++i) footForces_[i] = ff->asArray()[i].asDouble();
+        }
+        if (const auto* b = data->find("battery")) {
+            if (b->isObject()) battery_ = b->getDouble("remaining_percent", battery_);
+            else if (b->isNumber()) battery_ = b->asDouble();
+        }
+        if (const auto* st = data->find("status_text"); st && st->isString()) {
+            statusText_ = st->asString();
+        } else {
+            statusText_ = std::format("Unitree Go2 {} (gait {})", modeStr_, gait_);
+        }
+    }
+
+    void loop(const std::stop_token& st) {
+        using clock = std::chrono::steady_clock;
+        auto lastTime = clock::now();
+        std::vector<std::uint8_t> chunk;
+        std::string buffer;
+
+        while (!st.stop_requested()) {
+            const auto now = clock::now();
+            const double dt = std::clamp(std::chrono::duration<double>(now - lastTime).count(), 0.001, 0.1);
+            lastTime = now;
+
+            if (link_) {
+                chunk.clear();
+                if (link_->read(chunk, 10ms) == 0 && !chunk.empty()) {
+                    buffer.append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
+                    std::size_t nl;
+                    while ((nl = buffer.find('\n')) != std::string::npos) {
+                        const std::string line = buffer.substr(0, nl);
+                        buffer.erase(0, nl + 1);
+                        if (auto parsed = json::parse(line)) {
+                            parseTelemetry(*parsed);
+                        }
+                    }
+                }
+            }
+
+            {
+                std::lock_guard lock(mutex_);
+                if (link_) {
+                    const auto elapsed = std::chrono::duration<double>(now - lastSeen_).count();
+                    if (elapsed > 5.0) connected_ = false; // the robot has gone quiet
+                } else {
+                    connected_ = true;
+                }
+
+                if (armed_ && (std::fabs(cmdVx_) > 0.01 || std::fabs(cmdVy_) > 0.01 || std::fabs(cmdVyaw_) > 0.01)) {
+                    moving_ = true;
+                    modeStr_ = "trot";
+                    modeId_ = 2;
+
+                    velX_ = velX_ + std::clamp(cmdVx_ - velX_, -4.0 * dt, 4.0 * dt);
+                    velY_ = velY_ + std::clamp(cmdVy_ - velY_, -4.0 * dt, 4.0 * dt);
+                    velZ_ = 0.0;
+
+                    yaw_ = yaw_ + cmdVyaw_ * dt;
+                    while (yaw_ > 3.14159265358979323846) yaw_ -= 2.0 * 3.14159265358979323846;
+                    while (yaw_ < -3.14159265358979323846) yaw_ += 2.0 * 3.14159265358979323846;
+
+                    const double c = std::cos(yaw_);
+                    const double s = std::sin(yaw_);
+                    posX_ += (velX_ * c - velY_ * s) * dt;
+                    posY_ += (velX_ * s + velY_ * c) * dt;
+                    posZ_ = bodyHeight_;
+
+                    trotPhase_ += 2.0 * 3.14159265358979323846 * 2.5 * dt;
+                    const double wave = std::sin(trotPhase_);
+                    footForces_[0] = 120.0 + 80.0 * wave;
+                    footForces_[1] = 120.0 - 80.0 * wave;
+                    footForces_[2] = 120.0 - 80.0 * wave;
+                    footForces_[3] = 120.0 + 80.0 * wave;
+
+                    battery_ = std::max(0.0, battery_ - 0.0005 * dt);
+                    statusText_ = std::format("Unitree Go2 Trotting (spd {:.1f} m/s)", std::hypot(velX_, velY_));
+                } else if (armed_) {
+                    moving_ = false;
+                    velX_ = 0.0;
+                    velY_ = 0.0;
+                    velZ_ = 0.0;
+                    posZ_ = bodyHeight_;
+                    modeStr_ = "stand";
+                    modeId_ = 1;
+                    footForces_ = {120.0, 120.0, 120.0, 120.0};
+                    statusText_ = "Unitree Go2 Standing (Normal)";
+                    battery_ = std::max(0.0, battery_ - 0.00005 * dt);
+                } else {
+                    moving_ = false;
+                    velX_ = 0.0;
+                    velY_ = 0.0;
+                    velZ_ = 0.0;
+                    posZ_ = (modeStr_ == "sit") ? 0.18 : 0.10;
+                    footForces_ = {0.0, 0.0, 0.0, 0.0};
+                    battery_ = std::max(0.0, battery_ - 0.00002 * dt);
+                }
+            }
+
+            std::this_thread::sleep_for(20ms);
+        }
+    }
+
+    std::shared_ptr<net::ByteLink> link_;
+    std::string endpoint_;
+    mutable std::mutex mutex_;
+    std::chrono::steady_clock::time_point lastSeen_{};
+
+    bool connected_{true};
+    bool armed_{true};
+    bool moving_{false};
+    std::string modeStr_{"stand"};
+    int modeId_{1};
+    int gait_{1};
+    double battery_{88.0};
+    double bodyHeight_{0.35};
+
+    double posX_{0.0};
+    double posY_{0.0};
+    double posZ_{0.35};
+    double velX_{0.0};
+    double velY_{0.0};
+    double velZ_{0.0};
+    double roll_{0.0};
+    double pitch_{0.0};
+    double yaw_{0.0};
+    double lat_{0.0};
+    double lon_{0.0};
+
+    double cmdVx_{0.0};
+    double cmdVy_{0.0};
+    double cmdVyaw_{0.0};
+    double trotPhase_{0.0};
+
+    std::array<double, 4> footForces_{120.0, 120.0, 120.0, 120.0};
+    std::string statusText_{"Unitree Go2 Standing (Normal)"};
+    std::jthread thread_; // last: started in the constructor after everything above exists
+};
+
 std::shared_ptr<bus::CanBus> openCanBus(const std::string& iface, bool fd, std::string* error) {
     if (iface.starts_with("virtual:")) return virtualCanNetwork(iface.substr(8))->attach("gygax");
     return std::shared_ptr<bus::CanBus>(bus::SocketCanBus::open(iface, fd, error));
@@ -808,7 +1239,7 @@ bool serialPathAllowed(const std::string& path) {
 }
 
 std::vector<std::string> deviceKinds() {
-    return {"mavlink", "can", "obd", "modbus", "nmea", "adsb", "rosbridge"};
+    return {"mavlink", "can", "obd", "modbus", "nmea", "adsb", "rosbridge", "unitree_go2"};
 }
 
 std::unique_ptr<Device> openDevice(const json::Value& config, std::string* error) {
@@ -821,6 +1252,22 @@ std::unique_ptr<Device> openDevice(const json::Value& config, std::string* error
     const auto uri = config.getString("uri");
     std::string err;
 
+    if (kind == "unitree_go2" || kind == "unitree" || kind == "go2") {
+        std::shared_ptr<net::ByteLink> link;
+        std::string linkUri = uri;
+        if (!linkUri.empty()) {
+            if (linkUri.starts_with("udp://") && linkUri.find("?bind=") == std::string::npos && !linkUri.starts_with("udp://0.0.0.0") &&
+                !linkUri.starts_with("udp://127.0.0.1") && !linkUri.starts_with("udp://localhost")) {
+                linkUri += "?bind=0";
+            }
+            link = openChecked(linkUri, &err);
+            if (!link && !err.empty()) return fail(err);
+        }
+        const double bat = config.getDouble("battery", 88.0);
+        const double height = config.getDouble("height", 0.35);
+        const std::string endpoint = linkUri.empty() ? "udp://192.168.123.161:8082?bind=0" : linkUri;
+        return std::make_unique<UnitreeGo2Device>(std::move(link), endpoint, bat, height);
+    }
     if (kind == "mavlink") {
         auto link = openChecked(uri, &err);
         if (!link) return fail(err.empty() ? "a uri is required (udp://, tcp:// or serial://)" : err);
@@ -904,7 +1351,7 @@ std::unique_ptr<Device> openDevice(const json::Value& config, std::string* error
         }
         return std::make_unique<RosDevice>(std::move(client), uri);
     }
-    return fail("unknown device kind '" + kind + "' (supported: mavlink, can, obd, modbus, nmea, adsb, rosbridge)");
+    return fail("unknown device kind '" + kind + "' (supported: mavlink, can, obd, modbus, nmea, adsb, rosbridge, unitree_go2)");
 }
 
 bool DeviceRegistry::add(const std::string& id, std::unique_ptr<Device> device, std::string* error) {

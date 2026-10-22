@@ -1,3 +1,6 @@
+#include <atomic>
+#include <chrono>
+#include <set>
 #include <gtest/gtest.h>
 
 #include <unistd.h>
@@ -158,6 +161,55 @@ TEST(McpServer, AnswersAClientOverPipes) {
     EXPECT_TRUE(bad.find("result")->getBool("isError"));
     EXPECT_EQ(exchange(R"({"jsonrpc":"2.0","id":5,"method":"weird"})").find("error")->getInt("code"), -32601);
     EXPECT_EQ(exchange("not json").find("error")->getInt("code"), -32700);
+    ::close(toServer[1]);
+    server.join();
+    ::close(toServer[0]);
+    ::close(fromServer[0]);
+    ::close(fromServer[1]);
+}
+
+TEST(McpServer, RunsSeveralToolCallsAtOnce) {
+    int toServer[2];
+    int fromServer[2];
+    ASSERT_EQ(::pipe(toServer), 0);
+    ASSERT_EQ(::pipe(fromServer), 0);
+    std::atomic<int> inside{0};
+    std::atomic<int> peak{0};
+    service::McpServerHandler handler;
+    handler.list = [] { return std::vector<service::McpServerTool>{{"slow", "Sleeps", R"({"type":"object","properties":{"n":{"type":"integer"}}})"}}; };
+    handler.call = [&](const std::string&, const std::string& args) -> std::string {
+        const int now = ++inside;
+        for (int seen = peak.load(); now > seen && !peak.compare_exchange_weak(seen, now);) {}
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        --inside;
+        return std::to_string(json::parse(args)->getInt("n"));
+    };
+    std::thread server([&] { service::serveMcp(toServer[0], fromServer[1], "test", "1.0", handler, 4); });
+    std::string batch = R"({"jsonrpc":"2.0","id":0,"method":"tools/list"})" "\n";
+    for (int i = 1; i <= 4; ++i)
+        batch += R"({"jsonrpc":"2.0","id":)" + std::to_string(i) + R"(,"method":"tools/call","params":{"name":"slow","arguments":{"n":)" +
+                 std::to_string(i) + "}}}\n";
+    const auto started = std::chrono::steady_clock::now();
+    ASSERT_EQ(::write(toServer[1], batch.data(), batch.size()), static_cast<ssize_t>(batch.size()));
+    std::set<std::int64_t> answered;
+    for (int got = 0; got < 5; ++got) {
+        std::string out;
+        char c;
+        while (::read(fromServer[0], &c, 1) == 1 && c != '\n') out += c;
+        auto msg = json::parse(out);
+        ASSERT_TRUE(msg.has_value());
+        const auto id = msg->find("id")->asInt();
+        if (id == 0) {
+            EXPECT_EQ(msg->find("result")->find("tools")->asArray()[0].find("inputSchema")->find("properties")->find("n")->getString("type"),
+                      "integer");
+        } else {
+            EXPECT_EQ(msg->find("result")->find("content")->asArray()[0].getString("text"), std::to_string(id));
+        }
+        answered.insert(id);
+    }
+    EXPECT_EQ(answered.size(), 5u);
+    EXPECT_GE(peak.load(), 2);
+    EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::milliseconds(700));
     ::close(toServer[1]);
     server.join();
     ::close(toServer[0]);

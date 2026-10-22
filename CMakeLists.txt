@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.28)
-project(gygax VERSION 0.4.0 LANGUAGES CXX)
+project(gygax VERSION 0.5.0 LANGUAGES CXX)
 
 # Pre-release label and release name. A pre-release is tagged v<version>-<label>
 # (v0.4.1-alpha.1); a final release leaves it empty and is tagged v<version> (v0.4.0).
 set(GYGAX_VERSION_PRERELEASE "")
-set(GYGAX_RELEASE_NAME "Matrix")
+set(GYGAX_RELEASE_NAME "Matrix Refactored")
 if(GYGAX_VERSION_PRERELEASE AND NOT GYGAX_VERSION_PRERELEASE MATCHES "^(alpha|beta|rc)\\.[0-9]+$")
     # Only these map one to one onto PEP 440 (alpha.1 -> a1) and Debian (~alpha.1) versions.
     message(FATAL_ERROR "GYGAX_VERSION_PRERELEASE must be alpha.N, beta.N or rc.N, not '${GYGAX_VERSION_PRERELEASE}'")

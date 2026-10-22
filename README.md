@@ -11,7 +11,7 @@
   ╚═════╝    ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
 ```
 
-**0.4.0 "MATRIX" // SPATIAL EMBODIMENT & AUTONOMOUS SYSTEMS RUNTIME**
+**0.5.0 "MATRIX REFACTORED" // SPATIAL EMBODIMENT & AUTONOMOUS SYSTEMS RUNTIME**
 
 [![OpenXR](https://img.shields.io/badge/OpenXR-1.1_Native-00f0ff.svg?style=flat-square&logo=khronos&logoColor=white)](https://www.khronos.org/openxr/)
 [![Vulkan](https://img.shields.io/badge/Vulkan-Multiview_120Hz-ff2255.svg?style=flat-square&logo=vulkan&logoColor=white)](https://www.khronos.org/vulkan/)
@@ -32,7 +32,7 @@ Gygax is a C++26 runtime for autonomous systems. It ships as five things that sh
 
 Everything documented here is exercised by the test suite (426 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
 
-**New in 0.4.0 "Matrix":** Spatial computing with glyder (Gygax in VR), 120Hz native Quest 3S execution, and universal neuro-accessibility (Tritanopia gold palette, Deaf visual subtitles & haptics, ADHD calm guidance, and spatial audio). See the [release notes](docs/releases/v0.4.0.md) and the [changelog](CHANGELOG.md).
+**New in 0.5.0 "Matrix Refactored":** glyder scenes (Calm, Chaos, OHFlock and Live, from the lobby or the in-world menu), `gygax mcp` so LM Studio and other MCP clients can use Gygax's tools, and a Unitree Go2 quadruped driver. Builds on 0.4.0 "Matrix" (glyder, Gygax in VR). See the [release notes](docs/releases/v0.5.0.md) and the [changelog](CHANGELOG.md).
 
 ## Quick start: run it as a service
 
@@ -128,7 +128,7 @@ with satlink.Rig("127.0.0.1", 4532) as rig:                 # Hamlib rigctld
 
 ```bash
 # 1. Install the standalone Quest APK directly (Quest 3S / Quest 3 / Quest Pro)
-adb install -r glyder/glyder-0.4.0-quest.apk
+adb install -r glyder/glyder-0.5.0-quest.apk
 
 # 2. Or run Gygax with Glyder spatial streaming enabled on LAN (UDP 1999)
 ./build/gygax serve --glyder --glyder-open
@@ -139,7 +139,7 @@ adb install -r glyder/glyder-0.4.0-quest.apk
 
 Open glyder on the headset (or run `glyder --demo` on a Linux desktop with Vulkan), choose the active node in the lobby, or drop directly into The Construct. The world is presented on a 3D tactical map table: grip to drag and turn it, both grips to scale it, and point at any autonomous agent or drone and pull the trigger to drop in at 1:1 scale. The agent hands you the controls at its next stopping point; press **B** to jack out and return to the map table while autonomy resumes seamlessly.
 
-- **Standalone Meta Quest APK**: [glyder-0.4.0-quest.apk](glyder/glyder-0.4.0-quest.apk) (1.0 MB, pure native C++26 / OpenXR / Vulkan 120 Hz, zero Android Studio / Gradle bloat).
+- **Standalone Meta Quest APK**: [glyder-0.5.0-quest.apk](glyder/glyder-0.5.0-quest.apk) (1.0 MB, pure native C++26 / OpenXR / Vulkan 120 Hz, zero Android Studio / Gradle bloat).
 - **Construct VR Tour**: See [glyder/construct-tour.mp4](glyder/construct-tour.mp4) for a 20-second simulated tour of the holographic map table and drop-in quadcopter flight.
 - **Universal Neuro-Accessibility**: Built-in Tritanopia/Protanopia/Deuteranopia colour-vision correction shaders, Deaf directional visual subtitles & controller haptic pulses, and AAudio spatial synthesis.
 - **Documentation & Protocol**: Building from source, pairing codes, spectacle prescription correction, and network packet architecture are documented in [docs/GLYDER.md](docs/GLYDER.md).

@@ -199,3 +199,53 @@ TEST(GlyderSession, PairsShowsTheWorldAndHandsOverAtAStoppingPoint) {
     client.disconnect();
     host.stop();
 }
+
+TEST(GlyderSession, SwitchesScenesWithoutReconnecting) {
+    HostOptions o;
+    o.name = "construct";
+    o.title = "CALM";
+    o.bind = "127.0.0.1";
+    o.port = 0;
+    o.open = true;
+    o.snapshotHz = 60;
+    Host host(o);
+    std::string error;
+    ASSERT_TRUE(host.start(&error)) << error;
+    FakeSim sim;
+    sim.host = &host;
+    const double t0 = net::now();
+    auto tick = [&] {
+        const double t = net::now() - t0;
+        host.publish(t, world(t));
+        host.service(sim, 0.01);
+    };
+    Client client("glyder-test");
+    ASSERT_TRUE(client.open(&error)) << error;
+    client.connect({0x7F000001u, host.port()}, "");
+    ASSERT_TRUE(waitFor([&] { return client.state() == Client::State::Connected; }, 3.0, tick));
+    EXPECT_EQ(client.world()->title, "CALM");
+    const auto revision = client.worldRevision();
+
+    // A new world, with terrain this time.
+    HostOptions next;
+    next.title = "CHAOS";
+    next.environment = 0;
+    next.radius = 160;
+    wire::Heightfield terrain;
+    terrain.w = 8;
+    terrain.h = 8;
+    terrain.cell = 10;
+    terrain.z.assign(64, 2.0f);
+    host.reconfigure(next, &terrain, &sim);
+    ASSERT_TRUE(waitFor([&] { return client.worldRevision() != revision; }, 3.0, tick));
+    EXPECT_EQ(client.world()->title, "CHAOS");
+    EXPECT_EQ(client.world()->radius, 160.0f);
+    EXPECT_EQ(client.state(), Client::State::Connected);
+    ASSERT_TRUE(waitFor([&] { return client.terrainProgress() >= 1.0f; }, 3.0, tick));
+    EXPECT_TRUE(client.takeTerrain());
+    // The repeated Welcome is ignored: one switch, one revision.
+    for (int i = 0; i < 20; ++i) tick();
+    EXPECT_EQ(client.worldRevision(), revision + 1);
+    client.disconnect();
+    host.stop();
+}

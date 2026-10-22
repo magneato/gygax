@@ -78,8 +78,17 @@ library.
 ## Using it
 
 **Lobby.** The Construct, a white void, lists the Gygax hosts on the network, each marked OPEN, PAIRING CODE or
-PAIRED. Choose one and type its code; glyder remembers it. THE CONSTRUCT starts a small built-in world (a rover, a
-quadcopter, a kite and a truck) so a headset is useful with no host at all.
+PAIRED. Choose one and type its code; glyder remembers it. Below them, **SCENES**:
+
+| Scene | Where it runs | What it is |
+|---|---|---|
+| CALM | built in | the Construct: a rover, a quadcopter, a kite and a truck on slow, predictable routines; nothing flashes |
+| CHAOS | built in | a hive swarm in waves, missiles arcing in and bursting, turrets firing tracers, fast drones to drop into |
+| OHFLOCK | your computer | jumps to an `ohflock --glyder` host on the network |
+| LIVE | your computer | jumps to a `gygax serve --glyder` host: your real machines |
+
+CALM and CHAOS need no host at all, and switch between each other live without reconnecting. If no OHFLOCK or LIVE
+host is on the network, glyder says what to run.
 
 **Map table.** Grip with one hand to drag and turn the table; grip with both to scale it. Point at a node to see what
 it is (REAL MACHINE in gold when it is one) and pull the trigger to drop in.
@@ -89,7 +98,7 @@ until then the HUD says HANDOVER AT THE NEXT STOPPING POINT. Then YOU HAVE CONTR
 to turn and climb. Host and headset run the same handling code, so your input shows at once and the host agrees with
 it to within network jitter. Press **B** to jack out, instantly; autonomy resumes.
 
-**Menu** (Y on the left controller, Tab on a desktop): host orders, horizon lock, comfort vignette, colour vision, audio
+**Menu** (Y on the left controller, Tab on a desktop): scenes, host orders, horizon lock, comfort vignette, colour vision, audio
 cues, blind mode, vision, and leave the host. glyder remembers your choices.
 
 ## Vision correction

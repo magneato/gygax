@@ -90,6 +90,8 @@ struct AppOptions {
 class App {
 public:
     explicit App(AppOptions options);
+    // Switch scene, as the menu's SCENES row does: CALM, CHAOS, OHFLOCK or LIVE.
+    void goScene(const std::string& name);
     ~App();
     App(const App&) = delete;
     App& operator=(const App&) = delete;
@@ -172,6 +174,10 @@ private:
     void tableGestures(const Input& in);
     void enterRide(std::uint32_t id, const Input& in);
     void leaveRide(const std::string& why);
+    // Scenes: CALM and CHAOS are built into the Construct; OHFLOCK and LIVE are hosts on the network.
+    [[nodiscard]] std::string sceneNow() const;
+    void openHost(const Found& h);
+    bool sceneRow(const Input& in, Vec3 centre, Vec3 right, Vec3 up, float width, float halfHeight = 0.021f);
     void toast(std::string text, double seconds = 4.0);
     static void subdivide(std::vector<render::Line>& lines, Vec3 eye);
     [[nodiscard]] Mat4 tableTransform() const;
@@ -202,6 +208,7 @@ private:
     std::string code_;
     std::map<std::string, std::string> paired_; // host address -> pairing code
     std::optional<wire::World> world_;
+    std::uint64_t worldRevision_{0}; // the client's world revision this app has taken in
     std::optional<kit::Mesh> terrainMesh_;
     std::optional<wire::Heightfield> terrain_;
     bool haveTerrain_{false};

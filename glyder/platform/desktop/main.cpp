@@ -90,7 +90,7 @@ void usage() {
         "  --capture FILE.rgba    headless: every frame as raw RGBA to a file or pipe, for an encoder\n"
         "  --seconds S            headless run time (default 8)\n"
         "  --fps N                headless frame rate (default 60)\n"
-        "  --script \"T ACTION..;\" headless cues: drop ID|SHAPE | out | head X Y Z YAW PITCH | point X Y | click | menu | stick H X Y\n"
+        "  --script \"T ACTION..;\" headless cues: drop ID|SHAPE | out | head X Y Z YAW PITCH | point X Y | click | menu | scene NAME | stick H X Y\n"
         "                         colour MODE [preview] [raw] | cues on|off | blind on|off\n"
         "  --rx \"OD ..\"           a prescription to apply (as written on it)\n"
         "  --colour MODE          colour vision: typical, tritan (no blue cones), protan (no red), deutan (no green)\n"
@@ -245,6 +245,10 @@ int headless(const Options& o) {
                 app.setAudioCues(a[0] == "on");
             } else if (it->action == "blind" && !a.empty()) {
                 app.setBlindMode(a[0] == "on");
+            } else if (it->action == "scene" && !a.empty()) {
+                std::string name = a[0];
+                for (auto& ch : name) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                app.goScene(name);
             }
             it = cues.erase(it);
         }

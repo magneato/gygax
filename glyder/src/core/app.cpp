@@ -136,7 +136,7 @@ App::App(AppOptions options) : options_(std::move(options)) {
     client_->discover(true, also);
     if (options_.demo) {
         demo_ = std::make_unique<DemoWorld>();
-        if (demo_->start(&error)) connectTo({0x7F000001u, demo_->port()}, "", "THE CONSTRUCT");
+        if (demo_->start(&error)) connectTo({0x7F000001u, demo_->port()}, "", "THE CONSTRUCT: CALM");
     } else if (!options_.connect.empty()) {
         if (auto a = net::Address::parse(options_.connect)) connectTo(*a, options_.secret, options_.connect);
     }
@@ -454,6 +454,7 @@ void App::poll(const Input& in) {
             if (world_->environment == static_cast<std::uint8_t>(render::Environment::Construct))
                 tableCentre_.y = std::max(in.head.pos.y - 0.7f, 0.4f);
             if (in.desktop) tableCentre_ = in.head.pos + fwd * 1.15f - Vec3{0, 0.55f, 0};
+            worldRevision_ = client_->worldRevision();
             toast(world_->title.empty() ? "CONNECTED" : world_->title, 3);
             const auto key = pendingHost_.str();
             if (!code_.empty()) paired_[key] = code_;
@@ -474,6 +475,19 @@ void App::poll(const Input& in) {
         if (mode_ == Mode::Ride) leaveRide("");
         mode_ = Mode::Lobby;
         world_.reset();
+    }
+    // The host switched scenes: take in the new world where we stand.
+    if ((mode_ == Mode::Overview || mode_ == Mode::Ride) && client_->worldRevision() != worldRevision_) {
+        worldRevision_ = client_->worldRevision();
+        if (auto w = client_->world()) {
+            if (mode_ == Mode::Ride) leaveRide("");
+            world_ = std::move(w);
+            terrain_.reset();
+            haveTerrain_ = false;
+            focus_ = {0, 0, world_->groundZ};
+            tableScale_ = (in.desktop ? 0.75f : 1.1f) / std::max(world_->radius, 1.0f);
+            toast(world_->title.empty() ? "SCENE CHANGED" : world_->title, 3);
+        }
     }
     if (auto t = client_->takeTerrain()) {
         terrain_ = std::move(*t);
@@ -603,18 +617,7 @@ void App::lobby(const Input& in) {
             const Vec3 c{1.6f * std::sin(a), cardY, -1.6f * std::cos(a)};
             const Vec3 r{std::cos(a), 0, std::sin(a)};
             const std::string id = "host:" + h.addr.str();
-            if (button(in, id, c, r, up, {0.24f, 0.14f}, "", false)) {
-                const auto known = paired_.find(h.addr.str());
-                if (h.beacon.pairing && known == paired_.end()) {
-                    pendingHost_ = h.addr;
-                    connectingTo_ = h.beacon.title.empty() ? h.beacon.name : h.beacon.title;
-                    code_.clear();
-                    mode_ = Mode::Keypad;
-                } else {
-                    code_ = known != paired_.end() ? known->second : "";
-                    connectTo(h.addr, code_, h.beacon.title.empty() ? h.beacon.name : h.beacon.title);
-                }
-            }
+            if (button(in, id, c, r, up, {0.24f, 0.14f}, "", false)) openHost(h);
             const Vec3 nrm = normalize(cross(r, up)) * 0.002f;
             label(h.beacon.title.empty() ? h.beacon.name : h.beacon.title, c + up * 0.06f - r * 0.2f + nrm, r, up, 0.034f, kPaper);
             label(h.beacon.name + "  " + h.addr.str(), c + up * 0.005f - r * 0.2f + nrm, r, up, 0.016f, kDim);
@@ -625,18 +628,9 @@ void App::lobby(const Input& in) {
     }
     // Always available: the Construct demo and the vision settings.
     if (mode_ != Mode::Connecting && mode_ != Mode::Keypad) {
-        if (button(in, "demo", Vec3{-0.21f, eye - 0.45f, -1.5f}, right, up, {0.19f, 0.045f}, "THE CONSTRUCT")) {
-            if (!demo_) {
-                demo_ = std::make_unique<DemoWorld>();
-                std::string error;
-                if (!demo_->start(&error)) {
-                    toast(upper(error));
-                    demo_.reset();
-                }
-            }
-            if (demo_) connectTo({0x7F000001u, demo_->port()}, "", "THE CONSTRUCT");
-        }
-        if (button(in, "vision", Vec3{0.21f, eye - 0.45f, -1.5f}, right, up, {0.19f, 0.045f}, "VISION", overlay_ == Overlay::Vision))
+        label("SCENES", Vec3{-0.62f, eye - 0.37f, -1.5f}, right, up, 0.024f, hex(0x5C636D));
+        sceneRow(in, Vec3{-0.14f, eye - 0.45f, -1.5f}, right, up, 0.96f, 0.045f);
+        if (button(in, "vision", Vec3{0.5f, eye - 0.45f, -1.5f}, right, up, {0.12f, 0.045f}, "VISION", overlay_ == Overlay::Vision))
             overlay_ = overlay_ == Overlay::Vision ? Overlay::None : Overlay::Vision;
     }
     (void)fwd;
@@ -1290,12 +1284,17 @@ void App::menu(const Input& in) {
         while (std::getline(ss, line))
             if (line.rfind("order:", 0) == 0) orders.push_back(line.substr(6));
     }
-    // Orders in two columns, then the settings.
+    // Scenes in one row, orders in two columns, then the settings.
     const int orderRows = (static_cast<int>(orders.size()) + 1) / 2;
-    const float rowsH = 0.05f * F(7 + orderRows) + (orders.empty() ? 0.0f : 0.03f);
+    const float scenesH = 0.1f;
+    const float rowsH = 0.05f * F(7 + orderRows) + (orders.empty() ? 0.0f : 0.03f) + scenesH;
     card(c, r, u, {0.24f, rowsH * 0.5f + 0.04f}, kInk, 235, kCyan, 0.004f);
     Vec3 o = c + u * (rowsH * 0.5f) + nrm;
     label("MENU", o - r * 0.21f, r, u, 0.022f, kCyan);
+    label("SCENES", o + r * 0.21f, r, u, 0.012f, kDim, Align::Right);
+    o -= u * 0.055f;
+    if (sceneRow(in, o, r, u, 0.44f)) placed = false;
+    o -= u * (scenesH - 0.055f);
     if (!orders.empty()) label("ORDERS TO THE HOST", o + r * 0.21f, r, u, 0.012f, kDim, Align::Right);
     o -= u * 0.055f;
     for (std::size_t k = 0; k < orders.size(); ++k) {
@@ -1336,6 +1335,96 @@ void App::menu(const Input& in) {
         placed = false;
     }
     if (overlay_ != Overlay::Menu) placed = false;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Scenes
+
+namespace {
+constexpr const char* kScenes[] = {"CALM", "CHAOS", "OHFLOCK", "LIVE"};
+}
+
+std::string App::sceneNow() const {
+    if (!world_ || (mode_ != Mode::Overview && mode_ != Mode::Ride)) return "";
+    if (demo_ && pendingHost_ == net::Address{0x7F000001u, demo_->port()}) return demo_->scene() == DemoScene::Chaos ? "CHAOS" : "CALM";
+    for (const auto& f : client_->found())
+        if (f.addr == pendingHost_ && f.beacon.name == "ohflock") return "OHFLOCK";
+    return "LIVE";
+}
+
+void App::openHost(const Found& h) {
+    if (mode_ == Mode::Ride) leaveRide("");
+    overlay_ = Overlay::None;
+    const std::string title = h.beacon.title.empty() ? h.beacon.name : h.beacon.title;
+    const auto known = paired_.find(h.addr.str());
+    if (h.beacon.pairing && known == paired_.end()) {
+        client_->disconnect();
+        world_.reset();
+        pendingHost_ = h.addr;
+        connectingTo_ = title;
+        code_.clear();
+        mode_ = Mode::Keypad;
+    } else {
+        code_ = known != paired_.end() ? known->second : "";
+        connectTo(h.addr, code_, title);
+    }
+}
+
+void App::goScene(const std::string& name) {
+    if (name == sceneNow()) return;
+    if (name == "CALM" || name == "CHAOS") {
+        const DemoScene want = name == "CHAOS" ? DemoScene::Chaos : DemoScene::Calm;
+        if (!demo_) {
+            demo_ = std::make_unique<DemoWorld>();
+            std::string error;
+            if (!demo_->start(&error, want)) {
+                toast(upper(error));
+                demo_.reset();
+                return;
+            }
+        }
+        demo_->setScene(want);
+        const net::Address at{0x7F000001u, demo_->port()};
+        if (pendingHost_ == at && (mode_ == Mode::Overview || mode_ == Mode::Ride)) {
+            toast("SWITCHING TO " + name, 2); // the host re-sends the world; poll() takes it in
+        } else {
+            if (mode_ == Mode::Ride) leaveRide("");
+            overlay_ = Overlay::None;
+            connectTo(at, "", "THE CONSTRUCT: " + name);
+        }
+        return;
+    }
+    // OHFLOCK and LIVE run on a computer on the network.
+    const auto found = client_->found();
+    const Found* pick = nullptr;
+    for (const auto& f : found) {
+        const bool flock = f.beacon.name == "ohflock";
+        if (name == "OHFLOCK" ? flock : (!flock && f.beacon.name != "construct")) {
+            if (!pick || (name == "LIVE" && f.beacon.name == "gygax" && pick->beacon.name != "gygax")) pick = &f;
+        }
+    }
+    if (!pick) {
+        toast(name == "OHFLOCK" ? "NO OHFLOCK HOST FOUND: RUN  OHFLOCK --GLYDER  ON YOUR COMPUTER"
+                                : "NO LIVE HOST FOUND: RUN  GYGAX SERVE --GLYDER  ON YOUR COMPUTER",
+              6);
+        return;
+    }
+    openHost(*pick);
+}
+
+// The four scenes side by side; true when one was picked.
+bool App::sceneRow(const Input& in, Vec3 centre, Vec3 right, Vec3 up, float width, float halfHeight) {
+    const std::string now = sceneNow();
+    const float w = width / 4.0f;
+    for (int k = 0; k < 4; ++k) {
+        const std::string name = kScenes[k];
+        const Vec3 bc = centre + right * (-width * 0.5f + w * (F(k) + 0.5f));
+        if (button(in, "scene:" + name, bc, right, up, {w * 0.5f - 0.008f, halfHeight}, name, name == now) && name != now) {
+            goScene(name);
+            return true;
+        }
+    }
+    return false;
 }
 
 void App::visionPanel(const Input& in) {

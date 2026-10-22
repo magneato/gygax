@@ -158,7 +158,7 @@ TEST(DeviceConfig, RejectsBadConfigurationsWithClearErrors) {
     EXPECT_TRUE(serialPathAllowed("/dev/ttyUSB0"));
     EXPECT_FALSE(serialPathAllowed("/tmp/x"));
     EXPECT_FALSE(serialPathAllowed("/dev/../etc/x"));
-    EXPECT_EQ(deviceKinds().size(), 7U);
+    EXPECT_EQ(deviceKinds().size(), 8U);
 }
 
 TEST(CanDevice, DecodesMessagesWithDbcAndJ1939AndTransmitsCommands) {
@@ -411,6 +411,48 @@ TEST(RosDevice, TalksToARosbridgeOverRealTcpAndEnforcesTwistLimits) {
     EXPECT_TRUE(sawTwist);
 }
 
+TEST(UnitreeGo2Device, ControlsAndTelemetriesGo2Quadruped) {
+    auto peer = net::memoryLinkPeer("test-go2");
+    std::string error;
+    auto dev = open(R"({"kind":"unitree_go2","uri":"memory://test-go2","battery":92.0})", &error);
+    ASSERT_NE(dev, nullptr) << error;
+    EXPECT_EQ(dev->kind(), "unitree_go2");
+    EXPECT_TRUE(dev->connected());
+
+    auto s = dev->state();
+    EXPECT_TRUE(s.getBool("connected"));
+    EXPECT_TRUE(s.getBool("armed"));
+    EXPECT_EQ(s.getInt("vehicle_type"), 99);
+    EXPECT_EQ(s.getString("mode"), "stand");
+    EXPECT_NEAR(s.find("battery")->getDouble("remaining_percent"), 92.0, 0.1);
+
+    // Test standing / movement commands
+    EXPECT_EQ(dev->command(cfg(R"({"command":"move","vx":1.2,"vy":-0.4,"vyaw":0.5})")).status, 200);
+    std::this_thread::sleep_for(50ms);
+    s = dev->state();
+    EXPECT_EQ(s.getString("mode"), "trot");
+    EXPECT_TRUE(s.getBool("armed"));
+
+    // Verify sport request JSON was written to the link
+    std::vector<std::uint8_t> rx;
+    EXPECT_EQ(peer->read(rx, 200ms), 0);
+    std::string packet(reinterpret_cast<const char*>(rx.data()), rx.size());
+    EXPECT_NE(packet.find("rt/api/sport/request"), std::string::npos);
+    EXPECT_NE(packet.find("1008"), std::string::npos); // api_id 1008 = Move
+
+    // Test sit command
+    EXPECT_EQ(dev->command(cfg(R"({"command":"sit"})")).status, 200);
+    s = dev->state();
+    EXPECT_EQ(s.getString("mode"), "sit");
+    EXPECT_FALSE(s.getBool("armed"));
+
+    // Test stand command
+    EXPECT_EQ(dev->command(cfg(R"({"command":"stand"})")).status, 200);
+    s = dev->state();
+    EXPECT_EQ(s.getString("mode"), "stand");
+    EXPECT_TRUE(s.getBool("armed"));
+}
+
 TEST(DeviceRegistry, ValidatesIdsAndManagesLifetimes) {
     DeviceRegistry reg;
     std::string error;
@@ -468,7 +510,7 @@ class DeviceServiceWithCommands : public DeviceServiceTest {
 TEST_F(DeviceServiceTest, ManagesDevicesAndKeepsCommandsDisabledByDefault) {
     auto listed = *json::parse(call("GET", "/v1/devices").body);
     EXPECT_FALSE(listed.getBool("commands_enabled"));
-    EXPECT_EQ(listed.find("kinds")->asArray().size(), 7U);
+    EXPECT_EQ(listed.find("kinds")->asArray().size(), 8U);
 
     auto peer = net::memoryLinkPeer("svc-gps");
     const auto added = call("POST", "/v1/devices", R"({"id":"gps","kind":"nmea","uri":"memory://svc-gps"})");

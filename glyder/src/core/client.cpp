@@ -108,6 +108,11 @@ float Client::terrainProgress() const {
     return static_cast<float>(terrainGot_) / static_cast<float>(world_->terrainBytes);
 }
 
+std::uint64_t Client::worldRevision() const {
+    std::lock_guard lock(mutex_);
+    return worldRevision_;
+}
+
 std::optional<wire::Heightfield> Client::takeTerrain() {
     std::lock_guard lock(mutex_);
     return std::exchange(terrain_, std::nullopt);
@@ -283,6 +288,19 @@ void Client::handle(const net::Datagram& d, double t) {
 
     if (h->type == wire::Type::Welcome) {
         if (auto w = wire::decode<wire::World>(body)) {
+            if (state_ == State::Connected && world_ && w->session == session_) {
+                // Already in: a scene change, or a repeat of the same Welcome (ignored).
+                const auto& o = *world_;
+                if (o.title == w->title && o.subtitle == w->subtitle && o.environment == w->environment && o.radius == w->radius &&
+                    o.groundZ == w->groundZ && o.terrainBytes == w->terrainBytes && o.help == w->help && o.originLat == w->originLat &&
+                    o.originLon == w->originLon)
+                    return;
+                ++worldRevision_;
+                tracks_.clear();
+                fx_.clear();
+                info_.clear();
+                terrain_.reset();
+            }
             world_ = *w;
             session_ = w->session;
             state_ = State::Connected;

@@ -46,6 +46,8 @@ public:
     [[nodiscard]] State state() const;
     [[nodiscard]] std::string error() const;
     [[nodiscard]] std::optional<wire::World> world() const;
+    // Bumps each time the host switches to another world mid-session (a scene change).
+    [[nodiscard]] std::uint64_t worldRevision() const;
     [[nodiscard]] net::Address host() const;
 
     // Terrain arrives in reliable chunks after Welcome.
@@ -116,6 +118,7 @@ private:
     std::uint32_t pingId_{0};
     double rtt_{0.0};
     std::optional<wire::World> world_;
+    std::uint64_t worldRevision_{0};
     net::ReliableOut out_;
     net::ReliableIn in_;
 

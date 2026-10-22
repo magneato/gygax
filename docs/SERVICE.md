@@ -35,6 +35,8 @@ Errors are always JSON:
 | `GYGAX_PLUGINS` | `--plugin` (repeatable) | none | Native plugins to load ([EXTENSIONS.md](EXTENSIONS.md)) |
 | `GYGAX_EXTENSIONS` | `--extension` (repeatable) | none | Extension processes whose tools to register |
 | `GYGAX_MCP` | `--mcp` (repeatable) | none | `NAME=COMMAND ARGS` MCP servers started over stdio; tools appear as `mcp.NAME.TOOL` (see `docs/RESEARCH.md`) |
+
+To run gygax itself *as* an MCP server (for LM Studio and other MCP clients), use `gygax mcp`; see `docs/LMSTUDIO.md`.
 | `GYGAX_LOG_LEVEL` | `--log-level` | `info` | `trace debug info warn error off` |
 | `GYGAX_LOG_FORMAT` | `--log-format` | `text` | `text` or `json` |
 

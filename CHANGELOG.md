@@ -2,7 +2,12 @@
 
 ## Unreleased
 
+## 0.5.0 "Matrix Refactored" (2026-10-21)
+
 ### Added
+- Unitree Go2 quadruped driver (`--device dog=unitree_go2:udp://192.168.123.161:8082`): stand, sit, damp, stop, move/twist, recovery stand, gait, body height and gestures over the sport API; telemetry (mode, pose, IMU attitude, foot forces, battery) with dead reckoning between reports. It shows in glyder as a quadruped.
+- glyder scenes: the lobby and the in-world menu have a SCENES row: **Calm** and **Chaos** are built into the Construct (no computer needed; Calm is the old Construct with nothing flashing, Chaos is a swarm, missiles, tracers and fast drones), **OHFlock** and **Live** jump to an `ohflock --glyder` or `gygax serve --glyder` host on the network. Calm and Chaos switch live, without reconnecting (`Host::reconfigure`). The desktop viewer's `--script` takes `scene NAME`.
+- `gygax mcp`: serves gygax's tools as an MCP server over stdio so LM Studio (and other MCP clients) can launch it from `mcp.json`. Tool calls run in parallel on a worker pool pinned to neighbouring cores (`--mcp-workers N`); dotted tool names travel as `__`; tools advertise an `input` argument schema. See [docs/LMSTUDIO.md](docs/LMSTUDIO.md).
 - glyder colour vision: corrections for no blue (tritan), no red (protan) and no green (deutan) cones, applied in the final render pass over everything, and a preview of what such a viewer sees (`glyder/colour.hpp`).
 - glyder audio cues and blind mode: a synthesizer in the portable core whose voices have a waveform per envelope stage, a cue per kind of object (incoming, aircraft, ground, own side, structure, the ground below), panned by bearing and pitched by elevation; earcons, pointing that sounds the node, and controller pulses for anything incoming. AAudio output on Quest (`glyder/audio.hpp`).
 - The desktop viewer captures in real time to a pipe (`--capture FILE.rgba`) with sound (`--audio FILE.wav`); script cues are timed by frame and can switch colour vision, cues and blind mode.
@@ -11,6 +16,7 @@
 - The project page features glyder: a showcase with frames rendered headless from a live OHFLOCK host, a capability entry, and a safety note on headset authority.
 
 ### Fixed
+- The Unitree Go2 driver stops its telemetry thread before tearing down its state, and marks a robot silent for 5 s as disconnected.
 - glyder builds with libc++ (macOS): `image.cpp` includes `<array>`.
 - `gygax serve --glyder-origin` is parsed with the checked number parser (clang-tidy `cert-err34-c`), and a malformed or out-of-range origin is rejected instead of silently ignored.
 

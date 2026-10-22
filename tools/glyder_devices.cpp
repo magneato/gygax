@@ -29,6 +29,7 @@ constexpr double kPi = 3.14159265358979323846;
 
 struct Vehicle {
     std::string id;
+    std::string kind;
     std::uint32_t entity{0};
     bool connected{false}, armed{false}, physical{true};
     int type{0};
@@ -40,7 +41,10 @@ struct Vehicle {
     std::string status;
 };
 
-kit::Shape shapeFor(int mavType) {
+kit::Shape shapeFor(int mavType, std::string_view kind = "") {
+    if (kind == "unitree_go2" || kind == "unitree" || kind == "go2" || mavType == 99) {
+        return kit::Shape::Quadruped;
+    }
     switch (mavType) {
     case 1: return kit::Shape::FixedWing;
     case 2:
@@ -55,7 +59,12 @@ kit::Shape shapeFor(int mavType) {
     }
 }
 
-glyder::Handling handlingFor(int mavType) {
+glyder::Handling handlingFor(int mavType, std::string_view kind = "") {
+    if (kind == "unitree_go2" || kind == "unitree" || kind == "go2" || mavType == 99) {
+        // Omnidirectional quadruped ground handling:
+        // minSpeed: 0, maxSpeed: 3.5 m/s, yawRate: 2.5 rad/s, climbRate: 0.0 m/s, accel: 4.0 m/s^2
+        return {glyder::Handling::Model::Hover, 0, 3.5f, 2.5f, 0.0f, 4.0f};
+    }
     switch (mavType) {
     case 1: return {glyder::Handling::Model::Air, 12, 25, 0.4f, 3, 2};
     case 10:
@@ -130,12 +139,14 @@ public:
         if (it == vehicles_.end()) return "no such machine";
         if (!commands_) return "device commands are off on this node (gygax serve --device-commands)";
         if (!it->second.connected) return "no heartbeat from it";
-        if (!it->second.armed) return "it is disarmed; glyder never arms a machine (arm it from gyde or the API)";
-        if (shapeFor(it->second.type) == kit::Shape::Marker) return "glyder does not know how to drive this kind of vehicle";
+        const bool isGo2 = (it->second.kind == "unitree_go2" || it->second.kind == "unitree" || it->second.kind == "go2");
+        if (!it->second.armed && !isGo2) return "it is disarmed; glyder never arms a machine (arm it from gyde or the API)";
+        if (shapeFor(it->second.type, it->second.kind) == kit::Shape::Marker) return "glyder does not know how to drive this kind of vehicle";
         return std::nullopt;
     }
     std::optional<Wait> busy(std::uint32_t id) override {
         const Vehicle& v = vehicles_.at(id);
+        if (v.kind == "unitree_go2" || v.kind == "unitree" || v.kind == "go2") return std::nullopt;
         const float climb = v.vel.z;
         if (climb > 0.6f) return Wait{"finishing its climb", 3.0f};
         if (climb < -0.6f) return Wait{"finishing its descent", 3.0f};
@@ -149,25 +160,50 @@ public:
         m.pos = v.pos;
         m.heading = v.heading;
         motion_[id] = m;
+        if (v.kind == "unitree_go2" || v.kind == "unitree" || v.kind == "go2") {
+            json::Value c = json::Value::object();
+            c["command"] = "stand";
+            commander_.send(v.id, "stand", std::move(c));
+            return handlingFor(v.type, v.kind);
+        }
         json::Value c = json::Value::object();
         c["command"] = "set_mode";
         c["mode"] = "GUIDED";
         commander_.send(v.id, "mode", std::move(c));
-        return handlingFor(v.type);
+        return handlingFor(v.type, v.kind);
     }
     void drive(std::uint32_t id, const wire::Control& c, bool fresh, double dt) override {
         Vehicle& v = vehicles_.at(id);
         auto& m = motion_[id];
-        const glyder::Handling h = handlingFor(v.type);
-        // The pilot's sticks move a target a few seconds ahead of the vehicle; the autopilot flies
-        // to it with its own limits and failsafes, so a dropped link leaves a safe target behind.
+        const glyder::Handling h = handlingFor(v.type, v.kind);
         if (fresh) {
             const float axes[6] = {c.axes[0], c.axes[1], c.axes[2], c.axes[3], c.axes[4], c.axes[5]};
             glyder::step(m, h, axes, static_cast<float>(dt), 0);
         } else {
             m.speed = m.lateral = m.climb = m.yawRate = 0;
         }
-        // Keep the target close to the real vehicle.
+
+        if (v.kind == "unitree_go2" || v.kind == "unitree" || v.kind == "go2") {
+            sent_ += dt;
+            if (sent_ < 0.05) return; // 20 Hz
+            sent_ = 0;
+            float vx = 0.0f, vy = 0.0f, vyaw = 0.0f;
+            if (fresh) {
+                vx = c.axes[0] * h.maxSpeed;
+                vy = -c.axes[1] * h.maxSpeed * 0.7f;
+                vyaw = -c.axes[3] * h.yawRate;
+            }
+            json::Value cmd = json::Value::object();
+            cmd["command"] = "move";
+            cmd["vx"] = static_cast<double>(vx);
+            cmd["vy"] = static_cast<double>(vy);
+            cmd["vyaw"] = static_cast<double>(vyaw);
+            commander_.send(v.id, "move", std::move(cmd));
+            return;
+        }
+
+        // The pilot's sticks move a target a few seconds ahead of the vehicle; the autopilot flies
+        // to it with its own limits and failsafes, so a dropped link leaves a safe target behind.
         const glyder::Vec3 lead = m.velocity() * 2.5f;
         glyder::Vec3 target = v.pos + glyder::Vec3{lead.x, lead.y, 0};
         const float alt = std::max(2.0f, static_cast<float>(v.altRel) + lead.z);
@@ -188,6 +224,12 @@ public:
         motion_.erase(id);
         const auto it = vehicles_.find(id);
         if (it == vehicles_.end()) return;
+        if (it->second.kind == "unitree_go2" || it->second.kind == "unitree" || it->second.kind == "go2") {
+            json::Value c = json::Value::object();
+            c["command"] = "stop";
+            commander_.send(it->second.id, "move", std::move(c));
+            return;
+        }
         json::Value c = json::Value::object();
         c["command"] = "set_mode";
         const std::uint32_t back = restore_.count(id) ? restore_[id] : 5;
@@ -327,7 +369,8 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
         const json::Value list = call(svc, "devices.list");
         if (const auto* devs = list.find("devices"); devs && devs->isArray()) {
             for (const auto& d : devs->asArray()) {
-                if (d.getString("kind") != "mavlink") continue;
+                const auto k = d.getString("kind");
+                if (k != "mavlink" && k != "unitree_go2" && k != "unitree" && k != "go2") continue;
                 const std::string id = d.getString("id");
                 auto [it, fresh] = ids.try_emplace(id, static_cast<std::uint32_t>(ids.size() + 1));
                 json::Value p = json::Value::object();
@@ -337,23 +380,33 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
                 if (!s) s = &st;
                 Vehicle& v = vehicles[it->second];
                 v.id = id;
+                v.kind = k;
                 v.entity = it->second;
                 v.physical = !loopbackEndpoint(d.getString("endpoint"));
                 v.connected = s->getBool("connected");
                 v.armed = s->getBool("armed");
-                v.type = static_cast<int>(s->getInt("vehicle_type"));
+                v.type = static_cast<int>(s->getInt("vehicle_type", (k == "mavlink" ? 0 : 99)));
                 v.mode = static_cast<std::uint32_t>(s->getInt("custom_mode"));
                 v.lat = s->getDouble("latitude");
                 v.lon = s->getDouble("longitude");
                 v.altMsl = s->getDouble("altitude_msl");
                 v.altRel = s->getDouble("altitude_relative");
-                if (!haveOrigin && v.connected && (v.lat != 0 || v.lon != 0)) {
-                    lat0 = v.lat;
-                    lon0 = v.lon;
-                    haveOrigin = true;
+                if (v.lat != 0 || v.lon != 0) {
+                    if (!haveOrigin && v.connected) {
+                        lat0 = v.lat;
+                        lon0 = v.lon;
+                        haveOrigin = true;
+                    }
+                    v.pos = {static_cast<float>((v.lon - lon0) * kPi / 180.0 * kEarthRadius * std::cos(lat0 * kPi / 180.0)),
+                             static_cast<float>((v.lat - lat0) * kPi / 180.0 * kEarthRadius), static_cast<float>(v.altRel)};
+                } else if (const auto* pos = s->find("position")) {
+                    v.pos = {static_cast<float>(pos->getDouble("x")),
+                             static_cast<float>(pos->getDouble("y")),
+                             static_cast<float>(pos->getDouble("z", 0.35))};
+                    if (!haveOrigin && v.connected) {
+                        haveOrigin = true;
+                    }
                 }
-                v.pos = {static_cast<float>((v.lon - lon0) * kPi / 180.0 * kEarthRadius * std::cos(lat0 * kPi / 180.0)),
-                         static_cast<float>((v.lat - lat0) * kPi / 180.0 * kEarthRadius), static_cast<float>(v.altRel)};
                 if (const auto* vel = s->find("velocity"))
                     v.vel = {static_cast<float>(vel->getDouble("y")), static_cast<float>(vel->getDouble("x")),
                              static_cast<float>(-vel->getDouble("z"))};
@@ -362,7 +415,10 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
                     v.roll = static_cast<float>(att->getDouble("roll"));
                     v.pitch = static_cast<float>(att->getDouble("pitch"));
                 }
-                if (const auto* b = s->find("battery")) v.battery = b->getDouble("remaining_percent", -1);
+                if (const auto* b = s->find("battery")) {
+                    if (b->isObject()) v.battery = b->getDouble("remaining_percent", -1);
+                    else v.battery = b->asDouble();
+                }
                 v.status = s->getString("status_text");
             }
         }
@@ -379,11 +435,10 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
             if (!v.connected) continue;
             wire::EntityState e;
             e.id = eid;
-            e.shape = static_cast<std::uint16_t>(shapeFor(v.type));
-            // Tritan-safe high-contrast color scheme: avoid pure blues/purples
-            // 3: Warm Gold/Amber (physical), 4: Warm Jade (simulated)
-            e.team = v.physical ? 3 : 4;
-            e.tint = v.physical ? kit::palette::gold : kit::palette::teams[4];
+            e.shape = static_cast<std::uint16_t>(shapeFor(v.type, v.kind));
+            const bool isGo2 = (v.kind == "unitree_go2" || v.kind == "unitree" || v.kind == "go2");
+            e.team = isGo2 ? 2 : (v.physical ? 3 : 4);
+            e.tint = isGo2 ? kit::palette::teams[2] : (v.physical ? kit::palette::gold : kit::palette::teams[4]);
             e.pos = v.pos;
             e.vel = v.vel;
             e.q = glyder::attitude(v.heading, v.pitch, v.roll);

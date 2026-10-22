@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <functional>
 #include <optional>
 #include <string>
@@ -14,6 +15,8 @@ std::optional<ExternalModule> connectMcp(const std::string& spec, std::string* e
 struct McpServerTool {
     std::string name;
     std::string description;
+    // JSON Schema for the arguments, as JSON text. Empty means {"type":"object"}.
+    std::string inputSchema{};
 };
 
 struct McpServerHandler {
@@ -21,6 +24,10 @@ struct McpServerHandler {
     std::function<std::string(const std::string& name, const std::string& jsonArguments)> call;
 };
 
-int serveMcp(int inFd, int outFd, const std::string& serverName, const std::string& version, const McpServerHandler& handler);
+// Serves MCP over newline-delimited JSON-RPC until inFd closes. tools/call requests run on
+// a pool of `workers` threads (0 = one per spare core, each pinned next to the reader's core)
+// so several calls from one client proceed in parallel; replies may arrive out of order.
+int serveMcp(int inFd, int outFd, const std::string& serverName, const std::string& version, const McpServerHandler& handler,
+             std::size_t workers = 0);
 
 }

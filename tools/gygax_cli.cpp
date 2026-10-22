@@ -32,6 +32,7 @@
 #include <gygax/satlink/satlink.hpp>
 #include <gygax/satlink/sdr.hpp>
 #include <gygax/service/expression.hpp>
+#include <gygax/service/mcp.hpp>
 #include <gygax/service/service.hpp>
 
 #include "glyder_devices.hpp"
@@ -106,6 +107,8 @@ void printUsage() {
         << "  serve      run the HTTP service (standard chat API and Ollama API, agents, tools, metrics)\n"
         << "  doctor     run the built-in self-test suite; add --url to test a running service\n"
         << "  rpc        serve JSON-RPC 2.0 over stdin/stdout\n"
+        << "  mcp        serve gygax's tools as an MCP server over stdin/stdout (LM Studio, Claude Desktop, ...);\n"
+        << "             takes the serve options plus --mcp-workers N (parallel tool calls, default: spare cores)\n"
         << "  neuro      run a spiking network spec (file or - for stdin) or 'neuro demo'\n"
         << "  status     show node, engines and agents of a running service\n"
         << "  ask        send a prompt to a running service (--agent to use the tool-using agent)\n"
@@ -298,6 +301,82 @@ int cmdRpc(const Args& a) {
     }
     svc.stop();
     return 0;
+}
+
+// MCP clients (LM Studio among them) expect function names matching [A-Za-z0-9_-]{1,64},
+// so dotted gygax names travel as "__": math.eval <-> math__eval.
+std::string mcpToolName(const std::string& name) {
+    std::string out;
+    for (char c : name) out += c == '.' ? std::string("__") : std::string(1, c);
+    return out;
+}
+
+int cmdMcp(const Args& a) {
+    applyLogging(a);
+    if (!a.has("log-level")) gygax::log::setLevel(gygax::log::Level::Warn);  // stdout is the protocol; logs go to stderr
+    signal(SIGPIPE, SIG_IGN);
+    auto config = configFrom(a);
+    config.enableHttp = false;
+    service::Service svc(std::move(config));
+    std::string error;
+    if (!svc.start(&error)) {
+        std::cerr << "gygax: cannot start: " << error << "\n";
+        return 1;
+    }
+    auto call = [&svc](const std::string& method, Value params) {
+        Value req = Value::object();
+        req["jsonrpc"] = "2.0";
+        req["id"] = 1;
+        req["method"] = method;
+        req["params"] = std::move(params);
+        Value res = svc.rpc(req);
+        if (const auto* err = res.find("error")) throw std::runtime_error(err->getString("message"));
+        const auto* result = res.find("result");
+        return result != nullptr ? *result : Value::object();
+    };
+    auto listNames = [&] {
+        std::vector<std::pair<std::string, std::string>> out;  // gygax name, description
+        const Value listed = call("tools.list", Value::object());
+        if (const auto* tools = listed.find("tools"); tools != nullptr && tools->isArray())
+            for (const auto& t : tools->asArray()) out.emplace_back(t.getString("name"), t.getString("description"));
+        return out;
+    };
+    static constexpr const char* kInputSchema =
+        R"({"type":"object","properties":{"input":{"type":"string","description":"The tool input: plain text or JSON text, as the tool description says. Omit when the tool takes none."}}})";
+
+    service::McpServerHandler handler;
+    handler.list = [&] {
+        std::vector<service::McpServerTool> out;
+        for (const auto& [name, description] : listNames()) {
+            const std::string wire = mcpToolName(name);
+            if (wire.size() > 64) continue;
+            out.push_back({wire, description.empty() ? name : description, kInputSchema});
+        }
+        return out;
+    };
+    handler.call = [&](const std::string& wire, const std::string& jsonArguments) -> std::string {
+        std::string name;
+        for (const auto& entry : listNames())
+            if (mcpToolName(entry.first) == wire || entry.first == wire) name = entry.first;
+        if (name.empty()) throw std::runtime_error("no such tool: " + wire);
+        Value params = Value::object();
+        params["name"] = name;
+        auto args = gygax::json::parse(jsonArguments);
+        if (args && args->isObject()) {
+            if (const auto* input = args->find("input")) {
+                params["input"] = input->isString() ? input->asString() : input->dump();
+            } else if (!args->asObject().empty()) {
+                params["input"] = args->dump();  // the model passed the fields directly
+            }
+        }
+        const Value out = call("tools.invoke", std::move(params));
+        return out.getString("output");
+    };
+    std::size_t workers = 0;
+    if (a.has("mcp-workers")) workers = std::strtoul(a.get("mcp-workers").c_str(), nullptr, 10);
+    const int rc = service::serveMcp(0, 1, "gygax", GYGAX_VERSION_STRING, handler, workers);
+    svc.stop();
+    return rc;
 }
 
 std::string readAll(std::istream& in) {
@@ -1194,6 +1273,7 @@ int main(int argc, char** argv) {
     if (cmd == "serve") return cmdServe(args);
     if (cmd == "doctor") return cmdDoctor(args);
     if (cmd == "rpc") return cmdRpc(args);
+    if (cmd == "mcp") return cmdMcp(args);
     if (cmd == "sim-autopilot") return cmdSimAutopilot(args);
     if (cmd == "neuro") return cmdNeuro(args);
     if (cmd == "status") return cmdStatus(args);

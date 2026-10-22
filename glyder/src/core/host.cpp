@@ -216,6 +216,59 @@ void Host::service(Pilot& pilot, double dt) {
     }
 }
 
+void Host::reconfigure(const HostOptions& world, const wire::Heightfield* terrain, Pilot* previous) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    options_.title = world.title;
+    options_.subtitle = world.subtitle;
+    options_.help = world.help;
+    options_.environment = world.environment;
+    options_.originLat = world.originLat;
+    options_.originLon = world.originLon;
+    options_.groundZ = world.groundZ;
+    options_.radius = world.radius;
+    terrain_ = terrain ? terrain->encode() : std::vector<std::uint8_t>{};
+    entities_.clear();
+    effects_.clear();
+    info_.clear();
+    infoCursor_ = 0;
+    pendingGive_.clear();
+    const double t = net::now();
+    for (auto& [addr, sp] : sessions_) {
+        Session& s = *sp;
+        if (!s.live || s.gone) continue;
+        if (s.want != 0) {
+            if (s.controlling && previous && previous->exists(s.want)) previous->give(s.want);
+            drop(s, {s.want, wire::Drop::Lost, 0, "scene changed"});
+            s.want = 0;
+            s.controlling = false;
+            s.releaseRequested = false;
+        }
+        wire::World w;
+        w.session = s.id;
+        w.hostTime = frameTime_ + (t - frameWall_) * rate_;
+        w.snapshotHz = options_.snapshotHz;
+        w.environment = options_.environment;
+        w.title = options_.title;
+        w.subtitle = options_.subtitle;
+        w.originLat = options_.originLat;
+        w.originLon = options_.originLon;
+        w.groundZ = options_.groundZ;
+        w.radius = options_.radius;
+        w.terrainBytes = static_cast<std::uint32_t>(terrain_.size());
+        w.help = options_.help;
+        // Unreliable like the first Welcome; sent twice since a repeat is harmless to the client.
+        for (int k = 0; k < 2; ++k) socket_->send(addr, net::packet(wire::Type::Welcome, s.id, 0, 0, w, s.key));
+        for (std::size_t off = 0; off < terrain_.size(); off += wire::kTerrainChunk) {
+            wire::TerrainChunk c;
+            c.offset = static_cast<std::uint32_t>(off);
+            c.total = static_cast<std::uint32_t>(terrain_.size());
+            c.bytes.assign(terrain_.begin() + static_cast<std::ptrdiff_t>(off),
+                           terrain_.begin() + static_cast<std::ptrdiff_t>(std::min(terrain_.size(), off + wire::kTerrainChunk)));
+            sendReliable(s, wire::Type::Terrain, c, t);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Network thread
 

@@ -1,13 +1,18 @@
 #include <gygax/service/mcp.hpp>
 
 #include <fcntl.h>
+#include <sched.h>
 #include <pthread.h>
 #include <poll.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <atomic>
 #include <cerrno>
+#include <condition_variable>
+#include <deque>
 #include <chrono>
 #include <cstdlib>
 #include <mutex>
@@ -32,6 +37,9 @@ constexpr std::chrono::seconds kToolCallTimeout{60};
 constexpr std::chrono::milliseconds kChildExitPollInterval{50};
 constexpr int kChildExitPollAttempts = 20;
 constexpr const char* kProtocolVersion = "2024-11-05";
+// Versions the server side speaks, newest first; an unknown request gets the newest.
+constexpr const char* kServerProtocolVersions[] = {"2025-06-18", "2025-03-26", "2024-11-05"};
+constexpr std::size_t kMaxServeWorkers = 16;
 
 // write() to a pipe whose reader has exited raises SIGPIPE, which would kill the whole
 // service when an MCP server crashes. Block it in this thread only, and if the write
@@ -309,9 +317,12 @@ std::optional<ExternalModule> connectMcp(const std::string& spec, std::string* e
     return m;
 }
 
-int serveMcp(int inFd, int outFd, const std::string& serverName, const std::string& version, const McpServerHandler& handler) {
+int serveMcp(int inFd, int outFd, const std::string& serverName, const std::string& version, const McpServerHandler& handler,
+             std::size_t workers) {
+    std::mutex writeMutex;
     auto send = [&](const json::Value& v) {
         const std::string line = v.dump() + "\n";
+        std::lock_guard lock(writeMutex);
         std::size_t done = 0;
         while (done < line.size()) {
             const ssize_t n = writeWithoutSigpipe(outFd, line.data() + done, line.size() - done);
@@ -338,16 +349,84 @@ int serveMcp(int inFd, int outFd, const std::string& serverName, const std::stri
         m["error"] = std::move(e);
         return send(m);
     };
+    auto runCall = [&](const json::Value& id, const std::string& name, const std::string& args) {
+        json::Value r = json::Value::object();
+        bool isError = false;
+        std::string text;
+        try {
+            text = handler.call(name, args);
+        } catch (const std::exception& e) {
+            isError = true;
+            text = e.what();
+        }
+        json::Value part = json::Value::object();
+        part["type"] = "text";
+        part["text"] = text;
+        json::Value content = json::Value::array();
+        content.push(std::move(part));
+        r["content"] = std::move(content);
+        r["isError"] = isError;
+        return reply(id, std::move(r));
+    };
+
+    // Worker pool for tools/call. Each worker is pinned to a core next to the reader's, so a
+    // burst of requests spreads over neighbouring cores while the reader keeps answering.
+    struct Job {
+        json::Value id;
+        std::string name;
+        std::string args;
+    };
+    const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+    if (workers == 0) workers = std::clamp<std::size_t>(cores > 1 ? cores - 1 : 1, 1, kMaxServeWorkers);
+    std::mutex queueMutex;
+    std::condition_variable queueReady;
+    std::deque<Job> queue;
+    bool closing = false;
+    std::atomic<bool> writeFailed{false};
+    const int readerCore = ::sched_getcpu();
+    std::vector<std::thread> pool;
+    pool.reserve(workers);
+    for (std::size_t w = 0; w < workers; ++w) {
+        pool.emplace_back([&, w] {
+            if (cores > 1 && readerCore >= 0) {
+                cpu_set_t set;
+                CPU_ZERO(&set);
+                CPU_SET(static_cast<int>((static_cast<unsigned>(readerCore) + 1 + w) % cores), &set);
+                ::pthread_setaffinity_np(::pthread_self(), sizeof(set), &set);  // best effort
+            }
+            for (;;) {
+                Job job;
+                {
+                    std::unique_lock lock(queueMutex);
+                    queueReady.wait(lock, [&] { return closing || !queue.empty(); });
+                    if (queue.empty()) return;
+                    job = std::move(queue.front());
+                    queue.pop_front();
+                }
+                if (!runCall(job.id, job.name, job.args)) writeFailed.store(true);
+            }
+        });
+    }
+    auto shutdown = [&](int rc) {
+        {
+            std::lock_guard lock(queueMutex);
+            closing = true;
+        }
+        queueReady.notify_all();
+        for (auto& t : pool) t.join();
+        return writeFailed.load() ? 1 : rc;
+    };
 
     std::string buffer;
     char chunk[4096];
     for (;;) {
+        if (writeFailed.load()) return shutdown(1);
         const auto nl = buffer.find('\n');
         if (nl == std::string::npos) {
-            if (buffer.size() > kMaxLine) return 1;
+            if (buffer.size() > kMaxLine) return shutdown(1);
             const ssize_t n = ::read(inFd, chunk, sizeof(chunk));
             if (n < 0 && errno == EINTR) continue;
-            if (n <= 0) return 0;
+            if (n <= 0) return shutdown(0);
             buffer.append(chunk, static_cast<std::size_t>(n));
             continue;
         }
@@ -356,11 +435,11 @@ int serveMcp(int inFd, int outFd, const std::string& serverName, const std::stri
         if (line.find_first_not_of(" \t\r") == std::string::npos) continue;
         auto parsed = json::parse(line);
         if (!parsed || !parsed->isObject()) {
-            if (!fault(json::Value(), -32700, "parse error")) return 1;
+            if (!fault(json::Value(), -32700, "parse error")) return shutdown(1);
             continue;
         }
         const auto* idp = parsed->find("id");
-        if (idp == nullptr) continue;
+        if (idp == nullptr) continue;  // notifications (initialized, cancelled, ...) need no answer
         const json::Value id = *idp;
         const std::string method = parsed->getString("method");
         const auto* params = parsed->find("params");
@@ -368,7 +447,9 @@ int serveMcp(int inFd, int outFd, const std::string& serverName, const std::stri
         if (method == "initialize") {
             json::Value r = json::Value::object();
             const std::string requested = params != nullptr ? params->getString("protocolVersion") : std::string();
-            r["protocolVersion"] = requested.empty() ? std::string(kProtocolVersion) : requested;
+            bool known = false;
+            for (const char* v : kServerProtocolVersions) known = known || requested == v;
+            r["protocolVersion"] = known ? requested : std::string(kServerProtocolVersions[0]);
             json::Value caps = json::Value::object();
             caps["tools"] = json::Value::object();
             r["capabilities"] = std::move(caps);
@@ -385,13 +466,23 @@ int serveMcp(int inFd, int outFd, const std::string& serverName, const std::stri
                 json::Value o = json::Value::object();
                 o["name"] = t.name;
                 o["description"] = t.description;
-                json::Value schema = json::Value::object();
-                schema["type"] = "object";
-                o["inputSchema"] = std::move(schema);
+                std::optional<json::Value> schema;
+                if (!t.inputSchema.empty()) schema = json::parse(t.inputSchema);
+                if (!schema || !schema->isObject()) {
+                    schema = json::Value::object();
+                    (*schema)["type"] = "object";
+                }
+                o["inputSchema"] = std::move(*schema);
                 tools.push(std::move(o));
             }
             json::Value r = json::Value::object();
             r["tools"] = std::move(tools);
+            ok = reply(id, std::move(r));
+        } else if (method == "resources/list" || method == "resources/templates/list" || method == "prompts/list") {
+            // Some clients probe these even when only tools are advertised; answer with empty lists.
+            json::Value r = json::Value::object();
+            const char* key = method == "prompts/list" ? "prompts" : method == "resources/list" ? "resources" : "resourceTemplates";
+            r[key] = json::Value::array();
             ok = reply(id, std::move(r));
         } else if (method == "tools/call") {
             if (params == nullptr || !params->isObject() || params->getString("name").empty()) {
@@ -399,28 +490,16 @@ int serveMcp(int inFd, int outFd, const std::string& serverName, const std::stri
             } else {
                 json::Value args = json::Value::object();
                 if (const auto* a = params->find("arguments"); a != nullptr && a->isObject()) args = *a;
-                json::Value r = json::Value::object();
-                bool isError = false;
-                std::string text;
-                try {
-                    text = handler.call(params->getString("name"), args.dump());
-                } catch (const std::exception& e) {
-                    isError = true;
-                    text = e.what();
+                {
+                    std::lock_guard lock(queueMutex);
+                    queue.push_back(Job{id, params->getString("name"), args.dump()});
                 }
-                json::Value part = json::Value::object();
-                part["type"] = "text";
-                part["text"] = text;
-                json::Value content = json::Value::array();
-                content.push(std::move(part));
-                r["content"] = std::move(content);
-                r["isError"] = isError;
-                ok = reply(id, std::move(r));
+                queueReady.notify_one();
             }
         } else {
             ok = fault(id, -32601, "method not found: " + method);
         }
-        if (!ok) return 1;
+        if (!ok) return shutdown(1);
     }
 }
 

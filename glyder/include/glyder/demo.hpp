@@ -12,12 +12,19 @@
 
 namespace glyder {
 
+// The Construct's built-in scenes. Calm: slow, predictable routines and nothing that flashes.
+// Chaos: a swarm, missiles, tracers and fast drones, all at once.
+enum class DemoScene { Calm, Chaos };
+
 class DemoWorld {
 public:
     DemoWorld();
     ~DemoWorld();
     // Start the world and its host on loopback; returns the port to connect to.
-    bool start(std::string* error);
+    bool start(std::string* error, DemoScene scene = DemoScene::Calm);
+    // Switch scenes while running; connected headsets get the new world without reconnecting.
+    void setScene(DemoScene scene);
+    [[nodiscard]] DemoScene scene() const;
     void stop();
     [[nodiscard]] std::uint16_t port() const;
 

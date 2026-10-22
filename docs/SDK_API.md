@@ -25,7 +25,7 @@ not exposed to the service or to agents.
 
 | Version identifier | Meaning | Compatibility behavior |
 | --- | --- | --- |
-| Project version (`0.4.0` today) | Product release; available as `GYGAX_VERSION_*`, `GYGAX_VERSION_STRING` (with the pre-release label), `GYGAX_VERSION_CODENAME`, and `gygax_version()` | Pre-1.0 releases do not promise source or binary compatibility between releases. Rebuild consumers and read release notes when upgrading. |
+| Project version (`0.5.0` today) | Product release; available as `GYGAX_VERSION_*`, `GYGAX_VERSION_STRING` (with the pre-release label), `GYGAX_VERSION_CODENAME`, and `gygax_version()` | Pre-1.0 releases do not promise source or binary compatibility between releases. Rebuild consumers and read release notes when upgrading. |
 | `GYGAX_PLUGIN_ABI_VERSION` (`1`) | Layout and callbacks in `gygax/sdk/plugin.h` | The loader requires an exact match and rejects other values. There is no negotiation or compatibility shim. |
 | CMake package version | `find_package(Gygax <version>)` package selection | CMake's `SameMajorVersion` package check is a package-selection rule, not proof that arbitrary headers or binaries are ABI-compatible. |
 
