@@ -11,7 +11,7 @@
   ╚═════╝    ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
 ```
 
-**0.5.0 "MATRIX REFACTORED" // SPATIAL EMBODIMENT & AUTONOMOUS SYSTEMS RUNTIME**
+**0.6.0 "OSINT & AUTONOMOUS RECONNAISSANCE" // SPATIAL EMBODIMENT & TRUTH VERIFICATION**
 
 [![OpenXR](https://img.shields.io/badge/OpenXR-1.1_Native-00f0ff.svg?style=flat-square&logo=khronos&logoColor=white)](https://www.khronos.org/openxr/)
 [![Vulkan](https://img.shields.io/badge/Vulkan-Multiview_120Hz-ff2255.svg?style=flat-square&logo=vulkan&logoColor=white)](https://www.khronos.org/vulkan/)
@@ -32,7 +32,7 @@ Gygax is a C++26 runtime for autonomous systems. It ships as five things that sh
 
 Everything documented here is exercised by the test suite (426 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
 
-**New in 0.5.0 "Matrix Refactored":** glyder scenes (Calm, Chaos, OHFlock and Live, from the lobby or the in-world menu), `gygax mcp` so LM Studio and other MCP clients can use Gygax's tools, and a Unitree Go2 quadruped driver. Builds on 0.4.0 "Matrix" (glyder, Gygax in VR). See the [release notes](docs/releases/v0.5.0.md) and the [changelog](CHANGELOG.md).
+**New in 0.6.0 "OSINT & Autonomous Reconnaissance":** Hierarchical OSINT engine (Local to Global), bare TIFF/EXIF GPS coordinate and IPTC metadata verification, tactical OpenCV HUD overlay (`O` to toggle, `L` to cycle levels), multi-domain reconnaissance survey with coordinated Drones, UGV Rovers, and Humanoid Scouts, truth verification against physical telemetry, and emergency evacuation directives. See the [changelog](CHANGELOG.md).
 
 ## Quick start: run it as a service
 

@@ -266,8 +266,8 @@
   <div class="hero" id="top">
     <canvas id="field" aria-hidden="true"></canvas>
     <div class="hero-inner">
-      <div class="hero-matrix-badge"><span class="rec-pulse"></span> <b>0.5.0 “MATRIX REFACTORED”</b> &mdash; Spatial Computing in VR with 120Hz OpenXR on Meta Quest 3S &amp; PC <a href="#glyder">Tour The Construct &rarr;</a></div>
-      <div class="eyebrow">A field guide to autonomous systems · v0.5.0 “Matrix Refactored”</div>
+      <div class="hero-matrix-badge"><span class="rec-pulse"></span> <b>0.6.0 “OSINT &amp; AUTONOMOUS RECONNAISSANCE”</b> &mdash; Coordinated Drone, Robot &amp; Humanoid Truth Verification <a href="#recon">Explore Survey &rarr;</a></div>
+      <div class="eyebrow">A field guide to autonomous systems · v0.6.0 “OSINT &amp; Reconnaissance”</div>
       <h1>God doesn't<br>play <em>dice.</em></h1>
       <p class="hero-sub">Neither should the systems we trust with the physical world. Gygax is an open-source runtime for agents, simulation, robotics, neuromorphic computing, satellite tracking and VR, designed to make behavior testable and authority explicit.</p>
       <div class="hero-actions">
@@ -376,6 +376,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
         <article class="capability"><div class="cap-icon">10</div><div><h3>Acoustic study (simulation only)</h3><p>Compare phase-aware tone estimates at explicit 2D observation points and sample synthetic amplitude-modulated alerts. This model has no speaker, audio-output, or flight-control integration; modeled cancellation at one point says nothing conclusive about other locations.</p><div class="tag-list"><span class="tag">Coherent tones</span><span class="tag">Point-specific estimate</span><span class="tag">No hardware output</span></div></div></article>
         <article class="capability"><div class="cap-icon">11</div><div><h3>SatLink satellite tracking</h3><p>Checksum-verified two-line elements, SGP4 and SDP4 that reproduce the reference implementation&rsquo;s verification output to 0.12&nbsp;mm, look angles, Doppler from the exact range rate, rise/culminate/set pass prediction, radio retuning through Hamlib <code>rigctld</code>, and SDR reception over <code>rtl_tcp</code> with an FFT spectrum and a Doppler-removing mixer. From C++, the C ABI, Python (with a Skyfield-shaped subset), or <code>gygax track</code>. It never downloads elements; you bring them.</p><div class="tag-list"><span class="tag">SGP4 / SDP4</span><span class="tag">Doppler</span><span class="tag">Pass prediction</span><span class="tag">Hamlib rigctld</span><span class="tag">RTL-SDR</span><span class="tag">gygax track</span></div><p style="margin-top:10px"><a href="https://github.com/magneato/gygax/blob/main/docs/SATLINK.md">Read the SatLink guide ↗</a></p></div></article>
         <article class="capability"><div class="cap-icon">12</div><div><h3>glyder: Gygax in VR</h3><p>A Gygax world on a map table in a headset: grab, turn and zoom it, then point at a node and ride it at full scale. Natively on Meta Quest (OpenXR on Vulkan, no engine) and in a desktop window. A paired, HMAC-authenticated UDP protocol, head motion rendered locally so it never waits on the network, a code-generated low-poly model kit, and vision correction from a spectacle prescription.</p><div class="tag-list"><span class="tag">Meta Quest</span><span class="tag">OpenXR</span><span class="tag">Vulkan</span><span class="tag">Drop-in control</span><span class="tag">Prescription optics</span></div><p style="margin-top:10px"><a href="https://github.com/magneato/gygax/blob/main/docs/GLYDER.md">Read the glyder guide ↗</a></p></div></article>
+        <article class="capability"><div class="cap-icon">13</div><div><h3>OSINT and Geolocation Truth Verification</h3><p>5-tier hierarchical intelligence engine (Local, Regional, National, Theater, Global) cross-referencing multi-domain events with live telemetry. Bare TIFF/EXIF GPS coordinate extraction, IPTC location verification, real-time OpenCV HUD overlay with operator toggle keys (<code>O</code> toggle, <code>L</code> level cycle), and automated emergency evacuation corridors when intelligence reporting is compromised.</p><div class="tag-list"><span class="tag">Hierarchical OSINT</span><span class="tag">EXIF/IPTC Geolocation</span><span class="tag">Tactical HUD</span><span class="tag">Truth Verification</span><span class="tag">Evacuation Directives</span></div></div></article>
       </div>
     </section>
 
@@ -439,7 +440,7 @@ python3 examples/python/stdp_demo.py</code></pre></article>
 ./build/gygax serve --glyder        # live robotics node on holo-table</pre>
 
             <div class="vr-buttons" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:20px;">
-              <a href="glyder/glyder-0.5.0-quest.apk" class="button primary" style="background:#7df9ff; color:#04070a; border-color:#7df9ff; box-shadow:0 0 16px rgba(125, 249, 255, 0.25);" download>⬇ Download Quest APK (1 MB)</a>
+              <a href="glyder/glyder-0.6.0-quest.apk" class="button primary" style="background:#7df9ff; color:#04070a; border-color:#7df9ff; box-shadow:0 0 16px rgba(125, 249, 255, 0.25);" download>⬇ Download Quest APK (v0.6.0)</a>
               <a href="https://github.com/magneato/gygax/blob/main/docs/GLYDER.md" class="button">Read glyder Guide ↗</a>
               <a href="https://github.com/magneato/gygax/blob/main/docs/releases/v0.5.0.md" class="button">Release Notes</a>
             </div>
@@ -481,6 +482,15 @@ python3 examples/python/stdp_demo.py</code></pre></article>
 ./build/ohflock --serve 1987        # gyde --url http://127.0.0.1:1987</pre>
             <p style="margin-top:15px"><a href="examples/ohflock/ohflock.html">Watch the 3D replay ↗</a> · <a href="https://github.com/magneato/gygax/blob/main/docs/OHFLOCK.md">How it works and what is real</a></p>
           </div>
+        </article>
+        <article class="showcase-item" id="recon">
+          <div class="eyebrow">SHOWCASE 05 / RECON SURVEY · OSINT &amp; GEOLOCATION</div>
+          <h3>Multi-domain survey: Drones, Robots, Humanoids</h3>
+          <p>An autonomous tripartite reconnaissance unit coordinates in real time: an <strong>Aerial Drone</strong> performs high-altitude photogrammetric survey; a <strong>Ground UGV Robot</strong> scans perimeter barriers with LiDAR; and an agile <strong>Humanoid Scout</strong> inspects tight structural coordinates. Every captured frame undergoes bare TIFF/EXIF GPS parsing to verify claimed locations against true physical telemetry. When intelligence feeds diverge or hostile intrusions are detected, the system immediately calculates and engages an emergency fallback evacuation corridor (<code>EVAC-01</code>) so operators and assets safely evacuate.</p>
+          <pre>./build/recon_survey                       # Coordinated multi-domain survey with live HUD
+./build/recon_survey --headless --seconds 15 # Automated batch survey verification
+./build/recon_survey --verify-exif photo.jpg # Standalone image geolocation truth check</pre>
+          <p style="margin-top:15px"><a href="https://github.com/magneato/gygax/blob/main/examples/recon_survey/main.cpp">View recon_survey source ↗</a> · <a href="#capabilities">OSINT capabilities</a></p>
         </article>
       </div>
       <div class="callout">

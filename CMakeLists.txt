@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(gygax VERSION 0.5.0 LANGUAGES CXX)
+project(gygax VERSION 0.6.0 LANGUAGES CXX)
 
 # Pre-release label and release name. A pre-release is tagged v<version>-<label>
 # (v0.4.1-alpha.1); a final release leaves it empty and is tagged v<version> (v0.4.0).

@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 "OSINT & Autonomous Reconnaissance" (2026-10-24)
+
+### Added
+- **OSINT & Geolocation Truth Verification Module**:
+  - 5-level hierarchical intelligence monitor (`Local`, `Regional`, `National`, `Theater`, `Global`) tracking critical infrastructure, maritime, cyber, and aerospace domain events (`include/gygax/intel/osint.hpp`).
+  - Bare TIFF/EXIF GPS metadata parser and IPTC verification (`include/gygax/intel/metadata.hpp`).
+  - Tactical HUD overlay with operator toggle keys (`O` and `L`).
+- **Autonomous Multi-Domain Reconnaissance Survey**:
+  - Coordinated Aerial Drones, UGV Rovers, and Humanoid Scouts verifying field truth with emergency evacuation corridors (`examples/recon_survey/main.cpp`).
+- **Quest Native OpenXR v0.6.0 APK Package**:
+  - Upgraded standalone Quest APK release asset `glyder-0.6.0-quest.apk` / `gollum.apk`.
 
 ## 0.5.0 "Matrix Refactored" (2026-10-21)
 
