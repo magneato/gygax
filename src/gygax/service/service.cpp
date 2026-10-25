@@ -22,6 +22,7 @@
 #include <gygax/core/log.hpp>
 #include <gygax/net/http.hpp>
 #include <gygax/neuro/network.hpp>
+#include <gygax/intel/osint.hpp>
 #include <gygax/logistics/ledger.hpp>
 #include <gygax/robotics/device.hpp>
 #include <gygax/service/expression.hpp>
@@ -328,6 +329,7 @@ struct Service::Impl {
     std::vector<std::string> ownedTools;
     robotics::DeviceRegistry devices;
     std::unique_ptr<logistics::Ledger> ledger;
+    intel::OsintEngine osint;
     std::vector<ExternalModule> modules;
 
     std::mutex layoutMutex;
@@ -347,7 +349,8 @@ struct Service::Impl {
     void registerBuiltinTools() {
         auto& reg = tools::ToolRegistry::getInstance();
         ownedTools = {"time.now",     "math.eval",        "node.info",         "neuro.run",      "webpage.construct", "device.list",
-                      "device.state", "logistics.record", "logistics.summary", "logistics.plan", "logistics.units"};
+                      "device.state", "logistics.record", "logistics.summary", "logistics.plan", "logistics.units",
+                      "osint.ingest", "osint.feed",   "osint.assess",      "geo.verify"};
         if (config.enableDeviceCommands) ownedTools.emplace_back("device.command");
         reg.registerTool("time.now", [](const std::string&) { return isoNow(); }, "Current UTC time in ISO-8601");
         reg.registerTool(
@@ -427,6 +430,65 @@ struct Service::Impl {
             "Range-aware route plan that inserts refuel stops. Input JSON: {unit or sku, origin, waypoints:[{latitude,longitude}], "
             "return_home, max_range_m, fuel}");
         logisticsTool("logistics.units", "units.list", "List tracked units. Input JSON: {sku, status: active|lost|retired, limit}");
+        reg.registerTool(
+            "osint.ingest",
+            [this](const std::string& input) {
+                auto parsed = json::parse(input);
+                if (!parsed) throw std::runtime_error("input must be JSON: {\"events\": [...]}, an array of events or GeoJSON points");
+                std::string error;
+                std::size_t skipped = 0;
+                const auto taken = osint.loadJson(*parsed, &error, &skipped);
+                if (taken == 0 && !error.empty()) throw std::runtime_error(error);
+                json::Value out = json::Value::object();
+                out["ingested"] = taken;
+                out["skipped"] = skipped;
+                out["total"] = osint.eventCount();
+                return out.dump();
+            },
+            "Add open-source intelligence events. Each event: {title, latitude, longitude, level: local|regional|national|theater|global, "
+            "domain: infrastructure|maritime|cyber|aerospace|geophysical|security|other, severity 1-5, source, time, confidence 0-1, radius_km}");
+        reg.registerTool(
+            "osint.feed",
+            [this](const std::string& input) {
+                intel::Level level = intel::Level::Local;
+                std::optional<intel::Domain> domain;
+                if (auto p = json::parse(input); p && p->isObject()) {
+                    if (auto l = intel::parseLevel(p->getString("level", "local"))) level = *l;
+                    if (p->contains("domain")) domain = intel::parseDomain(p->getString("domain"));
+                }
+                json::Value list = json::Value::array();
+                for (const auto& e : osint.feed(level, domain)) list.push(intel::OsintEngine::toJson(e));
+                json::Value out = json::Value::object();
+                out["level"] = intel::levelName(level);
+                out["events"] = std::move(list);
+                return out.dump();
+            },
+            "Events a monitor at a level sees: that level and wider, plus lower-level events severe enough to escalate. Input: {level, domain}");
+        reg.registerTool(
+            "osint.assess",
+            [this](const std::string& input) {
+                auto p = json::parse(input);
+                if (!p || !p->isObject() || !p->contains("latitude") || !p->contains("longitude"))
+                    throw std::runtime_error("input must be {\"latitude\", \"longitude\", \"radius_km\"}");
+                json::Value out = intel::OsintEngine::toJson(
+                    osint.assess(p->getDouble("latitude"), p->getDouble("longitude"), p->getDouble("radius_km", 5.0)));
+                return out.dump();
+            },
+            "Threat assessment around a position from the ingested OSINT events, weighted by severity, corroboration and age");
+        reg.registerTool(
+            "geo.verify",
+            [this](const std::string& input) {
+                auto p = json::parse(input);
+                if (!p || !p->isObject() || !p->contains("latitude") || !p->contains("longitude"))
+                    throw std::runtime_error("input must be {\"latitude\", \"longitude\", \"description\", \"software\"}");
+                intel::ImageMetadata meta;
+                meta.latitude = p->getDouble("latitude");
+                meta.longitude = p->getDouble("longitude");
+                meta.description = p->getString("description");
+                meta.software = p->getString("software");
+                return intel::OsintEngine::toJson(osint.verifyLocation(meta)).dump();
+            },
+            "Check a photograph's GPS position (and what its metadata says it shows) against known reference sites");
         if (config.enableDeviceCommands) {
             reg.registerTool(
                 "device.command",

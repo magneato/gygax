@@ -260,15 +260,15 @@ json::Value call(service::Service& svc, const char* method, json::Value params =
     return json::Value::object();
 }
 
-// AI Director: Synthesizes high-level directional advice and visual co-pilot cues
+// flight advisor: Synthesizes high-level directional advice and visual co-pilot cues
 // Tailored for sensory accessibility:
 // - Tritanopia-safe: High-contrast amber & jade guidance vectors (no blue/violet cues)
 // - Deaf / Hard of Hearing: 100% visual text subtitles via host.event() and host.status()
 // - ADHD & Autism: Calm, predictable, discrete step-by-step guidance, zero flashing
-class AiDirector {
+class FlightAdvisor {
 public:
     bool invited{true}; // Active by default; can be toggled by headset orders
-    std::string directive{"[AI CO-PILOT (10 MINDS DEEP)] Sovereign node active. Scan the space or drop into a vehicle."};
+    std::string directive{"[FLIGHT ADVISOR] Sovereign node active. Scan the space or drop into a vehicle."};
     double lastEventTime{0};
     std::uint32_t currentFocusEntity{0};
 
@@ -276,10 +276,10 @@ public:
         for (const auto& ord : orders) {
             if (ord.find("ai") != std::string::npos || ord.find("invite") != std::string::npos || ord.find("help") != std::string::npos) {
                 invited = true;
-                host.event(wire::EventKind::Brain, "[AI DIRECTOR (10 MINDS DEEP)] 10-Mind Council Invited. Directing your actions.", t);
+                host.event(wire::EventKind::Brain, "[FLIGHT ADVISOR] Advisor invited. Guiding your actions.", t);
             } else if (ord.find("stop") != std::string::npos || ord.find("dismiss") != std::string::npos) {
                 invited = false;
-                host.event(wire::EventKind::Brain, "[AI DIRECTOR (10 MINDS DEEP)] AI Director Standby. Manual observation.", t);
+                host.event(wire::EventKind::Brain, "[FLIGHT ADVISOR] Advisor standby. Manual observation.", t);
             }
         }
     }
@@ -290,13 +290,13 @@ public:
         lastEventTime = t;
 
         if (pilotDriven) {
-            directive = "[AI CO-PILOT (10 MINDS DEEP)] Manual pilot engaged. Altitude & heading monitored. Release sticks to hold.";
+            directive = "[FLIGHT ADVISOR] Manual pilot engaged. Altitude & heading monitored. Release sticks to hold.";
             host.event(wire::EventKind::Brain, directive, t);
             return;
         }
 
         if (vehicles.empty()) {
-            directive = "[AI DIRECTOR (10 MINDS DEEP)] Gygax world online. Headset registered as operator node.";
+            directive = "[FLIGHT ADVISOR] Gygax world online. Headset registered as operator node.";
             host.event(wire::EventKind::Brain, directive, t);
             return;
         }
@@ -312,7 +312,7 @@ public:
         if (candidate) {
             currentFocusEntity = candidate->entity;
             directive =
-                std::format("[AI DIRECTIVE (10 MINDS DEEP)] Point at {} ({}, alt {:.1f}m, bat {:.0f}%) & pull trigger to take control.",
+                std::format("[ADVISOR] Point at {} ({}, alt {:.1f}m, bat {:.0f}%) & pull trigger to take control.",
                             candidate->id, candidate->armed ? "Armed" : "Standby", candidate->altRel, candidate->battery);
             host.event(wire::EventKind::Brain, directive, t);
         }
@@ -332,7 +332,7 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
     ho.environment = static_cast<std::uint8_t>(glyder::render::Environment::Dusk);
     ho.radius = 400;
     ho.snapshotHz = 30;
-    ho.help = "Point at a machine and pull the trigger to drop in. AI Director is active to guide your flight.\n"
+    ho.help = "Point at a machine and pull the trigger to drop in. The flight advisor is active to guide your flight.\n"
               "Accessibility: High-contrast warm amber & jade palette, deaf visual telemetry active.";
     glyder::Host host(ho);
     std::string error;
@@ -355,7 +355,7 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
     bool haveOrigin = o.haveOrigin;
     Commander commander(svc);
     std::unique_ptr<DevicePilot> pilot;
-    AiDirector aiDirector;
+    FlightAdvisor advisor;
     using clock = std::chrono::steady_clock;
     auto next = clock::now(), last = next;
     const auto t0 = clock::now();
@@ -425,8 +425,8 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
         if (!pilot && haveOrigin) pilot = std::make_unique<DevicePilot>(vehicles, commander, commands, lat0, lon0);
         if (pilot) host.service(*pilot, std::min(dt, 0.1));
 
-        // Process incoming pilot orders to invite or dismiss AI Director
-        aiDirector.processOrders(host.takeOrders(), t, host);
+        // Process incoming pilot orders to invite or dismiss flight advisor
+        advisor.processOrders(host.takeOrders(), t, host);
 
         bool pilotDriven = false;
         std::vector<wire::EntityState> out;
@@ -483,16 +483,16 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
         gygaxCore.scale = 1.3f;
         out.push_back(gygaxCore);
 
-        // Evaluate AI Director guidance
-        aiDirector.evaluate(t, vehicles, pilotDriven, host);
+        // Evaluate flight advisor guidance
+        advisor.evaluate(t, vehicles, pilotDriven, host);
 
-        host.info(kHeadsetOperatorId, "VR OPERATOR NODE (YOU)", aiDirector.directive);
-        host.info(kGygaxComputeNodeId, "GYGAX SOVEREIGN CORE", "Multi-Mind AI Director Engine");
+        host.info(kHeadsetOperatorId, "VR OPERATOR NODE (YOU)", advisor.directive);
+        host.info(kGygaxComputeNodeId, "GYGAX SOVEREIGN CORE", "Flight Advisor Engine");
 
         // Visual Guidance Beam: Amber vector from Operator to target vehicle
         std::vector<wire::Effect> effects;
-        if (aiDirector.invited && aiDirector.currentFocusEntity && vehicles.count(aiDirector.currentFocusEntity)) {
-            const auto& targetV = vehicles.at(aiDirector.currentFocusEntity);
+        if (advisor.invited && advisor.currentFocusEntity && vehicles.count(advisor.currentFocusEntity)) {
+            const auto& targetV = vehicles.at(advisor.currentFocusEntity);
             wire::Effect beam;
             beam.kind = wire::EffectKind::Beam;
             beam.colour = {245, 158, 11}; // Tritan-safe warm amber #F59E0B
@@ -507,8 +507,8 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
 
         const std::string lastError = commander.lastError();
         host.status({{"NODE", "VR HEADSET (OPERATOR)", wire::Tone::Good},
-                     {"AI DIRECTOR", aiDirector.invited ? "ACTIVE (INVITED)" : "STANDBY", wire::Tone::Good},
-                     {"DIRECTIVE", aiDirector.directive, wire::Tone::Warn},
+                     {"ADVISOR", advisor.invited ? "ACTIVE (INVITED)" : "STANDBY", wire::Tone::Good},
+                     {"DIRECTIVE", advisor.directive, wire::Tone::Warn},
                      {"MACHINES", std::to_string(vehicles.size()), wire::Tone::Normal},
                      {"ARMED", std::to_string(armed), armed ? wire::Tone::Warn : wire::Tone::Normal},
                      {"COMMANDS", commands ? "ENABLED" : "VIEW ONLY", commands ? wire::Tone::Warn : wire::Tone::Good},

@@ -262,7 +262,7 @@ public:
             addr = static_cast<uint16_t>(addr + size);
         }
         for (auto& f : findings) pushThought(f);
-        printBanner("GYGAX AI ASSISTANT", {"rule-based static analyzer", "(not a live LLM; see source banner)"});
+        printBanner("GYGAX CODE ANALYZER", {"rule-based static analyzer", "(not a live LLM; see source banner)"});
         for (auto& f : findings) std::cout << "  " << f << "\n";
         std::cout << "\n  " << summarizeThoughts() << "\n\n";
     }

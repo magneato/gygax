@@ -1,16 +1,22 @@
 # Changelog
 
-## 0.6.0 "OSINT & Autonomous Reconnaissance" (2026-10-24)
+## 0.7.0 "OSINT & Autonomous Reconnaissance" (2026-10-25)
 
 ### Added
-- **OSINT & Geolocation Truth Verification Module**:
-  - 5-level hierarchical intelligence monitor (`Local`, `Regional`, `National`, `Theater`, `Global`) tracking critical infrastructure, maritime, cyber, and aerospace domain events (`include/gygax/intel/osint.hpp`).
-  - Bare TIFF/EXIF GPS metadata parser and IPTC verification (`include/gygax/intel/metadata.hpp`).
-  - Tactical HUD overlay with operator toggle keys (`O` and `L`).
-- **Autonomous Multi-Domain Reconnaissance Survey**:
-  - Coordinated Aerial Drones, UGV Rovers, and Humanoid Scouts verifying field truth with emergency evacuation corridors (`examples/recon_survey/main.cpp`).
-- **Quest Native OpenXR v0.6.0 APK Package**:
-  - Upgraded standalone Quest APK release asset `glyder-0.6.0-quest.apk` / `gollum.apk`.
+- **OSINT and geolocation module** (`include/gygax/intel/`), dependency-free and unit-tested:
+  - `OsintEngine`: five monitoring levels (Local, Regional, National, Theater, Global) with severity-based bubbling of local events upward; JSON, bare-array and GeoJSON (USGS-style) feed loaders, file and HTTP ingest; corroboration across independent sources; time-decayed threat assessment; reconciliation of a "secure" or "hostile" status report against the evidence.
+  - Image metadata: bounds-checked EXIF/TIFF (GPS, camera, software), JPEG APP1/APP13 (IPTC) and PNG `eXIf` parsers, plus TIFF/JPEG writers.
+  - Geolocation verification: distance from the photograph's GPS fix to reference sites, cross-check of the caption against the site name, penalty for images edited in photo editors.
+- Service tools `osint.ingest`, `osint.feed`, `osint.assess` and `geo.verify`.
+- `examples/recon_survey`: terminal HUD (`O` overlay, `L` level, `E` evacuate, `Q` quit), driven by real engine data; `--feed`, `--verify-image`, `--evac-test`, JSON report.
+- Quest APK `glyder-0.7.0-quest.apk`.
+
+### Changed
+- The flight advisor in the glyder demo host and the code analyzer in `gygax coco` are no longer branded as AI.
+
+## 0.6.0 (2026-10-24)
+
+Release tag only. The OSINT sources listed in its first draft were not in the tree; they shipped in 0.7.0.
 
 ## 0.5.0 "Matrix Refactored" (2026-10-21)
 
