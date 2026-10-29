@@ -9,6 +9,10 @@
 #include <gygax/core/json.hpp>
 #include <gygax/inference/backend.hpp>
 
+namespace gygax::oliphaunt {
+class Memory;
+}
+
 namespace gygax::service {
 
 inline constexpr std::uint16_t kDefaultServicePort = 1984;
@@ -26,6 +30,7 @@ struct ServiceConfig {
     bool enableHttp = true;
     bool enableDeviceCommands = false;
     std::string ledgerPath;
+    std::string oliphauntPath; // sighting memory file; empty keeps it in RAM only
     std::vector<std::string> plugins;
     std::vector<std::string> extensions;
     std::vector<std::string> mcpServers;
@@ -64,6 +69,8 @@ public:
     [[nodiscard]] std::uint16_t port() const;
     [[nodiscard]] const ServiceConfig& config() const;
     [[nodiscard]] inference::EnginePool& pool();
+    // Operation Oliphaunt's sighting memory (valid from construction until the service is destroyed).
+    [[nodiscard]] oliphaunt::Memory& oliphaunt();
 
     [[nodiscard]] json::Value rpc(const json::Value& request);
     [[nodiscard]] std::string metricsText();

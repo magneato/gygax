@@ -198,6 +198,8 @@ void App::loadState() {
         if (key == "colour") colour_ = colour::fromToken(value);
         if (key == "cues") cues_ = value == "on";
         if (key == "blind") blind_ = value == "on";
+        if (key == "base") base_ = value == "on";
+        if (key == "ar") ar_ = value == "on";
     }
 }
 
@@ -209,7 +211,8 @@ void App::saveState() const {
     for (const auto& [a, c] : paired_) hosts << a << " " << c << "\n";
     if (!options_.rememberAccess) return;
     std::ofstream access(options_.storageDir + "/access.txt");
-    access << "colour " << colour::token(colour_) << "\ncues " << (cues_ ? "on" : "off") << "\nblind " << (blind_ ? "on" : "off") << "\n";
+    access << "colour " << colour::token(colour_) << "\ncues " << (cues_ ? "on" : "off") << "\nblind " << (blind_ ? "on" : "off")
+           << "\nbase " << (base_ ? "on" : "off") << "\nar " << (ar_ ? "on" : "off") << "\n";
 }
 
 void App::applyRx() {
@@ -238,6 +241,7 @@ void App::connectTo(const net::Address& a, const std::string& secret, const std:
     terrain_.reset();
     trails_.clear();
     events_.clear();
+    oliphauntCards_.clear();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -337,6 +341,7 @@ render::FrameData App::frame(const Input& in, std::span<const EyeView> eyes, std
     }
     if (overlay_ == Overlay::Menu) menu(in);
     if (overlay_ == Overlay::Vision) visionPanel(in);
+    if (ar_ && !base_ && world_) oliphauntPanel(in);
     hud(in);
     controllers(in);
     rain(in);
@@ -402,6 +407,10 @@ render::FrameData App::frame(const Input& in, std::span<const EyeView> eyes, std
         post_.colour[row] = {cm.m[k], cm.m[k + 1], cm.m[k + 2], row == 0 && colourOn ? 1.0f : 0.0f};
     }
     if (colourOn) f.post = &post_;
+    if (ar_ && !base_ && in.passthroughAvailable) {
+        f.drawSky = false;
+        f.clear = {0, 0, 0, 0};
+    }
     f.scene = scene_;
     f.items = items_;
     f.panels = panels_;
@@ -468,6 +477,7 @@ void App::poll(const Input& in) {
             } else {
                 mode_ = Mode::Lobby;
                 toast(upper(err), 5);
+                oliphauntCards_.clear();
             }
         }
     } else if ((mode_ == Mode::Overview || mode_ == Mode::Ride) && st == Client::State::Failed) {
@@ -475,6 +485,7 @@ void App::poll(const Input& in) {
         if (mode_ == Mode::Ride) leaveRide("");
         mode_ = Mode::Lobby;
         world_.reset();
+        oliphauntCards_.clear();
     }
     // The host switched scenes: take in the new world where we stand.
     if ((mode_ == Mode::Overview || mode_ == Mode::Ride) && client_->worldRevision() != worldRevision_) {
@@ -505,6 +516,31 @@ void App::poll(const Input& in) {
             case wire::EventKind::Order:
             case wire::EventKind::Pilot: earcon(523.25f, 659.25f, 0.35f); break;
             default: earcon(587.33f, 587.33f, 0.2f); break;
+            }
+        }
+        constexpr std::string_view marker = "[OLIPHAUNT] ";
+        if (e.text.rfind(marker, 0) == 0) {
+            const std::string message = e.text.substr(marker.size());
+            const std::size_t separator = message.find(" | ");
+            if (separator != std::string::npos) {
+                const std::size_t idStart = message.rfind(' ', separator);
+                const std::string id = idStart == std::string::npos ? std::string{} : message.substr(idStart + 1, separator - idStart - 1);
+                if (id.size() == 12) {
+                    auto found = std::find_if(oliphauntCards_.begin(), oliphauntCards_.end(),
+                                              [&](const OliphauntCard& card) { return card.id == id; });
+                    if (found == oliphauntCards_.end()) oliphauntCards_.push_front({id, message});
+                    else {
+                        found->text = message;
+                        std::rotate(oliphauntCards_.begin(), found, std::next(found));
+                    }
+                    while (oliphauntCards_.size() > 5) oliphauntCards_.pop_back();
+                }
+            } else if (message.rfind("forgot ", 0) == 0) {
+                const std::string id = message.substr(7);
+                std::erase_if(oliphauntCards_, [&](const OliphauntCard& card) { return card.id == id; });
+            } else if (message.rfind("trusted ", 0) == 0) {
+                const std::string id = message.substr(8);
+                std::erase_if(oliphauntCards_, [&](const OliphauntCard& card) { return card.id == id; });
             }
         }
         events_.push_back(std::move(e));
@@ -1256,7 +1292,7 @@ void App::hud(const Input& in) {
             label(net, o + rr * (half.x * 2 - 0.032f * s), rr, uu, 0.0115f * s, client_->rtt() < 0.03 ? kGreen : kAmber, Align::Right);
         }
         // The newest event, briefly, as a subtitle (not over an open panel).
-        if (!events_.empty() && in.time - eventAt_ < 7.0 && overlay_ == Overlay::None) {
+        if (!base_ && !events_.empty() && in.time - eventAt_ < 7.0 && overlay_ == Overlay::None) {
             const float a = clamp(Fd(7.0 - (in.time - eventAt_)), 0.0f, 1.0f);
             const std::string text = events_.back().text.size() > 96 ? events_.back().text.substr(0, 94) + ".." : events_.back().text;
             label(text, c - u * (mode_ == Mode::Ride ? 0.2f : 0.3f), r, u, 0.017f, kPaper, Align::Centre,
@@ -1287,7 +1323,7 @@ void App::menu(const Input& in) {
     // Scenes in one row, orders in two columns, then the settings.
     const int orderRows = (static_cast<int>(orders.size()) + 1) / 2;
     const float scenesH = 0.1f;
-    const float rowsH = 0.05f * F(7 + orderRows) + (orders.empty() ? 0.0f : 0.03f) + scenesH;
+    const float rowsH = 0.05f * F(9 + orderRows) + (orders.empty() ? 0.0f : 0.03f) + scenesH;
     card(c, r, u, {0.24f, rowsH * 0.5f + 0.04f}, kInk, 235, kCyan, 0.004f);
     Vec3 o = c + u * (rowsH * 0.5f) + nrm;
     label("MENU", o - r * 0.21f, r, u, 0.022f, kCyan);
@@ -1321,6 +1357,10 @@ void App::menu(const Input& in) {
     o -= u * 0.05f;
     if (button(in, "blindbtn", o, r, u, {0.2f, 0.021f}, blind_ ? "BLIND MODE  ON" : "BLIND MODE  OFF", blind_)) setBlindMode(!blind_);
     o -= u * 0.05f;
+    if (button(in, "basebtn", o, r, u, {0.2f, 0.021f}, base_ ? "BASE MODE  ON" : "BASE MODE  OFF", base_)) setBaseMode(!base_);
+    o -= u * 0.05f;
+    if (button(in, "arbtn", o, r, u, {0.2f, 0.021f}, ar_ ? "AR MODE  ON" : "AR MODE  OFF", ar_)) setArMode(!ar_);
+    o -= u * 0.05f;
     if (button(in, "visionbtn", o, r, u, {0.2f, 0.021f}, "VISION")) {
         overlay_ = Overlay::Vision;
         placed = false;
@@ -1330,6 +1370,7 @@ void App::menu(const Input& in) {
         if (mode_ == Mode::Ride) leaveRide("");
         client_->disconnect();
         world_.reset();
+        oliphauntCards_.clear();
         mode_ = Mode::Lobby;
         overlay_ = Overlay::None;
         placed = false;
@@ -1629,6 +1670,57 @@ void App::setBlindMode(bool on) {
     if (on) earcon(523.25f, 1046.5f, 0.6f);
     toast(on ? "BLIND MODE: LISTEN. POINT TO HEAR A NODE; TRIGGER TO DROP IN" : "BLIND MODE OFF", 4);
     saveState();
+}
+
+void App::setBaseMode(bool on) {
+    base_ = on;
+    if (on) ar_ = false;
+    earcon(on ? 440.0f : 330.0f, on ? 660.0f : 440.0f, 0.5f);
+    toast(on ? "BASE MODE: PLAIN VIEW, SOUND FIRST. VISION CORRECTION AND COLOUR FILTERS STAY ON" : "BASE MODE OFF", 4);
+    saveState();
+}
+
+void App::setArMode(bool on) {
+    ar_ = on;
+    if (on) base_ = false;
+    toast(on ? "AR MODE: PASSTHROUGH AND OLIPHAUNT OVERLAY" : "AR MODE OFF", 4);
+    saveState();
+}
+
+void App::oliphauntPanel(const Input& in) {
+    const UiLayer layer(*this);
+    const Quat yaw = yawOnly(in.head.q);
+    const Vec3 right = rotate(yaw, {1, 0, 0});
+    const Vec3 up = rotate(yaw, {0, 1, 0});
+    const Vec3 centre = in.head.pos + rotate(yaw, {0, -0.16f, -0.82f});
+    const Vec3 normal = normalize(cross(right, up)) * 0.003f;
+    const float halfHeight = 0.12f + 0.045f * F(static_cast<int>(std::min<std::size_t>(oliphauntCards_.size(), 3)));
+    card(centre, right, up, {0.31f, halfHeight}, kInk, 225, kCyan, 0.003f);
+    Vec3 at = centre + up * (halfHeight - 0.035f) + normal;
+    label("OLIPHAUNT  |  NEVER FORGETS", at - right * 0.28f, right, up, 0.016f, kCyan);
+    at -= up * 0.045f;
+    if (button(in, "oliphaunt-report", at, right, up, {0.28f, 0.017f}, "WHO'S FOLLOWING ME?  CHECK MEMORY")) {
+        client_->order("oliphaunt report");
+        toast("OLIPHAUNT REPORT REQUESTED", 3);
+    }
+    at -= up * 0.047f;
+    const std::size_t count = std::min<std::size_t>(oliphauntCards_.size(), 3);
+    for (std::size_t i = 0; i < count; ++i) {
+        const OliphauntCard& finding = oliphauntCards_[i];
+        const std::string summary = finding.text.size() > 58 ? finding.text.substr(0, 55) + "..." : finding.text;
+        label(summary, at - right * 0.28f, right, up, 0.013f, kPaper);
+        const Vec3 trustAt = at + right * 0.13f - up * 0.025f;
+        if (button(in, "oliphaunt-trust:" + finding.id, trustAt, right, up, {0.07f, 0.014f}, "TRUST")) {
+            client_->order("oliphaunt trust " + finding.id);
+            toast("TRUST REQUESTED FOR " + finding.id, 3);
+        }
+        const Vec3 forgetAt = at + right * 0.24f - up * 0.025f;
+        if (button(in, "oliphaunt-forget:" + finding.id, forgetAt, right, up, {0.065f, 0.014f}, "FORGET")) {
+            client_->order("oliphaunt forget " + finding.id);
+            toast("FORGET REQUESTED FOR " + finding.id, 3);
+        }
+        at -= up * 0.052f;
+    }
 }
 
 void App::earcon(float hz, float hz2, float gain) {

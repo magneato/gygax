@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.28)
-project(gygax VERSION 0.7.0 LANGUAGES CXX)
+project(gygax VERSION 0.8.0 LANGUAGES CXX)
 
 # Pre-release label and release name. A pre-release is tagged v<version>-<label>
 # (v0.4.1-alpha.1); a final release leaves it empty and is tagged v<version> (v0.4.0).
 set(GYGAX_VERSION_PRERELEASE "")
-set(GYGAX_RELEASE_NAME "OSINT & Autonomous Reconnaissance")
+set(GYGAX_RELEASE_NAME "Oliphaunt")
 if(GYGAX_VERSION_PRERELEASE AND NOT GYGAX_VERSION_PRERELEASE MATCHES "^(alpha|beta|rc)\\.[0-9]+$")
     # Only these map one to one onto PEP 440 (alpha.1 -> a1) and Debian (~alpha.1) versions.
     message(FATAL_ERROR "GYGAX_VERSION_PRERELEASE must be alpha.N, beta.N or rc.N, not '${GYGAX_VERSION_PRERELEASE}'")
@@ -119,6 +119,7 @@ target_sources(gygax
         src/gygax/satlink/sdr.cpp
         src/gygax/intel/metadata.cpp
         src/gygax/intel/osint.cpp
+        src/gygax/oliphaunt/memory.cpp
 )
 
 target_include_directories(gygax PUBLIC
@@ -236,6 +237,10 @@ if(GYGAX_BUILD_EXAMPLES)
     target_link_libraries(arrival PRIVATE gygax)
     gygax_warnings(arrival)
 
+    add_executable(oliphaunt examples/oliphaunt/main.cpp)
+    target_link_libraries(oliphaunt PRIVATE gygax)
+    gygax_warnings(oliphaunt)
+
     add_executable(recon_survey examples/recon_survey/main.cpp)
     target_link_libraries(recon_survey PRIVATE gygax)
     gygax_warnings(recon_survey)
@@ -297,6 +302,7 @@ if(GYGAX_BUILD_TESTS)
         tests/unit/test_satlink.cpp
         tests/unit/test_sdr.cpp
         tests/unit/test_intel.cpp
+        tests/unit/test_oliphaunt.cpp
     )
     target_include_directories(gygax_tests PRIVATE tests/unit)
     target_link_libraries(gygax_tests PRIVATE gygax gtest gtest_main)

@@ -11,13 +11,13 @@
   ╚═════╝    ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
 ```
 
-**0.7.0 "OSINT & AUTONOMOUS RECONNAISSANCE" // SPATIAL EMBODIMENT & TRUTH VERIFICATION**
+**0.8.0 "OLIPHAUNT" // NEVER FORGETS**
 
 [![OpenXR](https://img.shields.io/badge/OpenXR-1.1_Native-00f0ff.svg?style=flat-square&logo=khronos&logoColor=white)](https://www.khronos.org/openxr/)
 [![Vulkan](https://img.shields.io/badge/Vulkan-Multiview_120Hz-ff2255.svg?style=flat-square&logo=vulkan&logoColor=white)](https://www.khronos.org/vulkan/)
 [![Meta Quest](https://img.shields.io/badge/Meta_Quest-3S_%7C_3_%7C_Pro-0082fb.svg?style=flat-square&logo=meta&logoColor=white)](docs/GLYDER.md)
 [![Pure C++26](https://img.shields.io/badge/C%2B%2B-26_Modules-00599c.svg?style=flat-square&logo=c%2B%2B&logoColor=white)](CMakeLists.txt)
-[![Tests](https://img.shields.io/badge/CTest-426_Passing-00e676.svg?style=flat-square)](CMakeLists.txt)
+[![Tests](https://img.shields.io/badge/CTest-465_Passing-00e676.svg?style=flat-square)](CMakeLists.txt)
 [![License](https://img.shields.io/badge/License-Clear_BSD-efbd74.svg?style=flat-square)](LICENSE)
 
 </div>
@@ -30,9 +30,9 @@ Gygax is a C++26 runtime for autonomous systems. It ships as five things that sh
 - **SatLink**: satellite tracking for ground stations. SGP4/SDP4 that reproduces the reference implementation to a tenth of a millimetre, look angles, exact range-rate Doppler, pass prediction, radio retuning through Hamlib `rigctld`, and reception with an RTL-SDR over `rtl_tcp`.
 - **glyder (Matrix Upgrade)**: Gygax in VR. A running simulation, or the real machines on a node, on a 3D tactical map table in a Meta Quest or a desktop window; point at any node to ride it at full 1:1 scale and take its controls, then jack out and its autonomy resumes.
 
-Everything documented here is exercised by the test suite (426 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
+Everything documented here is exercised by the test suite (465 CTest entries), the built-in `gygax doctor`, and the sanitizer builds.
 
-**New in 0.7.0 "OSINT & Autonomous Reconnaissance":** Hierarchical OSINT engine (Local to Global), bare TIFF/EXIF GPS coordinate and IPTC metadata verification, terminal HUD overlay (`O` to toggle, `L` to cycle levels), multi-domain reconnaissance survey with coordinated Drones, UGV Rovers, and Humanoid Scouts, truth verification against physical telemetry, and emergency evacuation directives. See [docs/OSINT.md](docs/OSINT.md) and the [changelog](CHANGELOG.md).
+**New in 0.8.0 "Oliphaunt":** persistent, privacy-conscious memory for recurring sightings, service tools and CLI, and a Quest AR overlay with passthrough and accessible base mode. Camera capture is experimental and opt-in; it counts frames only and does not identify or recognize objects. See [docs/OLIPHAUNT.md](docs/OLIPHAUNT.md), [docs/GLYDER.md](docs/GLYDER.md), and the [changelog](CHANGELOG.md). The OSINT and geolocation tools from 0.7.0 remain available.
 
 ## Quick start: run it as a service
 
@@ -128,7 +128,7 @@ with satlink.Rig("127.0.0.1", 4532) as rig:                 # Hamlib rigctld
 
 ```bash
 # 1. Install the standalone Quest APK directly (Quest 3S / Quest 3 / Quest Pro)
-adb install -r glyder/glyder-0.7.0-quest.apk
+adb install -r glyder/glyder-0.8.0-quest.apk
 
 # 2. Or run Gygax with Glyder spatial streaming enabled on LAN (UDP 1999)
 ./build/gygax serve --glyder --glyder-open
@@ -139,7 +139,7 @@ adb install -r glyder/glyder-0.7.0-quest.apk
 
 Open glyder on the headset (or run `glyder --demo` on a Linux desktop with Vulkan), choose the active node in the lobby, or drop directly into The Construct. The world is presented on a 3D tactical map table: grip to drag and turn it, both grips to scale it, and point at any autonomous agent or drone and pull the trigger to drop in at 1:1 scale. The agent hands you the controls at its next stopping point; press **B** to jack out and return to the map table while autonomy resumes seamlessly.
 
-- **Standalone Meta Quest APK**: [glyder-0.7.0-quest.apk](glyder/glyder-0.7.0-quest.apk) (1.0 MB, pure native C++26 / OpenXR / Vulkan 120 Hz, zero Android Studio / Gradle bloat).
+- **Standalone Meta Quest APK**: [glyder-0.8.0-quest.apk](glyder/glyder-0.8.0-quest.apk) (pure native C++ / OpenXR / Vulkan, zero Android Studio / Gradle bloat).
 - **Construct VR Tour**: See [glyder/construct-tour.mp4](glyder/construct-tour.mp4) for a 20-second simulated tour of the holographic map table and drop-in quadcopter flight.
 - **Universal Neuro-Accessibility**: Built-in Tritanopia/Protanopia/Deuteranopia colour-vision correction shaders, Deaf directional visual subtitles & controller haptic pulses, and AAudio spatial synthesis.
 - **Documentation & Protocol**: Building from source, pairing codes, spectacle prescription correction, and network packet architecture are documented in [docs/GLYDER.md](docs/GLYDER.md).
@@ -162,7 +162,8 @@ Open glyder on the headset (or run `glyder --demo` on a Linux desktop with Vulka
 | Transports | POSIX serial, sysfs GPIO, Hayes modem, raw/PJL printing, Marlin G-code with line numbers, checksums and resend | `include/gygax/transport`, [docs/TRANSPORTS.md](docs/TRANSPORTS.md) |
 | Robotics | MAVLink drones and vehicles, SocketCAN/CAN FD, ISO-TP, OBD-II, J1939, DBC, CANopen, Modbus, NMEA, ADS-B, ARINC 429, ROS bridge, virtual autopilot; commands off by default | `src/gygax/robotics`, `src/gygax/bus`, [docs/ROBOTICS.md](docs/ROBOTICS.md) |
 | Supply chain | GUID-tracked units, append-only ledger (`-3 ba99x drone=quadcopter power=solar`), flow reports, range-aware routing with refuel stops | `src/gygax/logistics`, [docs/LOGISTICS.md](docs/LOGISTICS.md) |
-| VR | glyder: lobby, map table and drop-in ride; HMAC-authenticated UDP protocol with velocity snapshots and a reliable channel; shared handling for instant response; code-generated low-poly model kit with glTF export; vision correction (PD, prism, sphere/cylinder pre-sharpening); Vulkan multiview renderer; Meta Quest app (OpenXR, built without Gradle) and desktop viewer; `--glyder` on `gygax serve`, `ohflock` and `wargames` | `glyder/`, `tools/glyder_devices.cpp`, [docs/GLYDER.md](docs/GLYDER.md) |
+| VR | glyder: lobby, map table and drop-in ride; Quest passthrough AR and Oliphaunt cards; low-vision base mode; HMAC-authenticated UDP protocol; vision correction and colour filters; Meta Quest app and desktop viewer | `glyder/`, `tools/glyder_devices.cpp`, [docs/GLYDER.md](docs/GLYDER.md) |
+| Oliphaunt | Salted-hash identifiers, persistent sightings, safe places, trust/forget controls, concern escalation, CLI and service tools; Quest AR overlay | `include/gygax/oliphaunt`, [docs/OLIPHAUNT.md](docs/OLIPHAUNT.md) |
 | Showcase | `ohflock`: twenty-four unarmed kites hold a relief corridor open against fighters, a SAM battery, AAA and strike jets with light on sensors, thrown sound and SatLink (Doppler navigation under GNSS jamming, relay windows, a reconnaissance pass waited out), and fire nothing; a 3D replay, gyde control, VR (`--glyder`), and a `--no-satlink` counterfactual | `examples/ohflock`, [docs/OHFLOCK.md](docs/OHFLOCK.md) |
 | Showcase | `wargames`: Gygax agents defend a last bunker against an alien invasion with drones, tanks, turrets and supply drones, using the agent runtime, collective consensus, the ledger, route planner and a spiking hive; a human can direct them live, or take a tank or drone in VR (`--glyder`) | `examples/wargames`, [docs/WARGAMES.md](docs/WARGAMES.md) |
 | SDKs | Native plugin SDK (C ABI, C++ helper, CMake package), Python extension SDK, Python bindings and client, all built by `cmake --build` | `include/gygax/sdk`, `python/`, [docs/EXTENSIONS.md](docs/EXTENSIONS.md), [public API and trust boundaries](docs/SDK_API.md) |

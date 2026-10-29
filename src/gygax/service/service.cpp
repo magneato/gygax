@@ -23,6 +23,7 @@
 #include <gygax/net/http.hpp>
 #include <gygax/neuro/network.hpp>
 #include <gygax/intel/osint.hpp>
+#include <gygax/oliphaunt/memory.hpp>
 #include <gygax/logistics/ledger.hpp>
 #include <gygax/robotics/device.hpp>
 #include <gygax/service/expression.hpp>
@@ -260,6 +261,7 @@ ServiceConfig ServiceConfig::fromEnvironment() {
     c.allowInsecureRemote = get("GYGAX_ALLOW_INSECURE_REMOTE") == "1";
     c.enableDeviceCommands = get("GYGAX_DEVICE_COMMANDS") == "1";
     c.ledgerPath = get("GYGAX_LEDGER_PATH");
+    c.oliphauntPath = get("GYGAX_OLIPHAUNT_PATH");
     c.plugins = split(get("GYGAX_PLUGINS"));
     c.extensions = split(get("GYGAX_EXTENSIONS"));
     c.mcpServers = split(get("GYGAX_MCP"));
@@ -330,6 +332,7 @@ struct Service::Impl {
     robotics::DeviceRegistry devices;
     std::unique_ptr<logistics::Ledger> ledger;
     intel::OsintEngine osint;
+    std::unique_ptr<oliphaunt::Memory> oliphauntMemory;
     std::vector<ExternalModule> modules;
 
     std::mutex layoutMutex;
@@ -350,7 +353,8 @@ struct Service::Impl {
         auto& reg = tools::ToolRegistry::getInstance();
         ownedTools = {"time.now",     "math.eval",        "node.info",         "neuro.run",      "webpage.construct", "device.list",
                       "device.state", "logistics.record", "logistics.summary", "logistics.plan", "logistics.units",
-                      "osint.ingest", "osint.feed",   "osint.assess",      "geo.verify"};
+                      "osint.ingest", "osint.feed",   "osint.assess",      "geo.verify",
+                      "oliphaunt.observe", "oliphaunt.report", "oliphaunt.trust", "oliphaunt.forget", "oliphaunt.safe_place"};
         if (config.enableDeviceCommands) ownedTools.emplace_back("device.command");
         reg.registerTool("time.now", [](const std::string&) { return isoNow(); }, "Current UTC time in ISO-8601");
         reg.registerTool(
@@ -489,6 +493,89 @@ struct Service::Impl {
                 return intel::OsintEngine::toJson(osint.verifyLocation(meta)).dump();
             },
             "Check a photograph's GPS position (and what its metadata says it shows) against known reference sites");
+        auto needObject = [](const std::string& input) {
+            auto p = json::parse(input);
+            if (!p || !p->isObject()) throw std::runtime_error("input must be a JSON object");
+            return *p;
+        };
+        auto kindOf = [](const json::Value& p) {
+            const auto kind = oliphaunt::parseKind(p.getString("kind", "vehicle"));
+            if (!kind) throw std::runtime_error("kind must be vehicle, person, device or other");
+            return *kind;
+        };
+        reg.registerTool(
+            "oliphaunt.observe",
+            [this, needObject, kindOf](const std::string& input) {
+                const auto p = needObject(input);
+                oliphaunt::Sighting s;
+                s.kind = kindOf(p);
+                s.identifier = p.getString("identifier");
+                s.label = p.getString("label");
+                s.place = p.getString("place");
+                s.time = p.getInt("time", 0);
+                if (p.contains("latitude") && p.contains("longitude")) {
+                    s.latitude = p.getDouble("latitude");
+                    s.longitude = p.getDouble("longitude");
+                }
+                std::string error;
+                const auto finding = oliphauntMemory->observe(s, &error);
+                if (!finding) throw std::runtime_error(error);
+                return oliphaunt::Memory::toJson(*finding).dump();
+            },
+            "Record a sighting of a vehicle, person or device for Operation Oliphaunt. The identifier (plate, MAC...) is hashed and never stored. "
+            "Input: {kind, identifier, label, latitude, longitude, place, time}. Returns the entity's standing, including whether it is following you");
+        reg.registerTool(
+            "oliphaunt.report",
+            [this](const std::string& input) {
+                oliphaunt::Concern minimum = oliphaunt::Concern::Notice;
+                if (auto p = json::parse(input); p && p->isObject() && p->contains("minimum")) {
+                    const auto c = oliphaunt::parseConcern(p->getString("minimum"));
+                    if (!c) throw std::runtime_error("minimum must be none, noted, notice, alert or persistent");
+                    minimum = *c;
+                }
+                json::Value list = json::Value::array();
+                for (const auto& f : oliphauntMemory->report(minimum)) list.push(oliphaunt::Memory::toJson(f));
+                json::Value out = json::Value::object();
+                out["findings"] = std::move(list);
+                out["entities"] = oliphauntMemory->entityCount();
+                return out.dump();
+            },
+            "What keeps turning up: everything at or above a concern level (none, noted, notice, alert, persistent), worst first. Input: {minimum}");
+        reg.registerTool(
+            "oliphaunt.trust",
+            [this, needObject, kindOf](const std::string& input) {
+                const auto p = needObject(input);
+                const bool trusted = !p.contains("trusted") || p.getBool("trusted");
+                json::Value out = json::Value::object();
+                out["ok"] = oliphauntMemory->trust(kindOf(p), p.getString("identifier"), trusted);
+                return out.dump();
+            },
+            "Mark an entity as known and harmless (a neighbour, a colleague). Input: {kind, identifier, trusted}");
+        reg.registerTool(
+            "oliphaunt.forget",
+            [this, needObject, kindOf](const std::string& input) {
+                const auto p = needObject(input);
+                json::Value out = json::Value::object();
+                if (p.getBool("all")) {
+                    oliphauntMemory->forgetAll();
+                    out["ok"] = true;
+                } else {
+                    out["ok"] = oliphauntMemory->forget(kindOf(p), p.getString("identifier"));
+                }
+                return out.dump();
+            },
+            "Erase what Oliphaunt remembers: one entity {kind, identifier}, or everything with {all: true}");
+        reg.registerTool(
+            "oliphaunt.safe_place",
+            [this, needObject](const std::string& input) {
+                const auto p = needObject(input);
+                if (!p.contains("latitude") || !p.contains("longitude")) throw std::runtime_error("latitude and longitude are required");
+                oliphauntMemory->addSafePlace({p.getString("name"), p.getDouble("latitude"), p.getDouble("longitude"), p.getDouble("radius_m", 150.0)});
+                json::Value out = json::Value::object();
+                out["safe_places"] = oliphauntMemory->safePlaces().size();
+                return out.dump();
+            },
+            "Declare a place (home, work) where meeting something does not count as being followed. Input: {name, latitude, longitude, radius_m}");
         if (config.enableDeviceCommands) {
             reg.registerTool(
                 "device.command",
@@ -1460,6 +1547,7 @@ bool Service::start(std::string* error) {
         oo.defaultModel = im.config.defaultModel;
         oo.protocol = im.config.toolProtocol == "atari" ? inference::ToolProtocol::Atari : inference::ToolProtocol::Json;
         im.ledger = std::make_unique<logistics::Ledger>(im.config.ledgerPath);
+        im.oliphauntMemory = std::make_unique<oliphaunt::Memory>(im.config.oliphauntPath);
         im.orchestrator = std::make_unique<inference::Orchestrator>(im.poolBackend, oo);
         im.registerBuiltinTools();
         im.loadExternalModules();
@@ -1509,6 +1597,9 @@ bool Service::running() const {
 }
 std::uint16_t Service::port() const {
     return impl_->server ? impl_->server->port() : 0;
+}
+oliphaunt::Memory& Service::oliphaunt() {
+    return *impl_->oliphauntMemory;
 }
 const ServiceConfig& Service::config() const {
     return impl_->config;

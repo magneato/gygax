@@ -139,6 +139,7 @@ void printUsage() {
         << "  --glyder-open                                 no pairing code (a private, trusted network only)\n"
         << "  --glyder-origin LAT,LON                       the map origin (default: the first machine's position)\n"
         << "  --ledger PATH [GYGAX_LEDGER_PATH]  append-only journal that makes the logistics ledger survive restarts\n"
+        << "  --oliphaunt PATH [GYGAX_OLIPHAUNT_PATH]  file where Operation Oliphaunt keeps its (hashed) sighting memory\n"
         << "  --plugin PATH [GYGAX_PLUGINS]    repeatable: load a native plugin (shared library built with the plugin SDK)\n"
         << "  --extension URL [GYGAX_EXTENSIONS]  repeatable: register tools served by an extension process (see docs/EXTENSIONS.md)\n"
         << "  --log-level L --log-format F     trace|debug|info|warn|error, text|json\n";
@@ -168,6 +169,7 @@ service::ServiceConfig configFrom(const Args& a) {
     if (a.has("allow-insecure-remote")) c.allowInsecureRemote = true;
     if (a.has("device-commands")) c.enableDeviceCommands = true;
     if (a.has("ledger")) c.ledgerPath = a.get("ledger");
+    if (a.has("oliphaunt")) c.oliphauntPath = a.get("oliphaunt");
     if (a.has("plugin")) c.plugins = a.all("plugin");
     if (a.has("extension")) c.extensions = a.all("extension");
     if (a.has("mcp")) c.mcpServers = a.all("mcp");

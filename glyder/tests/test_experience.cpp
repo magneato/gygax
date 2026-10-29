@@ -1,6 +1,7 @@
 // The experience without a GPU or a headset: prescriptions, and the app's whole journey from the
 // lobby into a node and out again, driven the way a headset drives it.
 
+#include <filesystem>
 #include <gtest/gtest.h>
 
 #include <chrono>
@@ -239,6 +240,54 @@ TEST(GlyderRx, PhonePageTakesAPrescriptionOnlyWithThePin) {
     // The page escapes what it echoes.
     EXPECT_EQ(htmlEscape("<b>&\"'"), "&lt;b&gt;&amp;&quot;&#39;");
     server.stop();
+}
+
+TEST(GlyderExperience, BaseModeKeepsSoundOnAndVisionCorrectionAndIsRemembered) {
+    const auto dir = std::filesystem::temp_directory_path() / "glyder-base-test";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    AppOptions o;
+    o.demo = true;
+    o.storageDir = dir.string();
+    o.rememberAccess = true;
+    {
+        App app(o);
+        EXPECT_FALSE(app.baseMode());
+        app.setColourVision(colour::Vision::Tritan, true, false);
+        app.setBaseMode(true);
+        EXPECT_TRUE(app.baseMode());
+        EXPECT_TRUE(app.audioCues());
+        EXPECT_EQ(app.colourVision(), colour::Vision::Tritan);
+    }
+    {
+        App again(o);
+        EXPECT_TRUE(again.baseMode());
+        EXPECT_EQ(again.colourVision(), colour::Vision::Tritan);
+        again.setBaseMode(false);
+        EXPECT_FALSE(again.audioCues());
+    }
+    std::filesystem::remove_all(dir);
+}
+
+TEST(GlyderExperience, ArUsesTransparentBackgroundAndBaseModeTakesPriority) {
+    AppOptions o;
+    o.demo = true;
+    App app(o);
+    EyeView eyes[2];
+    eyes[0].pose = {{-0.032f, 1.6f, 0}, Quat{}};
+    eyes[1].pose = {{0.032f, 1.6f, 0}, Quat{}};
+    Input in = headsetInput(net::now(), 0.011f);
+    in.passthroughAvailable = true;
+    app.setArMode(true);
+    const auto ar = app.frame(in, eyes, 1832, 1920);
+    EXPECT_FALSE(ar.drawSky);
+    EXPECT_FLOAT_EQ(ar.clear.w, 0.0f);
+    app.setBaseMode(true);
+    const auto base = app.frame(in, eyes, 1832, 1920);
+    EXPECT_TRUE(app.baseMode());
+    EXPECT_FALSE(app.arMode());
+    EXPECT_TRUE(base.drawSky);
+    EXPECT_FLOAT_EQ(base.clear.w, 1.0f);
 }
 
 TEST(GlyderExperience, BlindModeMakesTheWorldAudibleAndColourVisionReachesTheFinalPass) {

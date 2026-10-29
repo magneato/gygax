@@ -45,7 +45,7 @@ struct Options {
     float fovDeg{68};
     // Accessibility: applied at start (and remembered, as the menu does).
     std::string colour; // typical, tritan, protan, deutan
-    bool preview{false}, uncorrected{false}, cues{false}, blind{false};
+    bool preview{false}, uncorrected{false}, cues{false}, blind{false}, base{false};
     std::string audio; // headless: write the audio cues to this WAV, in step with the frames
 };
 
@@ -54,6 +54,7 @@ void applyAccess(App& app, const Options& o) {
         app.setColourVision(colour::fromToken(o.colour, app.colourVision()), !o.uncorrected, o.preview);
     if (o.cues) app.setAudioCues(true);
     if (o.blind) app.setBlindMode(true);
+    if (o.base) app.setBaseMode(true);
 }
 
 struct Cue {
@@ -91,13 +92,14 @@ void usage() {
         "  --seconds S            headless run time (default 8)\n"
         "  --fps N                headless frame rate (default 60)\n"
         "  --script \"T ACTION..;\" headless cues: drop ID|SHAPE | out | head X Y Z YAW PITCH | point X Y | click | menu | scene NAME | stick H X Y\n"
-        "                         colour MODE [preview] [raw] | cues on|off | blind on|off\n"
+        "                         colour MODE [preview] [raw] | cues on|off | blind on|off | base on|off\n"
         "  --rx \"OD ..\"           a prescription to apply (as written on it)\n"
         "  --colour MODE          colour vision: typical, tritan (no blue cones), protan (no red), deutan (no green)\n"
         "  --preview              show what that viewer sees (for viewers with typical colour vision)\n"
         "  --raw                  with --preview: without the correction\n"
         "  --cues                 audio cues for what is around you\n"
         "  --blind                blind mode: cues for everything, earcons, pointing sounds the node\n"
+        "  --base                 base mode: plain view, sound first, no AR/passthrough; vision correction and colour kept\n"
         "  --audio FILE.wav       headless: write the sound, in step with the frames\n",
         kVersion, kReleaseName, wire::kDefaultPort);
 }
@@ -245,6 +247,8 @@ int headless(const Options& o) {
                 app.setAudioCues(a[0] == "on");
             } else if (it->action == "blind" && !a.empty()) {
                 app.setBlindMode(a[0] == "on");
+            } else if (it->action == "base" && !a.empty()) {
+                app.setBaseMode(a[0] == "on");
             } else if (it->action == "scene" && !a.empty()) {
                 std::string name = a[0];
                 for (auto& ch : name) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
@@ -638,6 +642,8 @@ int main(int argc, char** argv) {
             o.uncorrected = true;
         else if (a == "--cues")
             o.cues = true;
+        else if (a == "--base")
+            o.base = true;
         else if (a == "--blind")
             o.blind = true;
         else if (a == "--audio")

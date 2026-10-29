@@ -23,7 +23,8 @@ layout(set = 0, binding = 1) uniform sampler2DArray scene;
 layout(location = 0) in vec2 vUv;
 layout(location = 0) out vec4 outColour;
 
-vec3 tap(vec2 uv) { return texture(scene, vec3(uv, float(gl_ViewIndex))).rgb; }
+vec4 sampleScene(vec2 uv) { return texture(scene, vec3(uv, float(gl_ViewIndex))); }
+vec3 tap(vec2 uv) { return sampleScene(uv).rgb; }
 
 // A 9-tap Gaussian along one direction, sampling between texels.
 vec3 blurAlong(vec2 uv, vec2 stepUv, float sigma) {
@@ -63,5 +64,5 @@ vec3 precompensate(vec3 c) {
 }
 
 void main() {
-    outColour = vec4(colourVision(precompensate(tap(vUv))), 1.0);
+    outColour = vec4(colourVision(precompensate(tap(vUv))), sampleScene(vUv).a);
 }

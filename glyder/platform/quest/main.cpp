@@ -8,11 +8,18 @@
 
 #define XR_USE_PLATFORM_ANDROID
 #define XR_USE_GRAPHICS_API_VULKAN
+#include <sys/system_properties.h>
 #include <aaudio/AAudio.h>
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <jni.h>
 #include <vulkan/vulkan.h>
+#include <camera/NdkCameraCaptureSession.h>
+#include <camera/NdkCameraDevice.h>
+#include <camera/NdkCameraManager.h>
+#include <camera/NdkCaptureRequest.h>
+#include <media/NdkImage.h>
+#include <media/NdkImageReader.h>
 
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
@@ -93,6 +100,134 @@ private:
     std::atomic<std::size_t> head_{0}, tail_{0};
 };
 
+class CameraCaptureHook {
+public:
+    ~CameraCaptureHook() { stop(); }
+
+    bool start() {
+        if (device_) return true;
+        failed_.store(false);
+        manager_ = ACameraManager_create();
+        if (!manager_) {
+            LOGE("camera hook: ACameraManager_create failed");
+            return false;
+        }
+        ACameraIdList* ids = nullptr;
+        if (ACameraManager_getCameraIdList(manager_, &ids) != ACAMERA_OK || !ids || ids->numCameras == 0) {
+            LOGE("camera hook: no camera devices available");
+            if (ids) ACameraManager_deleteCameraIdList(ids);
+            stop();
+            return false;
+        }
+        ACameraDevice_StateCallbacks deviceCallbacks{};
+        deviceCallbacks.context = this;
+        deviceCallbacks.onDisconnected = &CameraCaptureHook::disconnected;
+        deviceCallbacks.onError = &CameraCaptureHook::error;
+        camera_status_t opened = ACAMERA_ERROR_CAMERA_DISCONNECTED;
+        for (int i = 0; i < ids->numCameras && opened != ACAMERA_OK; ++i)
+            opened = ACameraManager_openCamera(manager_, ids->cameraIds[i], &deviceCallbacks, &device_);
+        ACameraManager_deleteCameraIdList(ids);
+        if (opened != ACAMERA_OK || !device_) {
+            LOGE("camera hook: unable to open headset camera (status %d); grant camera permission and try again", opened);
+            stop();
+            return false;
+        }
+        if (AImageReader_new(640, 480, AIMAGE_FORMAT_YUV_420_888, 2, &reader_) != AMEDIA_OK ||
+            AImageReader_setImageListener(reader_, &imageListener_) != AMEDIA_OK) {
+            LOGE("camera hook: could not create image reader");
+            stop();
+            return false;
+        }
+        ANativeWindow* window = nullptr;
+        if (AImageReader_getWindow(reader_, &window) != AMEDIA_OK || !window) {
+            LOGE("camera hook: could not get image reader window");
+            stop();
+            return false;
+        }
+        ACaptureSessionOutputContainer* outputs = nullptr;
+        ACaptureSessionOutput* output = nullptr;
+        ACameraOutputTarget* target = nullptr;
+        bool setup = ACaptureSessionOutputContainer_create(&outputs) == ACAMERA_OK &&
+                     ACaptureSessionOutput_create(window, &output) == ACAMERA_OK &&
+                     ACaptureSessionOutputContainer_add(outputs, output) == ACAMERA_OK;
+        ACameraCaptureSession_stateCallbacks sessionCallbacks{};
+        sessionCallbacks.context = this;
+        if (setup) setup = ACameraDevice_createCaptureSession(device_, outputs, &sessionCallbacks, &session_) == ACAMERA_OK;
+        if (setup) setup = ACameraOutputTarget_create(window, &target) == ACAMERA_OK;
+        if (setup) setup = ACameraDevice_createCaptureRequest(device_, TEMPLATE_PREVIEW, &request_) == ACAMERA_OK;
+        if (setup) setup = ACaptureRequest_addTarget(request_, target) == ACAMERA_OK;
+        if (setup) setup = ACameraCaptureSession_setRepeatingRequest(session_, nullptr, 1, &request_, nullptr) == ACAMERA_OK;
+        if (target) ACameraOutputTarget_free(target);
+        if (output) ACaptureSessionOutput_free(output);
+        if (outputs) ACaptureSessionOutputContainer_free(outputs);
+        if (!setup) {
+            LOGE("camera hook: could not start capture session");
+            stop();
+            return false;
+        }
+        LOGI("experimental camera capture started; frames are counted locally and not saved or recognized");
+        return true;
+    }
+
+    [[nodiscard]] bool failed() const { return failed_.load(); }
+
+    void stop() {
+        if (session_) {
+            ACameraCaptureSession_stopRepeating(session_);
+            ACameraCaptureSession_close(session_);
+            session_ = nullptr;
+        }
+        if (request_) {
+            ACaptureRequest_free(request_);
+            request_ = nullptr;
+        }
+        if (device_) {
+            ACameraDevice_close(device_);
+            device_ = nullptr;
+        }
+        if (reader_) {
+            AImageReader_setImageListener(reader_, nullptr);
+            AImageReader_delete(reader_);
+            reader_ = nullptr;
+        }
+        if (manager_) {
+            ACameraManager_delete(manager_);
+            manager_ = nullptr;
+        }
+    }
+
+private:
+    static void disconnected(void* context, ACameraDevice*) {
+        auto* self = static_cast<CameraCaptureHook*>(context);
+        LOGE("camera hook: headset camera disconnected");
+        self->failed_.store(true);
+    }
+    static void error(void* context, ACameraDevice*, int errorCode) {
+        auto* self = static_cast<CameraCaptureHook*>(context);
+        LOGE("camera hook: camera error %d", errorCode);
+        self->failed_.store(true);
+    }
+    static void imageAvailable(void* context, AImageReader* reader) {
+        auto* self = static_cast<CameraCaptureHook*>(context);
+        AImage* image = nullptr;
+        if (AImageReader_acquireLatestImage(reader, &image) != AMEDIA_OK || !image) return;
+        std::int32_t width = 0, height = 0;
+        AImage_getWidth(image, &width);
+        AImage_getHeight(image, &height);
+        const std::uint64_t frame = self->frames_.fetch_add(1, std::memory_order_relaxed) + 1;
+        if (frame == 1) LOGI("camera hook: receiving %dx%d frames; no image data is retained", width, height);
+        AImage_delete(image);
+    }
+    static inline AImageReader_ImageListener imageListener_{nullptr, &CameraCaptureHook::imageAvailable};
+    ACameraManager* manager_{nullptr};
+    ACameraDevice* device_{nullptr};
+    ACameraCaptureSession* session_{nullptr};
+    AImageReader* reader_{nullptr};
+    ACaptureRequest* request_{nullptr};
+    std::atomic<std::uint64_t> frames_{0};
+    std::atomic<bool> failed_{false};
+};
+
 bool ok(XrResult r, const char* what) {
     if (XR_SUCCEEDED(r)) return true;
     LOGE("%s failed: %d", what, static_cast<int>(r));
@@ -119,7 +254,18 @@ struct Quest {
     XrSpace stage{XR_NULL_HANDLE}, view{XR_NULL_HANDLE};
     XrSessionState state{XR_SESSION_STATE_UNKNOWN};
     bool sessionRunning{false}, exitRequested{false};
-    bool hasRefreshRate{false}, hasPerfSettings{false}, hasLocalFloor{false};
+    bool hasRefreshRate{false}, hasPerfSettings{false}, hasLocalFloor{false}, hasPassthrough{false};
+    bool passthroughActive{false}, alphaBlendSupported{false};
+    XrPassthroughFB passthrough{XR_NULL_HANDLE};
+    XrPassthroughLayerFB passthroughLayer{XR_NULL_HANDLE};
+    PFN_xrCreatePassthroughFB createPassthrough{nullptr};
+    PFN_xrDestroyPassthroughFB destroyPassthrough{nullptr};
+    PFN_xrPassthroughStartFB startPassthrough{nullptr};
+    PFN_xrPassthroughPauseFB pausePassthrough{nullptr};
+    PFN_xrCreatePassthroughLayerFB createPassthroughLayer{nullptr};
+    PFN_xrDestroyPassthroughLayerFB destroyPassthroughLayer{nullptr};
+    PFN_xrPassthroughLayerPauseFB pausePassthroughLayer{nullptr};
+    PFN_xrPassthroughLayerResumeFB resumePassthroughLayer{nullptr};
 
     XrSwapchain swapchain{XR_NULL_HANDLE};
     std::vector<XrSwapchainImageVulkan2KHR> images;
@@ -136,6 +282,8 @@ struct Quest {
     std::unique_ptr<render::Renderer> renderer;
     std::unique_ptr<App> app;
     Speaker speaker;
+    CameraCaptureHook camera;
+    bool cameraOptIn{false}, cameraActive{false}, cameraAttempted{false};
     std::vector<float> audioBlock;
     render::MeshId terrainMesh{0};
     double lastFrame{0};
@@ -178,6 +326,7 @@ bool Quest::init() {
     if ((hasRefreshRate = has(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME))) exts.push_back(XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME);
     if ((hasPerfSettings = has(XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME))) exts.push_back(XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME);
     if ((hasLocalFloor = has(XR_EXT_LOCAL_FLOOR_EXTENSION_NAME))) exts.push_back(XR_EXT_LOCAL_FLOOR_EXTENSION_NAME);
+    if ((hasPassthrough = has(XR_FB_PASSTHROUGH_EXTENSION_NAME))) exts.push_back(XR_FB_PASSTHROUGH_EXTENSION_NAME);
 
     XrInstanceCreateInfoAndroidKHR android_{XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
     android_.applicationVM = android->activity->vm;
@@ -276,6 +425,51 @@ bool Quest::initSession() {
     sci.next = &binding;
     sci.systemId = system;
     if (!ok(xrCreateSession(instance, &sci, &session), "xrCreateSession")) return false;
+    if (hasPassthrough) {
+        createPassthrough = proc<PFN_xrCreatePassthroughFB>(instance, "xrCreatePassthroughFB");
+        destroyPassthrough = proc<PFN_xrDestroyPassthroughFB>(instance, "xrDestroyPassthroughFB");
+        startPassthrough = proc<PFN_xrPassthroughStartFB>(instance, "xrPassthroughStartFB");
+        pausePassthrough = proc<PFN_xrPassthroughPauseFB>(instance, "xrPassthroughPauseFB");
+        createPassthroughLayer = proc<PFN_xrCreatePassthroughLayerFB>(instance, "xrCreatePassthroughLayerFB");
+        destroyPassthroughLayer = proc<PFN_xrDestroyPassthroughLayerFB>(instance, "xrDestroyPassthroughLayerFB");
+        pausePassthroughLayer = proc<PFN_xrPassthroughLayerPauseFB>(instance, "xrPassthroughLayerPauseFB");
+        resumePassthroughLayer = proc<PFN_xrPassthroughLayerResumeFB>(instance, "xrPassthroughLayerResumeFB");
+        if (createPassthrough && destroyPassthrough && startPassthrough && pausePassthrough && createPassthroughLayer &&
+            destroyPassthroughLayer && pausePassthroughLayer && resumePassthroughLayer) {
+            XrPassthroughCreateInfoFB passthroughInfo{XR_TYPE_PASSTHROUGH_CREATE_INFO_FB};
+            passthroughInfo.flags = XR_PASSTHROUGH_IS_RUNNING_AT_CREATION_BIT_FB;
+            if (XR_SUCCEEDED(createPassthrough(session, &passthroughInfo, &passthrough))) {
+                XrPassthroughLayerCreateInfoFB layerInfo{XR_TYPE_PASSTHROUGH_LAYER_CREATE_INFO_FB};
+                layerInfo.passthrough = passthrough;
+                layerInfo.purpose = XR_PASSTHROUGH_LAYER_PURPOSE_RECONSTRUCTION_FB;
+                if (XR_SUCCEEDED(createPassthroughLayer(session, &layerInfo, &passthroughLayer))) {
+                    pausePassthroughLayer(passthroughLayer);
+                    pausePassthrough(passthrough);
+                    std::uint32_t modeCount = 0;
+                    if (XR_SUCCEEDED(xrEnumerateEnvironmentBlendModes(instance, system, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+                                                                       0, &modeCount, nullptr))) {
+                        std::vector<XrEnvironmentBlendMode> modes(modeCount);
+                        if (XR_SUCCEEDED(xrEnumerateEnvironmentBlendModes(instance, system, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+                                                                          modeCount, &modeCount, modes.data()))) {
+                            alphaBlendSupported = std::find(modes.begin(), modes.end(), XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND) != modes.end();
+                        }
+                    }
+                    if (!alphaBlendSupported) {
+                        LOGI("passthrough available, but alpha blend mode is unsupported");
+                        pausePassthroughLayer(passthroughLayer);
+                        pausePassthrough(passthrough);
+                    } else {
+                        LOGI("Quest passthrough available; enable AR MODE in the menu");
+                    }
+                } else {
+                    destroyPassthrough(passthrough);
+                    passthrough = XR_NULL_HANDLE;
+                }
+            } else {
+                LOGI("Quest passthrough could not start; use base/standard mode");
+            }
+        }
+    }
 
     // Floor-level origin where the pilot stands: LOCAL_FLOOR when offered, else STAGE, else LOCAL
     // dropped to a typical standing eye height.
@@ -431,6 +625,13 @@ bool Quest::initSwapchain() {
     ao.storageDir = android->activity->internalDataPath ? android->activity->internalDataPath : "";
     ao.terrainMesh = terrainMesh;
     app = std::make_unique<App>(ao);
+    // `adb shell setprop debug.glyder.base 1` starts in base mode; the menu toggle is remembered after that.
+    char baseProp[PROP_VALUE_MAX] = {};
+    if (__system_property_get("debug.glyder.base", baseProp) > 0 && baseProp[0] == '1') app->setBaseMode(true);
+    char arProp[PROP_VALUE_MAX] = {};
+    if (__system_property_get("debug.glyder.ar", arProp) > 0 && arProp[0] == '1') app->setArMode(true);
+    char cameraProp[PROP_VALUE_MAX] = {};
+    cameraOptIn = __system_property_get("debug.glyder.camera", cameraProp) > 0 && cameraProp[0] == '1';
     if (!speaker.open(app->audioRate())) LOGE("no audio output; audio cues will be silent");
     return true;
 }
@@ -471,6 +672,14 @@ void Quest::pollEvents() {
             } else if (state == XR_SESSION_STATE_STOPPING) {
                 xrEndSession(session);
                 sessionRunning = false;
+                camera.stop();
+                cameraActive = false;
+                cameraAttempted = false;
+                if (passthroughActive) {
+                    pausePassthroughLayer(passthroughLayer);
+                    pausePassthrough(passthrough);
+                    passthroughActive = false;
+                }
             } else if (state == XR_SESSION_STATE_EXITING || state == XR_SESSION_STATE_LOSS_PENDING) {
                 exitRequested = true;
             }
@@ -491,6 +700,7 @@ void Quest::frame() {
 
     std::vector<XrCompositionLayerBaseHeader*> layers;
     XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
+    XrCompositionLayerPassthroughFB passthroughComposition{XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB};
     XrCompositionLayerProjectionView pv[2]{{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}, {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}};
 
     if (fs.shouldRender) {
@@ -499,6 +709,7 @@ void Quest::frame() {
         in.time = t;
         in.dt = lastFrame > 0 ? static_cast<float>(t - lastFrame) : 0.011f;
         lastFrame = t;
+        in.passthroughAvailable = alphaBlendSupported && passthroughLayer && passthrough;
         const XrTime when = fs.predictedDisplayTime;
 
         if (state == XR_SESSION_STATE_FOCUSED) {
@@ -564,6 +775,18 @@ void Quest::frame() {
                 eyes[i].tanDown = std::tan(views[i].fov.angleDown);
             }
             const render::FrameData fd = app->frame(in, eyes, width, height);
+            const bool wantCamera = cameraOptIn && app->arMode() && !app->baseMode();
+            if (wantCamera && !cameraAttempted) {
+                cameraAttempted = true;
+                cameraActive = camera.start();
+            } else if (!wantCamera && cameraAttempted) {
+                camera.stop();
+                cameraActive = false;
+                cameraAttempted = false;
+            } else if (cameraActive && camera.failed()) {
+                camera.stop();
+                cameraActive = false;
+            }
             if (auto mesh = app->takeTerrainMesh()) renderer->replaceMesh(terrainMesh, *mesh);
             if (const std::size_t n = speaker.wanted(); n > 0) {
                 audioBlock.resize(n * 2);
@@ -590,9 +813,30 @@ void Quest::frame() {
                 pv[i].subImage.imageRect = {{0, 0}, {static_cast<std::int32_t>(width), static_cast<std::int32_t>(height)}};
                 pv[i].subImage.imageArrayIndex = static_cast<std::uint32_t>(i);
             }
+            const bool usePassthrough = app->arMode() && !app->baseMode() && passthroughLayer && alphaBlendSupported;
+            if (usePassthrough != passthroughActive) {
+                if (usePassthrough) {
+                    if (XR_SUCCEEDED(startPassthrough(passthrough)) && XR_SUCCEEDED(resumePassthroughLayer(passthroughLayer)))
+                        passthroughActive = true;
+                    else {
+                        LOGE("could not resume passthrough layer");
+                        app->setArMode(false);
+                    }
+                } else {
+                    pausePassthroughLayer(passthroughLayer);
+                    pausePassthrough(passthrough);
+                    passthroughActive = false;
+                }
+            }
             layer.space = stage;
+            layer.layerFlags = usePassthrough && passthroughActive ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
             layer.viewCount = 2;
             layer.views = pv;
+            if (usePassthrough && passthroughActive) {
+                passthroughComposition.space = stage;
+                passthroughComposition.layerHandle = passthroughLayer;
+                layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&passthroughComposition));
+            }
             layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
 
             for (int h = 0; h < 2; ++h) {
@@ -611,13 +855,14 @@ void Quest::frame() {
     }
     XrFrameEndInfo ei{XR_TYPE_FRAME_END_INFO};
     ei.displayTime = fs.predictedDisplayTime;
-    ei.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+    ei.environmentBlendMode = passthroughActive ? XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND : XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
     ei.layerCount = static_cast<std::uint32_t>(layers.size());
     ei.layers = layers.data();
     xrEndFrame(session, &ei);
 }
 
 void Quest::shutdown() {
+    camera.stop();
     speaker.close();
     if (renderer) renderer->waitIdle();
     app.reset();
@@ -626,6 +871,8 @@ void Quest::shutdown() {
         for (VkImageView v : imageViews) vkDestroyImageView(gpu->device, v, nullptr);
     imageViews.clear();
     if (swapchain) xrDestroySwapchain(swapchain);
+    if (passthroughLayer && destroyPassthroughLayer) destroyPassthroughLayer(passthroughLayer);
+    if (passthrough && destroyPassthrough) destroyPassthrough(passthrough);
     if (actions) xrDestroyActionSet(actions);
     if (view) xrDestroySpace(view);
     if (stage) xrDestroySpace(stage);

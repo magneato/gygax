@@ -58,6 +58,7 @@ struct Input {
     Pose head;      // stage space (y up, metres)
     Hand hands[2];  // [0] left, [1] right
     bool desktop{false};
+    bool passthroughAvailable{false};
     // Desktop: the pointer ray when the mouse is over the window (replaces the right hand's aim).
     std::optional<Pose> pointer;
     std::string typed; // desktop: characters typed this frame
@@ -118,7 +119,13 @@ public:
     // Blind mode: audio cues for everything, earcons for what happens, the node you point at
     // sounds, and controllers pulse for anything incoming.
     void setBlindMode(bool on);
-    [[nodiscard]] bool audioCues() const { return cues_ || blind_; }
+    // Base mode: the plain view for someone with low vision, or a helper they pass the headset to. Sound first, no
+    // AR or passthrough or overlays from the host's extras; vision correction and colour filters stay as set.
+    void setBaseMode(bool on);
+    [[nodiscard]] bool baseMode() const { return base_; }
+    void setArMode(bool on);
+    [[nodiscard]] bool arMode() const { return ar_; }
+    [[nodiscard]] bool audioCues() const { return cues_ || blind_ || base_; }
     [[nodiscard]] bool blindMode() const { return blind_; }
     // The sound for the time since the last call: interleaved stereo, frames = out.size() / 2,
     // at audioRate(). Call once per frame after frame(); silence when cues are off.
@@ -167,6 +174,7 @@ private:
     void ride(const Input& in);
     void menu(const Input& in);
     void visionPanel(const Input& in);
+    void oliphauntPanel(const Input& in);
     void hud(const Input& in);
     void controllers(const Input& in);
     void rain(const Input& in);
@@ -260,8 +268,13 @@ private:
         std::string text;
         double until;
     };
+    struct OliphauntCard {
+        std::string id;
+        std::string text;
+    };
     std::deque<Toast> toasts_;
     std::deque<wire::Event> events_;
+    std::deque<OliphauntCard> oliphauntCards_;
     double eventAt_{0};
 
     // Comfort.
@@ -279,7 +292,7 @@ private:
     // Accessibility.
     colour::Vision colour_{colour::Vision::Typical};
     bool colourCorrect_{true}, colourPreview_{false};
-    bool cues_{false}, blind_{false};
+    bool cues_{false}, blind_{false}, base_{false}, ar_{false};
     audio::Mixer mixer_{48000};
     Mat4 heard_;          // render-from-world of the scene drawn this frame, for placing sounds
     float heardScale_{1}; // render metres per world metre

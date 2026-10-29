@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0 "Oliphaunt" (2026-10-25)
+
+### Added
+- **Operation Oliphaunt**: persistent sighting memory with salted identifier hashes, safe places, trust/forget controls,
+  retention, concern escalation, CLI, and service tools. Identifiers are not stored in clear text.
+- **glyder AR** on Quest using optional OpenXR passthrough, with Oliphaunt finding cards and report/trust/forget
+  actions; plain base mode is available for low-vision users and helpers.
+- Experimental Quest camera capture hook, explicitly opt-in. It counts frames locally; it does not recognize objects,
+  retain image data, or create sightings.
+- `docs/OLIPHAUNT.md` and release documentation.
+
+### Changed
+- Project, Python package, Quest APK, and documentation version to 0.8.0 "Oliphaunt".
+- Base mode keeps vision correction and colour filters as configured, makes audio cues available, and turns off AR.
+
 ## 0.7.0 "OSINT & Autonomous Reconnaissance" (2026-10-25)
 
 ### Added

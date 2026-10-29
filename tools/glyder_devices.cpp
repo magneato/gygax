@@ -8,6 +8,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <thread>
 
 #include <glyder/draw.hpp>
@@ -16,6 +17,7 @@
 #include <glyder/kit.hpp>
 
 #include <gygax/core/json.hpp>
+#include <gygax/oliphaunt/memory.hpp>
 
 namespace gygax::cli {
 
@@ -260,6 +262,73 @@ json::Value call(service::Service& svc, const char* method, json::Value params =
     return json::Value::object();
 }
 
+// Operation Oliphaunt in the headset: orders in ("oliphaunt report|trust ID|forget ID"), findings out as events of the
+// form "[OLIPHAUNT] <concern> <id> | <summary>" that the AR view turns into cards. Anything that reaches Alert is
+// announced on its own, once per escalation, without being asked.
+class OliphauntLink {
+public:
+    explicit OliphauntLink(oliphaunt::Memory& memory) : memory_(memory) {}
+
+    // Takes the oliphaunt orders out of `orders`; the rest are left for other handlers.
+    void processOrders(std::vector<std::string>& orders, double t, glyder::Host& host) {
+        std::vector<std::string> rest;
+        for (auto& ord : orders) {
+            if (ord.rfind("oliphaunt", 0) != 0) {
+                rest.push_back(std::move(ord));
+                continue;
+            }
+            std::string verb, arg;
+            std::istringstream in(ord.substr(9));
+            in >> verb >> arg;
+            if (verb == "report") {
+                sendReport(t, host, oliphaunt::Concern::Notice);
+            } else if (verb == "trust") {
+                host.event(glyder::wire::EventKind::Brain,
+                           memory_.trustById(arg) ? "[OLIPHAUNT] trusted " + arg : "[OLIPHAUNT] cannot trust " + arg, t);
+                announced_.erase(arg);
+                sendReport(t, host, oliphaunt::Concern::Notice);
+            } else if (verb == "forget") {
+                host.event(glyder::wire::EventKind::Brain,
+                           memory_.forgetById(arg) ? "[OLIPHAUNT] forgot " + arg : "[OLIPHAUNT] cannot forget " + arg, t);
+                announced_.erase(arg);
+                sendReport(t, host, oliphaunt::Concern::Notice);
+            }
+        }
+        orders = std::move(rest);
+    }
+
+    void evaluate(double t, glyder::Host& host) {
+        if (t - last_ < 10.0) return;
+        last_ = t;
+        for (const auto& f : memory_.report(oliphaunt::Concern::Alert)) {
+            auto [it, fresh] = announced_.try_emplace(f.id, f.concern);
+            if (!fresh && it->second >= f.concern) continue;
+            it->second = f.concern;
+            emit(f, t, host);
+        }
+    }
+
+private:
+    static void emit(const oliphaunt::Finding& f, double t, glyder::Host& host) {
+        host.event(glyder::wire::EventKind::Opfor, std::format("[OLIPHAUNT] {} {} | {}", oliphaunt::concernName(f.concern), f.id, f.summary), t);
+    }
+
+    void sendReport(double t, glyder::Host& host, oliphaunt::Concern minimum) {
+        const auto findings = memory_.report(minimum);
+        if (findings.empty())
+            host.event(glyder::wire::EventKind::Brain, std::format("[OLIPHAUNT] clear | nothing concerning among {} remembered", memory_.entityCount()), t);
+        std::size_t shown = 0;
+        for (const auto& f : findings) {
+            if (++shown > 5) break;
+            emit(f, t, host);
+        }
+    }
+
+    oliphaunt::Memory& memory_;
+    std::map<std::string, oliphaunt::Concern> announced_;
+    double last_{0};
+};
+
 // flight advisor: Synthesizes high-level directional advice and visual co-pilot cues
 // Tailored for sensory accessibility:
 // - Tritanopia-safe: High-contrast amber & jade guidance vectors (no blue/violet cues)
@@ -356,6 +425,7 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
     Commander commander(svc);
     std::unique_ptr<DevicePilot> pilot;
     FlightAdvisor advisor;
+    OliphauntLink oliphauntLink(svc.oliphaunt());
     using clock = std::chrono::steady_clock;
     auto next = clock::now(), last = next;
     const auto t0 = clock::now();
@@ -426,7 +496,10 @@ int runGlyderDevices(service::Service& svc, const GlyderDevicesOptions& o, const
         if (pilot) host.service(*pilot, std::min(dt, 0.1));
 
         // Process incoming pilot orders to invite or dismiss flight advisor
-        advisor.processOrders(host.takeOrders(), t, host);
+        auto pilotOrders = host.takeOrders();
+        oliphauntLink.processOrders(pilotOrders, t, host);
+        oliphauntLink.evaluate(t, host);
+        advisor.processOrders(pilotOrders, t, host);
 
         bool pilotDriven = false;
         std::vector<wire::EntityState> out;

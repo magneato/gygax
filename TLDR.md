@@ -33,7 +33,7 @@ authority explicitly.
 ./build/gygax track --tle examples/satlink/sample.tle --at 51.48,0,46 --start 2024-01-01T12:00
 ```
 
-**Trust it:** `ctest --test-dir build` runs 426 tests. `./scripts/dogfood.sh` adds sanitizer builds and a live
+**Trust it:** `ctest --test-dir build` runs 465 tests. `./scripts/dogfood.sh` adds sanitizer builds and a live
 service smoke test.
 
 **Licence:** Clear BSD (BSD-3-Clause-Clear), no patent rights granted. Personal, hobby, educational and

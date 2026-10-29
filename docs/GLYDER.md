@@ -99,7 +99,7 @@ to turn and climb. Host and headset run the same handling code, so your input sh
 it to within network jitter. Press **B** to jack out, instantly; autonomy resumes.
 
 **Menu** (Y on the left controller, Tab on a desktop): scenes, host orders, horizon lock, comfort vignette, colour vision, audio
-cues, blind mode, vision, and leave the host. glyder remembers your choices.
+cues, blind mode, base mode, AR mode, vision, and leave the host. glyder remembers your choices.
 
 ## Vision correction
 
@@ -128,6 +128,36 @@ glyder applies a correction in its final render pass, over the world and the int
 viewer would lose (Machado, Oliveira and Fernandes 2009, full severity) and moves those colour differences into ones
 they can see (daltonization). The desktop viewer's `--colour MODE --preview` shows a viewer with typical colour vision
 what a colour-blind viewer sees, with the correction, or with `--raw` without it.
+
+## Base mode
+
+For someone with low vision who is not blind, or who hands the headset to a helper. Base mode is the plain view: sound
+first (audio cues on), and none of the AR, passthrough or Oliphaunt overlays. Vision correction and colour filters stay
+exactly as you set them. Turn it on with BASE MODE in the menu (remembered), `--base` on the desktop viewer,
+`base on|off` in a `--script`, or on a Quest before launch with `adb shell setprop debug.glyder.base 1`. A helper can
+switch it off from the same menu button.
+
+## AR and Oliphaunt
+
+On a Quest with `XR_FB_passthrough`, enable **AR MODE** in the menu to show the Oliphaunt panel over the live
+passthrough view. `adb shell setprop debug.glyder.ar 1` starts in AR mode. The panel can request a report and offers
+TRUST and FORGET actions for findings. Turning on base mode disables AR and passthrough. If the runtime does not offer
+passthrough and alpha blending, glyder keeps the ordinary opaque background rather than showing a blank view.
+
+Oliphaunt findings appear after a report or an alert from the host. Service tools and the `oliphaunt` CLI are the ways
+to enter observations; the headset camera does not identify vehicles, people, plates or faces.
+
+### Experimental camera capture
+
+The Quest camera hook is off by default. To opt in, grant the platform's camera permissions, set
+`adb shell setprop debug.glyder.camera 1` before launching glyder, then enable AR MODE. The hook requests a camera stream and counts incoming
+frames locally; it does not save image data, run recognition, or create Oliphaunt sightings. Camera access may be
+unavailable on a given headset/runtime. Check logcat for the explicit start or permission error.
+
+On a development headset, permissions can be granted from an authorized ADB shell with
+`adb shell pm grant com.gygax.glyder android.permission.CAMERA` and
+`adb shell pm grant com.gygax.glyder horizonos.permission.HEADSET_CAMERA`. Platform permission requirements vary;
+the capture hook remains disabled unless explicitly opted in.
 
 ## Audio cues and blind mode
 

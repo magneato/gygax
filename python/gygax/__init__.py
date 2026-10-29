@@ -10,7 +10,7 @@ __all__ = ["Client", "Logistics", "ServiceError", "Extension", "ExtensionError",
 
 # The release version in PEP 440 form. The native library reports the SemVer-style form CMake
 # builds it with; version_pep440() maps one to the other (0.4.0 -> 0.4.0, 0.4.1-alpha.1 -> 0.4.1a1).
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 _PRE = {"alpha": "a", "beta": "b", "rc": "rc"}
 

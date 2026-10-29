@@ -32,6 +32,7 @@ Errors are always JSON:
 | `GYGAX_AGENT_TIMEOUT_MS` | `--agent-timeout-ms` | `120000` | Time limit for an agent chat request |
 | `GYGAX_DEVICE_COMMANDS` | `--device-commands` | off | Allow commands to robots, vehicles and buses ([ROBOTICS.md](ROBOTICS.md)) |
 | `GYGAX_LEDGER_PATH` | `--ledger` | none | Journal file for the logistics ledger ([LOGISTICS.md](LOGISTICS.md)) |
+| `GYGAX_OLIPHAUNT_PATH` | `--oliphaunt` | in-memory | Private persistent Oliphaunt memory file when configured; identifiers are stored only as salted hashes |
 | `GYGAX_PLUGINS` | `--plugin` (repeatable) | none | Native plugins to load ([EXTENSIONS.md](EXTENSIONS.md)) |
 | `GYGAX_EXTENSIONS` | `--extension` (repeatable) | none | Extension processes whose tools to register |
 | `GYGAX_MCP` | `--mcp` (repeatable) | none | `NAME=COMMAND ARGS` MCP servers started over stdio; tools appear as `mcp.NAME.TOOL` (see `docs/RESEARCH.md`) |
@@ -105,6 +106,7 @@ The loop: the model receives a system prompt listing the registered tools and th
 | `device.list`, `device.state` | id | Device inventory and telemetry |
 | `device.command` | `{"device","command",...}` | Only registered when device commands are enabled |
 | `logistics.record`, `logistics.summary`, `logistics.plan`, `logistics.units` | line or JSON | Inventory flow and route planning |
+| `oliphaunt.observe`, `oliphaunt.report`, `oliphaunt.trust`, `oliphaunt.forget`, `oliphaunt.safe_place` | JSON | Record and review sightings; identifiers are hashed before storage. See [OLIPHAUNT.md](OLIPHAUNT.md) |
 | `plugin.<name>.<tool>`, `ext.<name>.<tool>` | tool specific | Tools from plugins and extension processes ([EXTENSIONS.md](EXTENSIONS.md)) |
 
 Register your own from C++: `tools::ToolRegistry::getInstance().registerTool("name", fn, "description")`.

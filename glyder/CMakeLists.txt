@@ -139,7 +139,7 @@ if(ANDROID)
     target_include_directories(glyder_native_app_glue PUBLIC ${ANDROID_NDK}/sources/android/native_app_glue)
 
     add_library(glyder SHARED platform/quest/main.cpp)
-    target_link_libraries(glyder PRIVATE glyder_render glyder_native_app_glue glyder_openxr android log vulkan aaudio)
+    target_link_libraries(glyder PRIVATE glyder_render glyder_native_app_glue glyder_openxr android log vulkan aaudio camera2ndk mediandk)
     glyder_warnings(glyder)
     target_compile_options(glyder PRIVATE -Wno-missing-field-initializers)
     # Keep the NativeActivity entry point; 16 KB pages for current Android.
